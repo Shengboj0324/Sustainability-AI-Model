@@ -1,0 +1,181 @@
+# Vision Classifier Configuration
+# Waste and material classification from images
+
+model:
+  backbone: "vit_base_patch16_224"  # Vision Transformer
+  pretrained: true
+  pretrained_source: "timm"
+  
+  # Multi-head classification
+  multi_head: true
+  num_classes_item: 20      # Bottle, can, box, bag, cup, textile, e-waste, etc.
+  num_classes_material: 15  # PET, HDPE, PP, PVC, glass, aluminum, paper, etc.
+  num_classes_bin: 4        # Recycle, compost, landfill, hazardous
+  
+  # Model architecture
+  drop_rate: 0.1
+  drop_path_rate: 0.1
+  
+  # Class definitions
+  item_classes:
+    - "plastic_bottle"
+    - "glass_bottle"
+    - "aluminum_can"
+    - "steel_can"
+    - "cardboard_box"
+    - "paper"
+    - "plastic_bag"
+    - "food_container"
+    - "cup"
+    - "textile"
+    - "e_waste"
+    - "battery"
+    - "light_bulb"
+    - "organic_waste"
+    - "styrofoam"
+    - "tetra_pak"
+    - "mixed_plastic"
+    - "metal_scrap"
+    - "wood"
+    - "other"
+  
+  material_classes:
+    - "PET"
+    - "HDPE"
+    - "PVC"
+    - "LDPE"
+    - "PP"
+    - "PS"
+    - "glass"
+    - "aluminum"
+    - "steel"
+    - "paper"
+    - "cardboard"
+    - "cotton"
+    - "polyester"
+    - "mixed"
+    - "other"
+
+data:
+  # Data directories
+  train_dir: "data/processed/vision_cls/train"
+  val_dir: "data/processed/vision_cls/val"
+  test_dir: "data/processed/vision_cls/test"
+  
+  # Image processing
+  input_size: 224
+  interpolation: "bicubic"
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+  
+  # Data loading
+  num_workers: 8
+  pin_memory: true
+  persistent_workers: true
+  
+  # Augmentations for training
+  augmentations:
+    - type: "random_resized_crop"
+      size: 224
+      scale: [0.8, 1.0]
+      ratio: [0.9, 1.1]
+    - type: "horizontal_flip"
+      p: 0.5
+    - type: "color_jitter"
+      brightness: 0.2
+      contrast: 0.2
+      saturation: 0.2
+      hue: 0.05
+    - type: "random_rotation"
+      degrees: 10
+    - type: "random_affine"
+      degrees: 0
+      translate: [0.1, 0.1]
+    - type: "normalize"
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+
+training:
+  # Output
+  output_dir: "models/vision/classifier"
+  experiment_name: "waste_classifier_v1"
+  
+  # Batch size
+  batch_size: 64
+  val_batch_size: 128
+  
+  # Training duration
+  num_epochs: 40
+  early_stopping_patience: 10
+  
+  # Optimization
+  optimizer: "adamw"
+  learning_rate: 3.0e-4
+  weight_decay: 0.05
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  
+  # Learning rate schedule
+  lr_scheduler: "cosine"
+  warmup_epochs: 3
+  min_lr: 1.0e-6
+  
+  # Regularization
+  label_smoothing: 0.1
+  mixup_alpha: 0.2
+  cutmix_alpha: 1.0
+  mixup_prob: 0.5
+  cutmix_prob: 0.5
+  
+  # Gradient clipping
+  clip_grad_norm: 1.0
+  
+  # Mixed precision
+  use_amp: true
+  
+  # Checkpointing
+  save_freq: 5
+  save_best_only: false
+  
+  # Logging
+  log_interval: 50
+  val_interval: 1
+
+loss:
+  # Multi-task loss configuration
+  item_type_loss: "cross_entropy"
+  material_loss: "cross_entropy"
+  bin_type_loss: "cross_entropy"
+  
+  # Loss weights
+  loss_weights:
+    item_type: 1.0
+    material: 1.0
+    bin_type: 0.5
+
+evaluation:
+  # Metrics
+  metrics:
+    - "top1_acc_item"
+    - "top5_acc_item"
+    - "top1_acc_material"
+    - "top5_acc_material"
+    - "top1_acc_bin"
+    - "f1_macro_item"
+    - "f1_macro_material"
+    - "f1_weighted_item"
+    - "f1_weighted_material"
+  
+  # Confusion matrix
+  confusion_matrix: true
+  save_confusion_matrix: true
+  
+  # Per-class metrics
+  per_class_metrics: true
+
+inference:
+  # Inference settings
+  batch_size: 32
+  tta: false  # Test-time augmentation
+  tta_transforms: 5
+

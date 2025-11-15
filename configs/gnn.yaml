@@ -1,0 +1,145 @@
+# Graph Neural Network Configuration
+# Knowledge graph reasoning for upcycling recommendations
+
+model:
+  type: "graphsage"         # graphsage, gat, or gcn
+  num_layers: 3
+  hidden_dim: 256
+  output_dim: 128
+  
+  # GraphSAGE specific
+  aggregator: "mean"        # mean, pool, or lstm
+  dropout: 0.2
+  
+  # GAT specific (if using GAT)
+  num_heads: 4
+  attention_dropout: 0.1
+  
+  # Activation
+  activation: "relu"
+  
+  # Normalization
+  batch_norm: true
+  layer_norm: false
+
+graph:
+  # Graph structure
+  node_types:
+    - "Material"
+    - "ItemType"
+    - "ProductIdea"
+    - "Hazard"
+    - "Organization"
+    - "Location"
+    - "Property"
+  
+  edge_types:
+    - "MADE_OF"
+    - "CAN_BE_UPCYCLED_TO"
+    - "SIMILAR_TO"
+    - "HAS_HAZARD"
+    - "HAS_PROPERTY"
+    - "ACCEPTS"
+    - "LOCATED_IN"
+    - "REQUIRES_TOOL"
+    - "REQUIRES_SKILL"
+  
+  # Node features
+  node_features:
+    Material:
+      - "density"
+      - "melting_point"
+      - "recyclability_score"
+      - "toxicity_level"
+      - "embedding"
+    ItemType:
+      - "commonality"
+      - "embedding"
+    ProductIdea:
+      - "difficulty"
+      - "time_required"
+      - "popularity"
+      - "embedding"
+
+data:
+  # Graph data files
+  graph_file: "data/processed/kg/graph_edges.parquet"
+  node_features_file: "data/processed/kg/node_features.parquet"
+  node_labels_file: "data/processed/kg/node_labels.parquet"
+  
+  # Train/val/test split
+  train_ratio: 0.7
+  val_ratio: 0.15
+  test_ratio: 0.15
+  
+  # Sampling
+  num_neighbors: [10, 10, 5]  # Per layer
+  batch_size: 1024
+  num_workers: 4
+
+task:
+  # Task configuration
+  type: "link_prediction"   # link_prediction or node_classification
+  
+  # Link prediction
+  link_prediction:
+    predict_edge_types:
+      - "CAN_BE_UPCYCLED_TO"
+      - "SIMILAR_TO"
+    negative_sampling_ratio: 3
+    
+  # Node classification (alternative)
+  node_classification:
+    target_node_type: "Material"
+    num_classes: 10
+
+training:
+  # Output
+  output_dir: "models/gnn/ckpts"
+  experiment_name: "upcycling_gnn_v1"
+  
+  # Training duration
+  num_epochs: 50
+  early_stopping_patience: 10
+  
+  # Optimization
+  optimizer: "adam"
+  learning_rate: 1.0e-3
+  weight_decay: 1.0e-4
+  
+  # Learning rate schedule
+  lr_scheduler: "reduce_on_plateau"
+  lr_patience: 5
+  lr_factor: 0.5
+  
+  # Regularization
+  dropout: 0.2
+  edge_dropout: 0.1
+  
+  # Checkpointing
+  save_freq: 5
+  save_best_only: true
+  
+  # Logging
+  log_interval: 100
+
+evaluation:
+  # Metrics
+  metrics:
+    - "roc_auc"
+    - "avg_precision"
+    - "hits@1"
+    - "hits@3"
+    - "hits@10"
+    - "mrr"              # Mean reciprocal rank
+  
+  # Evaluation settings
+  eval_batch_size: 2048
+  num_negative_samples: 100
+
+inference:
+  # Inference settings
+  top_k: 10
+  score_threshold: 0.5
+  batch_size: 2048
+

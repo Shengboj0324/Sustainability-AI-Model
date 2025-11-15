@@ -1,0 +1,160 @@
+# Object Detection Configuration
+# Multi-object waste detection in real-world scenes
+
+model:
+  type: "yolov8m"           # YOLOv8 medium (or yolov8l for larger)
+  pretrained: true
+  num_classes: 25           # Unified waste classes
+  
+  # Model configuration
+  depth_multiple: 0.67      # Model depth multiplier
+  width_multiple: 0.75      # Model width multiplier
+  
+  # Class definitions (unified from classifier)
+  classes:
+    - "plastic_bottle"
+    - "glass_bottle"
+    - "aluminum_can"
+    - "steel_can"
+    - "cardboard_box"
+    - "paper"
+    - "plastic_bag"
+    - "food_container"
+    - "cup"
+    - "textile"
+    - "e_waste"
+    - "battery"
+    - "light_bulb"
+    - "organic_waste"
+    - "styrofoam"
+    - "tetra_pak"
+    - "mixed_plastic"
+    - "metal_scrap"
+    - "wood"
+    - "cigarette_butt"
+    - "straw"
+    - "bottle_cap"
+    - "wrapper"
+    - "mask"
+    - "other"
+
+data:
+  # Dataset configuration
+  train_yaml: "configs/datasets/taco_releaf_train.yaml"
+  val_yaml: "configs/datasets/taco_releaf_val.yaml"
+  test_yaml: "configs/datasets/taco_releaf_test.yaml"
+  
+  # Image settings
+  img_size: 640
+  rect: false               # Rectangular training
+  cache: false              # Cache images for faster training
+  
+  # Data loading
+  num_workers: 8
+  pin_memory: true
+  
+  # Augmentations
+  augmentations:
+    mosaic: 1.0             # Mosaic augmentation probability
+    mixup: 0.1              # MixUp augmentation probability
+    copy_paste: 0.1         # Copy-paste augmentation
+    degrees: 0.0            # Rotation degrees
+    translate: 0.1          # Translation
+    scale: 0.5              # Scale
+    shear: 0.0              # Shear
+    perspective: 0.0        # Perspective
+    flipud: 0.0             # Vertical flip
+    fliplr: 0.5             # Horizontal flip
+    hsv_h: 0.015            # HSV-Hue augmentation
+    hsv_s: 0.7              # HSV-Saturation
+    hsv_v: 0.4              # HSV-Value
+
+training:
+  # Output
+  output_dir: "models/vision/detector"
+  experiment_name: "waste_detector_v1"
+  
+  # Batch size
+  batch_size: 16
+  
+  # Training duration
+  epochs: 100
+  patience: 20              # Early stopping patience
+  
+  # Optimization
+  optimizer: "SGD"
+  lr0: 0.01                 # Initial learning rate
+  lrf: 0.01                 # Final learning rate (lr0 * lrf)
+  momentum: 0.937
+  weight_decay: 0.0005
+  
+  # Learning rate schedule
+  warmup_epochs: 3
+  warmup_momentum: 0.8
+  warmup_bias_lr: 0.1
+  
+  # Loss weights
+  box: 0.05                 # Box loss weight
+  cls: 0.5                  # Class loss weight
+  dfl: 1.5                  # Distribution focal loss weight
+  
+  # Regularization
+  dropout: 0.0
+  
+  # Mixed precision
+  amp: true
+  
+  # Checkpointing
+  save_period: 10
+  
+  # Logging
+  verbose: true
+  plots: true
+
+validation:
+  # Validation settings
+  conf_thres: 0.001         # Confidence threshold
+  iou_thres: 0.6            # NMS IoU threshold
+  max_det: 300              # Maximum detections per image
+  
+  # Evaluation
+  val_interval: 1
+  save_json: true
+  save_hybrid: false
+
+evaluation:
+  # Metrics
+  metrics:
+    - "mAP50"               # mAP at IoU=0.50
+    - "mAP50-95"            # mAP at IoU=0.50:0.95
+    - "precision"
+    - "recall"
+    - "f1"
+  
+  # Per-class metrics
+  per_class_metrics: true
+  
+  # Confusion matrix
+  confusion_matrix: true
+  save_confusion_matrix: true
+
+inference:
+  # Inference settings
+  conf_thres: 0.25          # Confidence threshold
+  iou_thres: 0.45           # NMS IoU threshold
+  max_det: 100              # Maximum detections
+  agnostic_nms: false       # Class-agnostic NMS
+  
+  # Post-processing
+  multi_label: false        # Multiple labels per box
+  
+  # Visualization
+  line_width: 2
+  font_size: 12
+  show_labels: true
+  show_conf: true
+
+# Hardware settings
+device: "cuda"              # cuda, cpu, or mps
+workers: 8
+

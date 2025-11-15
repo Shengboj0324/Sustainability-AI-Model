@@ -1,0 +1,196 @@
+# RAG (Retrieval-Augmented Generation) Configuration
+# Knowledge retrieval for sustainability information
+
+embedding:
+  # Embedding model configuration
+  model_name: "BAAI/bge-large-en-v1.5"  # or "thenlper/gte-large"
+  model_type: "sentence-transformers"
+  device: "cuda"
+  batch_size: 32
+  max_length: 512
+  normalize_embeddings: true
+  
+  # Pooling strategy
+  pooling: "mean"
+  
+  # Dimension
+  embedding_dim: 1024
+
+vector_store:
+  # Vector database configuration
+  type: "qdrant"            # qdrant, faiss, or chromadb
+  
+  # Qdrant settings
+  qdrant:
+    host: "localhost"
+    port: 6333
+    collection_name: "sustainability_knowledge"
+    distance_metric: "cosine"
+    on_disk: true
+    
+  # FAISS settings (alternative)
+  faiss:
+    index_type: "IVF"
+    nlist: 100
+    nprobe: 10
+    use_gpu: true
+
+retrieval:
+  # Hybrid retrieval configuration
+  strategy: "hybrid"        # hybrid, dense, or sparse
+  
+  # Dense retrieval (vector similarity)
+  dense:
+    enabled: true
+    top_k: 10
+    score_threshold: 0.5
+  
+  # Sparse retrieval (BM25)
+  sparse:
+    enabled: true
+    top_k: 10
+    k1: 1.5
+    b: 0.75
+  
+  # Fusion strategy
+  fusion:
+    method: "rrf"           # rrf (reciprocal rank fusion) or weighted
+    rrf_k: 60
+    weights:
+      dense: 0.6
+      sparse: 0.4
+  
+  # Re-ranking
+  rerank:
+    enabled: true
+    model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    top_k: 5
+    batch_size: 16
+
+chunking:
+  # Document chunking strategy
+  strategy: "semantic"      # semantic, fixed, or recursive
+  
+  # Semantic chunking
+  semantic:
+    model: "sentence-transformers/all-MiniLM-L6-v2"
+    similarity_threshold: 0.5
+    min_chunk_size: 100
+    max_chunk_size: 1000
+  
+  # Fixed chunking (fallback)
+  fixed:
+    chunk_size: 512
+    chunk_overlap: 50
+  
+  # Recursive chunking
+  recursive:
+    chunk_size: 1000
+    chunk_overlap: 200
+    separators: ["\n\n", "\n", ". ", " ", ""]
+
+data_sources:
+  # Knowledge base sources
+  sources:
+    - name: "recycling_guidelines"
+      type: "documents"
+      path: "data/raw/text/recycling_guidelines"
+      priority: "high"
+      update_frequency: "monthly"
+      
+    - name: "upcycling_projects"
+      type: "documents"
+      path: "data/raw/text/upcycling_projects"
+      priority: "high"
+      update_frequency: "weekly"
+      
+    - name: "material_properties"
+      type: "structured"
+      path: "data/raw/text/material_properties.json"
+      priority: "high"
+      update_frequency: "quarterly"
+      
+    - name: "environmental_orgs"
+      type: "database"
+      connection: "postgresql://localhost/releaf"
+      table: "organizations"
+      priority: "medium"
+      update_frequency: "daily"
+      
+    - name: "safety_guidelines"
+      type: "documents"
+      path: "data/raw/text/safety_guidelines"
+      priority: "critical"
+      update_frequency: "monthly"
+
+indexing:
+  # Indexing configuration
+  batch_size: 100
+  num_workers: 4
+  
+  # Metadata extraction
+  extract_metadata: true
+  metadata_fields:
+    - "source"
+    - "category"
+    - "location"
+    - "date"
+    - "authority"
+  
+  # Deduplication
+  deduplicate: true
+  similarity_threshold: 0.95
+
+query_processing:
+  # Query enhancement
+  query_expansion: true
+  query_rewriting: true
+  
+  # Query expansion
+  expansion:
+    method: "llm"           # llm or synonyms
+    max_expansions: 3
+  
+  # Filters
+  enable_filters: true
+  filter_fields:
+    - "category"
+    - "location"
+    - "date_range"
+
+context_building:
+  # Context construction for LLM
+  max_context_length: 4000
+  include_metadata: true
+  
+  # Context formatting
+  template: |
+    Based on the following information:
+    
+    {context}
+    
+    Answer the user's question: {query}
+  
+  # Citation
+  include_citations: true
+  citation_format: "[{source}]"
+
+caching:
+  # Query caching
+  enabled: true
+  ttl: 3600               # Time to live in seconds
+  max_size: 1000          # Maximum cache entries
+
+monitoring:
+  # Monitoring and logging
+  log_queries: true
+  log_retrievals: true
+  track_metrics: true
+  
+  # Metrics
+  metrics:
+    - "retrieval_latency"
+    - "hit_rate"
+    - "relevance_score"
+    - "context_length"
+

@@ -1,0 +1,151 @@
+# LLM Supervised Fine-Tuning Configuration
+# Domain specialization for sustainability, recycling, and upcycling
+
+model:
+  base_model_name: "meta-llama/Llama-3-8B-Instruct"  # or "Qwen/Qwen2.5-7B-Instruct"
+  model_type: "causal_lm"
+  trust_remote_code: true
+  
+  # LoRA configuration for efficient fine-tuning
+  lora:
+    enabled: true
+    r: 64                    # LoRA rank
+    alpha: 128               # LoRA alpha (scaling factor)
+    dropout: 0.05
+    target_modules:
+      - "q_proj"
+      - "v_proj"
+      - "k_proj"
+      - "o_proj"
+      - "gate_proj"
+      - "up_proj"
+      - "down_proj"
+    bias: "none"
+    task_type: "CAUSAL_LM"
+  
+  # Quantization for memory efficiency
+  quantization:
+    enabled: true
+    load_in_4bit: true
+    bnb_4bit_compute_dtype: "bfloat16"
+    bnb_4bit_quant_type: "nf4"
+    bnb_4bit_use_double_quant: true
+
+data:
+  # Training data files
+  train_files:
+    - "data/processed/llm_sft/sustainability_qa_train.jsonl"
+    - "data/processed/llm_sft/upcycling_qa_train.jsonl"
+    - "data/processed/llm_sft/org_routing_train.jsonl"
+    - "data/processed/llm_sft/safety_examples_train.jsonl"
+  
+  # Validation data files
+  val_files:
+    - "data/processed/llm_sft/sustainability_qa_val.jsonl"
+    - "data/processed/llm_sft/upcycling_qa_val.jsonl"
+    - "data/processed/llm_sft/org_routing_val.jsonl"
+  
+  # Data format and processing
+  format: "chat"              # OpenAI-style chat format
+  max_length: 2048            # Maximum sequence length
+  packing: true               # Pack multiple samples per sequence for efficiency
+  num_workers: 8
+  
+  # Data composition weights (for balanced training)
+  sampling_weights:
+    sustainability_qa: 0.35
+    upcycling_qa: 0.35
+    org_routing: 0.20
+    safety_examples: 0.10
+
+training:
+  # Trainer configuration
+  trainer: "hf_trainer"       # HuggingFace Trainer
+  output_dir: "models/llm/adapters/sustainability-v1"
+  
+  # Batch size and accumulation
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 4
+  gradient_accumulation_steps: 8
+  # Effective batch size = 4 * 8 * num_gpus
+  
+  # Training duration
+  num_train_epochs: 3
+  max_steps: -1               # -1 means use num_train_epochs
+  
+  # Optimization
+  learning_rate: 1.5e-4
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  
+  # Optimizer settings
+  optim: "adamw_torch"
+  adam_beta1: 0.9
+  adam_beta2: 0.98
+  adam_epsilon: 1.0e-8
+  
+  # Mixed precision
+  bf16: true                  # Use bfloat16 if supported, else fp16
+  fp16: false
+  
+  # Logging and checkpointing
+  logging_steps: 50
+  save_steps: 1000
+  eval_steps: 1000
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  
+  # Evaluation
+  evaluation_strategy: "steps"
+  save_strategy: "steps"
+  
+  # Regularization
+  label_smoothing_factor: 0.0
+  
+  # Reproducibility
+  seed: 42
+  data_seed: 42
+
+peft:
+  use_lora: true
+  lora_inference_merge: false  # Keep adapter separate; merge later if needed
+  
+evaluation:
+  # Metrics to compute
+  metrics:
+    - "loss"
+    - "perplexity"
+    - "exact_match_custom"
+    - "domain_bleu"
+    - "safety_score"
+  
+  # Custom evaluation script
+  custom_eval_script: "training/llm/evaluation.py"
+  
+  # Evaluation dataset size
+  max_eval_samples: 1000
+
+inference:
+  # Inference settings for testing
+  max_new_tokens: 512
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 50
+  repetition_penalty: 1.1
+  do_sample: true
+
+system_prompt: |
+  You are ReleAF AI, an expert sustainability assistant specializing in recycling, upcycling, 
+  and waste management. You provide accurate, safe, and creative guidance on:
+  - Waste identification and proper disposal
+  - Recycling rules and regulations
+  - Upcycling projects and creative reuse
+  - Material properties and chemistry
+  - Environmental organizations and resources
+  
+  Always prioritize safety, environmental responsibility, and practical feasibility in your responses.
+

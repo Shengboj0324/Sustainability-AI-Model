@@ -1,0 +1,199 @@
+# Orchestrator Configuration
+# Request routing and multi-modal coordination
+
+routing:
+  # Request classification
+  classifier:
+    type: "llm"             # llm or rule-based
+    model: "lightweight"    # Use lightweight model for routing
+    
+  # Request types
+  request_types:
+    - "IMAGE_ONLY"
+    - "TEXT_ONLY"
+    - "MULTIMODAL"
+    - "BATCH"
+  
+  # Task types
+  task_types:
+    - "BIN_DECISION"        # Which bin does this go in?
+    - "UPCYCLING_IDEA"      # How can I reuse this?
+    - "ORG_SEARCH"          # Where can I donate/recycle?
+    - "THEORY_QA"           # General sustainability questions
+    - "MATERIAL_INFO"       # Material properties and chemistry
+    - "SAFETY_CHECK"        # Is this safe to handle/process?
+
+services:
+  # Service endpoints
+  vision_service:
+    url: "http://localhost:8001"
+    timeout: 30
+    retry: 3
+    
+  llm_service:
+    url: "http://localhost:8002"
+    timeout: 60
+    retry: 2
+    
+  rag_service:
+    url: "http://localhost:8003"
+    timeout: 20
+    retry: 3
+    
+  kg_service:
+    url: "http://localhost:8004"
+    timeout: 15
+    retry: 3
+    
+  org_search_service:
+    url: "http://localhost:8005"
+    timeout: 10
+    retry: 3
+
+workflows:
+  # Predefined workflows for common tasks
+  
+  bin_decision:
+    steps:
+      - service: "vision_service"
+        action: "classify"
+        required: true
+      - service: "rag_service"
+        action: "get_local_rules"
+        required: false
+      - service: "llm_service"
+        action: "synthesize_decision"
+        required: true
+    timeout: 45
+    
+  upcycling_idea:
+    steps:
+      - service: "vision_service"
+        action: "detect_and_classify"
+        required: true
+      - service: "kg_service"
+        action: "query_upcycling_paths"
+        required: true
+      - service: "rag_service"
+        action: "get_project_examples"
+        required: true
+      - service: "llm_service"
+        action: "generate_ideas"
+        required: true
+    timeout: 60
+    
+  org_search:
+    steps:
+      - service: "org_search_service"
+        action: "search_nearby"
+        required: true
+      - service: "llm_service"
+        action: "rank_and_explain"
+        required: true
+    timeout: 30
+    
+  theory_qa:
+    steps:
+      - service: "rag_service"
+        action: "retrieve_knowledge"
+        required: true
+      - service: "kg_service"
+        action: "query_relationships"
+        required: false
+      - service: "llm_service"
+        action: "answer_question"
+        required: true
+    timeout: 40
+
+tool_calling:
+  # LLM tool/function calling configuration
+  enabled: true
+  
+  # Available tools
+  tools:
+    - name: "search_orgs"
+      description: "Search for recycling facilities, charities, and environmental organizations"
+      parameters:
+        - name: "query"
+          type: "string"
+          required: true
+        - name: "lat"
+          type: "number"
+          required: false
+        - name: "lon"
+          type: "number"
+          required: false
+        - name: "radius_km"
+          type: "number"
+          required: false
+          default: 10
+        - name: "org_type"
+          type: "string"
+          required: false
+          
+    - name: "get_recycling_rules"
+      description: "Get local recycling rules and regulations"
+      parameters:
+        - name: "lat"
+          type: "number"
+          required: true
+        - name: "lon"
+          type: "number"
+          required: true
+          
+    - name: "get_material_properties"
+      description: "Get chemical and physical properties of materials"
+      parameters:
+        - name: "material_id"
+          type: "string"
+          required: true
+          
+    - name: "query_knowledge_graph"
+      description: "Query relationships in the sustainability knowledge graph"
+      parameters:
+        - name: "query"
+          type: "string"
+          required: true
+        - name: "query_type"
+          type: "string"
+          required: true
+
+context_management:
+  # Multi-turn conversation context
+  max_history: 10
+  context_window: 8192
+  
+  # Context compression
+  compress_old_context: true
+  compression_threshold: 6000
+
+safety:
+  # Safety filters and checks
+  content_filter:
+    enabled: true
+    check_input: true
+    check_output: true
+    
+  # Harmful content detection
+  harmful_categories:
+    - "dangerous_chemistry"
+    - "illegal_disposal"
+    - "unsafe_handling"
+    
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+    requests_per_hour: 1000
+
+monitoring:
+  # Logging and metrics
+  log_level: "INFO"
+  log_requests: true
+  log_responses: true
+  
+  # Metrics
+  track_latency: true
+  track_success_rate: true
+  track_service_health: true
+
