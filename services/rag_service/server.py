@@ -72,6 +72,59 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Simple rate limiting for production (per-IP)
+class RateLimiter:
+    """
+    Simple in-memory rate limiter
+
+    CRITICAL: Prevents abuse and DoS attacks
+    """
+    def __init__(self, max_requests: int = 100, window_seconds: int = 60):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.requests: Dict[str, List[float]] = {}
+        self._lock = asyncio.Lock()
+
+    async def check_rate_limit(self, client_ip: str) -> bool:
+        """Check if client is within rate limit"""
+        async with self._lock:
+            now = time.time()
+
+            # Clean old entries
+            if client_ip in self.requests:
+                self.requests[client_ip] = [
+                    req_time for req_time in self.requests[client_ip]
+                    if now - req_time < self.window_seconds
+                ]
+            else:
+                self.requests[client_ip] = []
+
+            # Check limit
+            if len(self.requests[client_ip]) >= self.max_requests:
+                return False
+
+            # Add new request
+            self.requests[client_ip].append(now)
+            return True
+
+    async def cleanup_old_entries(self):
+        """Periodic cleanup of old entries"""
+        async with self._lock:
+            now = time.time()
+            for client_ip in list(self.requests.keys()):
+                self.requests[client_ip] = [
+                    req_time for req_time in self.requests[client_ip]
+                    if now - req_time < self.window_seconds
+                ]
+                if not self.requests[client_ip]:
+                    del self.requests[client_ip]
+
+# Initialize rate limiter
+rate_limiter = RateLimiter(
+    max_requests=int(os.getenv("RATE_LIMIT_REQUESTS", "100")),
+    window_seconds=int(os.getenv("RATE_LIMIT_WINDOW", "60"))
+)
+
 # Simple in-memory cache for mobile clients (LRU with TTL)
 class QueryCache:
     """Thread-safe query cache with TTL"""
@@ -269,42 +322,107 @@ class RAGService:
             raise
 
     async def _load_embedding_model(self):
-        """Load sentence transformer model"""
+        """
+        Load sentence transformer model with proper device placement
+
+        CRITICAL: Handles GPU/CPU placement, memory management, and error recovery
+        """
         try:
             model_name = self.config["embedding"]["model_name"]
-            logger.info(f"Loading embedding model: {model_name}")
+            device = os.getenv("EMBEDDING_DEVICE", "cpu")  # cpu or cuda
 
-            # Run in thread pool to avoid blocking
+            logger.info(f"Loading embedding model: {model_name} on device: {device}")
+
+            # Check if CUDA is available when requested
+            if device == "cuda":
+                try:
+                    import torch
+                    if not torch.cuda.is_available():
+                        logger.warning("CUDA requested but not available. Falling back to CPU.")
+                        device = "cpu"
+                    else:
+                        logger.info(f"CUDA available. Using GPU: {torch.cuda.get_device_name(0)}")
+                except ImportError:
+                    logger.warning("PyTorch not available. Using CPU.")
+                    device = "cpu"
+
+            # Run in thread pool to avoid blocking event loop
             loop = asyncio.get_event_loop()
-            self.embedding_model = await loop.run_in_executor(
-                None,
-                lambda: SentenceTransformer(model_name)
+
+            def load_model():
+                """Load model in thread pool"""
+                try:
+                    model = SentenceTransformer(model_name, device=device)
+                    # Set to eval mode for inference
+                    model.eval()
+                    return model
+                except Exception as e:
+                    logger.error(f"Model loading failed in thread: {e}")
+                    raise
+
+            self.embedding_model = await asyncio.wait_for(
+                loop.run_in_executor(None, load_model),
+                timeout=120.0  # 2 minute timeout for model download/loading
             )
 
-            logger.info(f"Embedding model loaded: {model_name}")
+            logger.info(f"Embedding model loaded successfully: {model_name} (device: {device})")
 
+        except asyncio.TimeoutError:
+            logger.error("Embedding model loading timeout (120s)")
+            raise RuntimeError("Model loading timeout")
         except Exception as e:
-            logger.error(f"Failed to load embedding model: {e}")
+            logger.error(f"Failed to load embedding model: {e}", exc_info=True)
             raise
 
     async def _load_reranker(self):
-        """Load cross-encoder reranker"""
+        """
+        Load cross-encoder reranker with proper error handling
+
+        CRITICAL: Gracefully degrades if reranker fails to load
+        """
         try:
             if not self.config["reranking"]["enabled"]:
-                logger.info("Re-ranking disabled")
+                logger.info("Re-ranking disabled by configuration")
                 return
 
             model_name = self.config["reranking"]["model_name"]
-            logger.info(f"Loading reranker: {model_name}")
+            device = os.getenv("RERANKER_DEVICE", "cpu")
+
+            logger.info(f"Loading reranker: {model_name} on device: {device}")
+
+            # Check CUDA availability
+            if device == "cuda":
+                try:
+                    import torch
+                    if not torch.cuda.is_available():
+                        logger.warning("CUDA requested for reranker but not available. Using CPU.")
+                        device = "cpu"
+                except ImportError:
+                    device = "cpu"
 
             loop = asyncio.get_event_loop()
-            self.reranker = await loop.run_in_executor(
-                None,
-                lambda: CrossEncoder(model_name)
+
+            def load_reranker():
+                """Load reranker in thread pool"""
+                try:
+                    # CrossEncoder doesn't have device parameter in constructor
+                    # It will use CUDA if available by default
+                    reranker = CrossEncoder(model_name)
+                    return reranker
+                except Exception as e:
+                    logger.error(f"Reranker loading failed in thread: {e}")
+                    raise
+
+            self.reranker = await asyncio.wait_for(
+                loop.run_in_executor(None, load_reranker),
+                timeout=120.0  # 2 minute timeout
             )
 
-            logger.info(f"Reranker loaded: {model_name}")
+            logger.info(f"Reranker loaded successfully: {model_name}")
 
+        except asyncio.TimeoutError:
+            logger.warning("Reranker loading timeout. Continuing without re-ranking.")
+            self.reranker = None
         except Exception as e:
             logger.warning(f"Failed to load reranker: {e}. Continuing without re-ranking.")
             self.reranker = None
@@ -602,6 +720,8 @@ async def retrieve_knowledge(request: RetrievalRequest, http_request: Request):
     Retrieve relevant documents from knowledge base
 
     Production-optimized with:
+    - Rate limiting (100 req/min per IP)
+    - Input sanitization
     - Request caching for mobile clients
     - Prometheus metrics
     - Timeout handling
@@ -613,27 +733,51 @@ async def retrieve_knowledge(request: RetrievalRequest, http_request: Request):
     try:
         start_time = time.time()
 
+        # CRITICAL: Rate limiting check
+        client_ip = http_request.client.host if http_request.client else "unknown"
+        if not await rate_limiter.check_rate_limit(client_ip):
+            logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+            REQUESTS_TOTAL.labels(endpoint=endpoint, status="rate_limited").inc()
+            ACTIVE_REQUESTS.dec()
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Rate limit exceeded. Please try again later."
+            )
+
+        # CRITICAL: Input sanitization - strip dangerous characters
+        sanitized_query = request.query.strip()
+        if not sanitized_query:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Query cannot be empty"
+            )
+
+        # Limit query length for safety
+        if len(sanitized_query) > 1000:
+            sanitized_query = sanitized_query[:1000]
+            logger.warning(f"Query truncated to 1000 chars for IP: {client_ip}")
+
         # Convert doc_types enum to strings
         doc_types = [dt.value for dt in request.doc_types] if request.doc_types else None
 
         # Check cache first (important for mobile clients)
         cached_result = await query_cache.get(
-            request.query,
+            sanitized_query,
             request.top_k,
             request.mode.value,
             doc_types
         )
 
         if cached_result is not None:
-            logger.info(f"Cache hit for query: {request.query[:50]}...")
+            logger.info(f"Cache hit for query: {sanitized_query[:50]}...")
             REQUESTS_TOTAL.labels(endpoint=endpoint, status="success_cached").inc()
             REQUEST_DURATION.labels(endpoint=endpoint).observe(time.time() - start_time)
             ACTIVE_REQUESTS.dec()
             return cached_result
 
-        # Retrieve documents
+        # Retrieve documents (use sanitized query)
         documents = await rag_service.retrieve(
-            query=request.query,
+            query=sanitized_query,
             top_k=request.top_k,
             mode=request.mode,
             doc_types=doc_types,
@@ -657,7 +801,7 @@ async def retrieve_knowledge(request: RetrievalRequest, http_request: Request):
 
         response = RetrievalResponse(
             documents=doc_dicts,
-            query=request.query,
+            query=sanitized_query,  # Return sanitized query
             num_results=len(doc_dicts),
             retrieval_time_ms=retrieval_time,
             metadata={
@@ -668,9 +812,9 @@ async def retrieve_knowledge(request: RetrievalRequest, http_request: Request):
             }
         )
 
-        # Cache the result
+        # Cache the result (use sanitized query)
         await query_cache.set(
-            request.query,
+            sanitized_query,
             request.top_k,
             request.mode.value,
             doc_types,

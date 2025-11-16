@@ -1,5 +1,16 @@
 """
 Vision Service - Waste recognition and classification
+
+⚠️ DEPRECATED: This is the legacy version. Use server_v2.py for production.
+
+This file is kept for backward compatibility only.
+For production deployment, use services/vision_service/server_v2.py which includes:
+- Integrated 3-stage pipeline (Detection → Classification → GNN)
+- Processing time tracking
+- Rate limiting
+- Request caching
+- Prometheus metrics
+- Comprehensive error handling
 """
 
 from fastapi import FastAPI, HTTPException

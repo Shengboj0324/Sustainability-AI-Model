@@ -1,5 +1,15 @@
 """
 LLM Service - Domain-specialized language model for sustainability
+
+⚠️ DEPRECATED: This is the legacy version. Use server_v2.py for production.
+
+This file is kept for backward compatibility only.
+For production deployment, use services/llm_service/server_v2.py which includes:
+- Token usage tracking
+- Rate limiting
+- Request caching
+- Prometheus metrics
+- Comprehensive error handling
 """
 
 from fastapi import FastAPI, HTTPException
