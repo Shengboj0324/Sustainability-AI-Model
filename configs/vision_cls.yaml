@@ -58,6 +58,7 @@ model:
 
 data:
   # Data directories
+  data_dir: "data/processed/vision_cls"
   train_dir: "data/processed/vision_cls/train"
   val_dir: "data/processed/vision_cls/val"
   test_dir: "data/processed/vision_cls/test"
@@ -135,7 +136,11 @@ training:
   
   # Checkpointing
   save_freq: 5
+  save_every: 5
   save_best_only: false
+
+  # Class balancing
+  use_balanced_sampler: true
   
   # Logging
   log_interval: 50
