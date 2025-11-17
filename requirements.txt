@@ -1,0 +1,135 @@
+# ReleAF AI - Complete Requirements
+# CRITICAL: All packages needed for production deployment and training
+
+# ============================================================================
+# CORE DEEP LEARNING
+# ============================================================================
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+torch-geometric>=2.3.0
+pyg-lib>=0.2.0
+
+# ============================================================================
+# VISION & IMAGE PROCESSING
+# ============================================================================
+timm>=0.9.0                    # PyTorch Image Models
+ultralytics>=8.0.0             # YOLOv8
+opencv-python>=4.8.0           # Computer Vision
+Pillow>=10.0.0                 # Image Processing
+albumentations>=1.3.0          # Advanced Augmentation
+imagehash>=4.3.0               # Perceptual Hashing
+pycocotools>=2.0.6             # COCO Dataset Tools
+
+# ============================================================================
+# NLP & LLM
+# ============================================================================
+transformers>=4.30.0           # HuggingFace Transformers
+peft>=0.4.0                    # LoRA & Parameter-Efficient Fine-Tuning
+datasets>=2.14.0               # HuggingFace Datasets
+tokenizers>=0.13.0             # Fast Tokenizers
+sentencepiece>=0.1.99          # Tokenization
+accelerate>=0.20.0             # Distributed Training
+bitsandbytes>=0.41.0           # 8-bit Quantization
+
+# ============================================================================
+# WEB FRAMEWORK & API
+# ============================================================================
+fastapi>=0.100.0               # Web Framework
+uvicorn[standard]>=0.23.0      # ASGI Server
+pydantic>=2.0.0                # Data Validation
+python-multipart>=0.0.6        # File Uploads
+aiohttp>=3.8.0                 # Async HTTP Client
+httpx>=0.24.0                  # HTTP Client
+websockets>=11.0               # WebSocket Support
+
+# ============================================================================
+# DATABASES
+# ============================================================================
+qdrant-client>=1.5.0           # Vector Database
+neo4j>=5.12.0                  # Graph Database
+psycopg2-binary>=2.9.0         # PostgreSQL
+asyncpg>=0.28.0                # Async PostgreSQL
+redis>=4.6.0                   # Redis Cache
+motor>=3.3.0                   # Async MongoDB (optional)
+
+# ============================================================================
+# DATA PROCESSING
+# ============================================================================
+numpy>=1.24.0                  # Numerical Computing
+pandas>=2.0.0                  # Data Manipulation
+pyarrow>=12.0.0                # Parquet Files
+scipy>=1.11.0                  # Scientific Computing
+scikit-learn>=1.3.0            # Machine Learning Utils
+
+# ============================================================================
+# MONITORING & LOGGING
+# ============================================================================
+prometheus-client>=0.17.0      # Metrics
+wandb>=0.15.0                  # Experiment Tracking
+tensorboard>=2.13.0            # TensorBoard Logging
+python-json-logger>=2.0.0      # JSON Logging
+
+# ============================================================================
+# WEB SCRAPING & DATA COLLECTION
+# ============================================================================
+requests>=2.31.0               # HTTP Requests
+beautifulsoup4>=4.12.0         # HTML Parsing
+lxml>=4.9.0                    # XML/HTML Parser
+selenium>=4.12.0               # Browser Automation (optional)
+kaggle>=1.5.0                  # Kaggle API
+
+# ============================================================================
+# UTILITIES
+# ============================================================================
+python-dotenv>=1.0.0           # Environment Variables
+PyYAML>=6.0                    # YAML Parser
+tqdm>=4.66.0                   # Progress Bars
+click>=8.1.0                   # CLI Framework
+rich>=13.5.0                   # Rich Terminal Output
+python-dateutil>=2.8.0         # Date Utilities
+
+# ============================================================================
+# TESTING & QUALITY
+# ============================================================================
+pytest>=7.4.0                  # Testing Framework
+pytest-asyncio>=0.21.0         # Async Testing
+pytest-cov>=4.1.0              # Coverage
+black>=23.7.0                  # Code Formatting
+flake8>=6.1.0                  # Linting
+mypy>=1.5.0                    # Type Checking
+isort>=5.12.0                  # Import Sorting
+
+# ============================================================================
+# DEPLOYMENT
+# ============================================================================
+gunicorn>=21.2.0               # WSGI Server
+docker>=6.1.0                  # Docker SDK
+kubernetes>=27.2.0             # Kubernetes Client (optional)
+
+# ============================================================================
+# GEOSPATIAL (for Organization Search)
+# ============================================================================
+geopy>=2.4.0                   # Geocoding
+shapely>=2.0.0                 # Geometric Operations
+
+# ============================================================================
+# SECURITY
+# ============================================================================
+python-jose[cryptography]>=3.3.0  # JWT
+passlib[bcrypt]>=1.7.4         # Password Hashing
+cryptography>=41.0.0           # Cryptographic Recipes
+
+# ============================================================================
+# OPTIONAL: GPU ACCELERATION
+# ============================================================================
+# cupy-cuda11x>=12.0.0         # GPU-accelerated NumPy (CUDA 11.x)
+# cupy-cuda12x>=12.0.0         # GPU-accelerated NumPy (CUDA 12.x)
+
+# ============================================================================
+# OPTIONAL: ADVANCED FEATURES
+# ============================================================================
+# ray[default]>=2.6.0          # Distributed Computing
+# mlflow>=2.6.0                # ML Lifecycle Management
+# optuna>=3.3.0                # Hyperparameter Optimization
+
