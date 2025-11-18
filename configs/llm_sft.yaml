@@ -37,8 +37,7 @@ data:
     - "data/processed/llm_sft/sustainability_qa_train.jsonl"
     - "data/processed/llm_sft/upcycling_qa_train.jsonl"
     - "data/processed/llm_sft/org_routing_train.jsonl"
-    - "data/processed/llm_sft/safety_examples_train.jsonl"
-  
+
   # Validation data files
   val_files:
     - "data/processed/llm_sft/sustainability_qa_val.jsonl"

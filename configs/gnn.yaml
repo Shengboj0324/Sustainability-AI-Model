@@ -64,9 +64,9 @@ graph:
 
 data:
   # Graph data files
-  graph_file: "data/processed/kg/graph_edges.parquet"
-  node_features_file: "data/processed/kg/node_features.parquet"
-  node_labels_file: "data/processed/kg/node_labels.parquet"
+  graph_file: "data/processed/gnn/graph.parquet"
+  node_features_file: "data/processed/gnn/node_features.parquet"
+  node_labels_file: "data/processed/gnn/node_labels.parquet"  # Optional
   
   # Train/val/test split
   train_ratio: 0.7
