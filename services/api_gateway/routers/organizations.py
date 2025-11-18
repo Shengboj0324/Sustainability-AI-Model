@@ -12,6 +12,11 @@ import os
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+# CRITICAL: Import schemas from central location - eliminates duplication
+# Note: Location schema in schemas.py uses 'lat'/'lon', this router uses 'latitude'/'longitude'
+# We'll keep local schemas for now to maintain API compatibility
+from services.api_gateway.schemas import Location as BaseLocation
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -20,6 +25,7 @@ router = APIRouter()
 ORG_SEARCH_SERVICE_URL = os.getenv("ORG_SEARCH_SERVICE_URL", "http://localhost:8005")
 
 
+# Local Location schema for API compatibility (uses latitude/longitude instead of lat/lon)
 class Location(BaseModel):
     """Geographic location"""
     latitude: float = Field(..., ge=-90, le=90, description="Latitude")

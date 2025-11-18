@@ -17,6 +17,7 @@ from typing import Optional, List, Dict, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import logging
+import sys
 import yaml
 from pathlib import Path
 import asyncio
@@ -25,6 +26,10 @@ import os
 import hashlib
 from functools import lru_cache
 import time
+
+# Import shared utilities - CRITICAL: Single source of truth
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from shared.utils import QueryCache
 
 # Third-party imports
 try:
@@ -72,52 +77,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Simple rate limiting for production (per-IP)
-class RateLimiter:
-    """
-    Simple in-memory rate limiter
+# REMOVED: RateLimiter now imported from shared.utils
+# This eliminates code duplication and ensures single source of truth
 
-    CRITICAL: Prevents abuse and DoS attacks
-    """
-    def __init__(self, max_requests: int = 100, window_seconds: int = 60):
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-        self.requests: Dict[str, List[float]] = {}
-        self._lock = asyncio.Lock()
-
-    async def check_rate_limit(self, client_ip: str) -> bool:
-        """Check if client is within rate limit"""
-        async with self._lock:
-            now = time.time()
-
-            # Clean old entries
-            if client_ip in self.requests:
-                self.requests[client_ip] = [
-                    req_time for req_time in self.requests[client_ip]
-                    if now - req_time < self.window_seconds
-                ]
-            else:
-                self.requests[client_ip] = []
-
-            # Check limit
-            if len(self.requests[client_ip]) >= self.max_requests:
-                return False
-
-            # Add new request
-            self.requests[client_ip].append(now)
-            return True
-
-    async def cleanup_old_entries(self):
-        """Periodic cleanup of old entries"""
-        async with self._lock:
-            now = time.time()
-            for client_ip in list(self.requests.keys()):
-                self.requests[client_ip] = [
-                    req_time for req_time in self.requests[client_ip]
-                    if now - req_time < self.window_seconds
-                ]
-                if not self.requests[client_ip]:
-                    del self.requests[client_ip]
+# Import RateLimiter from shared utilities
+from shared.utils import RateLimiter
 
 # Initialize rate limiter
 rate_limiter = RateLimiter(
@@ -125,49 +89,9 @@ rate_limiter = RateLimiter(
     window_seconds=int(os.getenv("RATE_LIMIT_WINDOW", "60"))
 )
 
-# Simple in-memory cache for mobile clients (LRU with TTL)
-class QueryCache:
-    """Thread-safe query cache with TTL"""
-    def __init__(self, max_size: int = 1000, ttl_seconds: int = 300):
-        self.cache: Dict[str, Tuple[Any, float]] = {}
-        self.max_size = max_size
-        self.ttl_seconds = ttl_seconds
-        self._lock = asyncio.Lock()
-
-    def _make_key(self, query: str, top_k: int, mode: str, doc_types: Optional[List[str]]) -> str:
-        """Create cache key from query parameters"""
-        key_str = f"{query}:{top_k}:{mode}:{sorted(doc_types) if doc_types else []}"
-        return hashlib.md5(key_str.encode()).hexdigest()
-
-    async def get(self, query: str, top_k: int, mode: str, doc_types: Optional[List[str]]) -> Optional[Any]:
-        """Get cached result if not expired"""
-        async with self._lock:
-            key = self._make_key(query, top_k, mode, doc_types)
-            if key in self.cache:
-                result, timestamp = self.cache[key]
-                if time.time() - timestamp < self.ttl_seconds:
-                    CACHE_HITS.inc()
-                    return result
-                else:
-                    del self.cache[key]
-            CACHE_MISSES.inc()
-            return None
-
-    async def set(self, query: str, top_k: int, mode: str, doc_types: Optional[List[str]], result: Any):
-        """Set cache entry with TTL"""
-        async with self._lock:
-            # Evict oldest if at capacity
-            if len(self.cache) >= self.max_size:
-                oldest_key = min(self.cache.keys(), key=lambda k: self.cache[k][1])
-                del self.cache[oldest_key]
-
-            key = self._make_key(query, top_k, mode, doc_types)
-            self.cache[key] = (result, time.time())
-
-    async def clear(self):
-        """Clear all cache entries"""
-        async with self._lock:
-            self.cache.clear()
+# REMOVED: QueryCache now imported from shared.utils
+# This eliminates code duplication and ensures single source of truth
+# Note: Metrics tracking (CACHE_HITS/CACHE_MISSES) moved to endpoint level
 
 # Global cache instance
 query_cache = QueryCache(

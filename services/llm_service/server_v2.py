@@ -16,10 +16,12 @@ CRITICAL FEATURES:
 import asyncio
 import logging
 import os
+import sys
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
+from pathlib import Path
 import hashlib
 
 from fastapi import FastAPI, HTTPException, Request
@@ -31,6 +33,10 @@ from peft import PeftModel
 from prometheus_client import Counter, Histogram, Gauge, generate_latest
 from starlette.responses import Response
 import yaml
+
+# Import shared utilities - CRITICAL: Single source of truth
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from shared.utils import RateLimiter, RequestCache
 
 # Import NLP modules
 from intent_classifier import IntentClassifier, IntentCategory
@@ -97,69 +103,8 @@ class LLMResponse(BaseModel):
     intent_confidence: Optional[float] = None
     entities: Optional[List[Dict[str, Any]]] = None
 
-
-# Rate limiting
-class RateLimiter:
-    """
-    Simple in-memory rate limiter
-
-    CRITICAL: Prevents DoS attacks - LLM is expensive
-    """
-    def __init__(self, max_requests: int = 50, window_seconds: int = 60):
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-        self.requests: Dict[str, List[datetime]] = defaultdict(list)
-        self.lock = asyncio.Lock()
-
-    async def check_rate_limit(self, client_ip: str) -> bool:
-        """Check if request is within rate limit"""
-        async with self.lock:
-            now = datetime.now()
-            cutoff = now - timedelta(seconds=self.window_seconds)
-
-            # Remove old requests
-            self.requests[client_ip] = [
-                req_time for req_time in self.requests[client_ip]
-                if req_time > cutoff
-            ]
-
-            # Check limit
-            if len(self.requests[client_ip]) >= self.max_requests:
-                return False
-
-            # Add current request
-            self.requests[client_ip].append(now)
-            return True
-
-
-# Request cache
-class RequestCache:
-    """
-    LRU cache with TTL for LLM requests
-
-    CRITICAL: LLM inference is expensive - cache aggressively
-    """
-    def __init__(self, max_size: int = 500, ttl_seconds: int = 600):
-        self.max_size = max_size
-        self.ttl_seconds = ttl_seconds
-        self.cache: Dict[str, Tuple[Any, datetime]] = {}
-        self.lock = asyncio.Lock()
-
-    async def get(self, key: str) -> Optional[Any]:
-        """Get cached result"""
-        async with self.lock:
-            if key in self.cache:
-                result, timestamp = self.cache[key]
-                if datetime.now() - timestamp < timedelta(seconds=self.ttl_seconds):
-                    return result
-                else:
-                    del self.cache[key]
-            return None
-
-
-    def clear(self):
-        """Clear cache"""
-        self.cache.clear()
+# REMOVED: RateLimiter and RequestCache now imported from shared.utils
+# This eliminates code duplication and ensures single source of truth
 
 
 # Initialize components

@@ -38,7 +38,7 @@ class ChatRequest(BaseModel):
     max_tokens: int = Field(512, ge=1, le=4096)
     temperature: float = Field(0.7, ge=0, le=2)
     stream: bool = False
-    
+
     @validator('image', 'image_url')
     def validate_image_input(cls, v, values):
         """Ensure only one image input method is used"""
@@ -68,7 +68,7 @@ class ClassificationResult(BaseModel):
     """Single classification result"""
     class_name: str = Field(..., alias="class")
     confidence: float = Field(..., ge=0, le=1)
-    
+
     class Config:
         populate_by_name = True
 
@@ -95,7 +95,7 @@ class Detection(BaseModel):
     confidence: float = Field(..., ge=0, le=1)
     material: Optional[str] = None
     material_confidence: Optional[float] = None
-    
+
     class Config:
         populate_by_name = True
 
@@ -145,3 +145,63 @@ class ErrorResponse(BaseModel):
     timestamp: str
     details: Optional[Dict[str, Any]] = None
 
+
+
+
+# Vision Analysis Schemas (consolidated from routers/vision.py)
+class VisionRequest(BaseModel):
+    """Vision analysis request"""
+    image_b64: Optional[str] = Field(None, description="Base64 encoded image")
+    image_url: Optional[str] = Field(None, description="Image URL")
+    enable_detection: bool = Field(True, description="Enable object detection")
+    enable_classification: bool = Field(True, description="Enable classification")
+    enable_recommendations: bool = Field(False, description="Enable GNN recommendations")
+    top_k: int = Field(5, ge=1, le=20, description="Top-K classification results")
+
+
+class DetectionResult(BaseModel):
+    """Detection result"""
+    bbox: List[float]
+    class_name: str
+    confidence: float
+    area: float
+
+
+class VisionClassificationResult(BaseModel):
+    """Complete classification result with multi-head outputs"""
+    item_type: str
+    item_confidence: float
+    material_type: str
+    material_confidence: float
+    bin_type: str
+    bin_confidence: float
+    top_k_items: List[tuple]  # List of (str, float) tuples
+    top_k_materials: List[tuple]  # List of (str, float) tuples
+
+
+class RecommendationResult(BaseModel):
+    """Upcycling recommendation from GNN"""
+    target_material: str
+    score: float
+    difficulty: int
+    time_required_minutes: int
+    tools_required: List[str]
+    skills_required: List[str]
+
+
+class VisionResponse(BaseModel):
+    """Complete vision analysis response"""
+    detections: List[DetectionResult]
+    num_detections: int
+    classification: Optional[VisionClassificationResult]
+    recommendations: Optional[List[RecommendationResult]]
+    image_size: tuple  # (width, height)
+    image_format: str
+    image_quality_score: float
+    confidence_score: float
+    total_time_ms: float
+    detection_time_ms: float
+    classification_time_ms: float
+    recommendation_time_ms: float
+    warnings: List[str]
+    errors: List[str]

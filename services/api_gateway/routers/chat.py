@@ -10,7 +10,9 @@ import httpx
 import os
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
+
+# CRITICAL: Import schemas from central location - eliminates duplication
+from services.api_gateway.schemas import ChatRequest, ChatResponse, ChatMessage
 
 logger = logging.getLogger(__name__)
 
@@ -19,28 +21,8 @@ router = APIRouter()
 # Service URLs
 ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "http://localhost:8000")
 
-
-class Message(BaseModel):
-    """Chat message"""
-    role: str = Field(..., description="Message role (user/assistant/system)")
-    content: str = Field(..., description="Message content")
-
-
-class ChatRequest(BaseModel):
-    """Chat request"""
-    messages: List[Message] = Field(..., description="Conversation messages")
-    location: Optional[Dict[str, float]] = Field(None, description="User location (lat, lon)")
-    image: Optional[str] = Field(None, description="Base64 encoded image")
-    image_url: Optional[str] = Field(None, description="Image URL")
-    max_tokens: int = Field(512, ge=1, le=2048)
-    temperature: float = Field(0.7, ge=0.0, le=2.0)
-
-
-class ChatResponse(BaseModel):
-    """Chat response"""
-    response: str
-    context: Optional[Dict[str, Any]] = None
-    metadata: Optional[Dict[str, Any]] = None
+# REMOVED: Duplicate schema definitions (Message, ChatRequest, ChatResponse)
+# Now using centralized schemas from services/api_gateway/schemas.py
 
 
 @router.post("/", response_model=ChatResponse)

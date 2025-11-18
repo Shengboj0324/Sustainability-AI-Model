@@ -10,7 +10,15 @@ import httpx
 import os
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
+
+# CRITICAL: Import schemas from central location - eliminates duplication
+from services.api_gateway.schemas import (
+    VisionRequest,
+    VisionResponse,
+    DetectionResult,
+    VisionClassificationResult,
+    RecommendationResult
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,63 +27,8 @@ router = APIRouter()
 # Service URLs
 VISION_SERVICE_URL = os.getenv("VISION_SERVICE_URL", "http://localhost:8001")
 
-
-class VisionRequest(BaseModel):
-    """Vision analysis request"""
-    image_b64: Optional[str] = Field(None, description="Base64 encoded image")
-    image_url: Optional[str] = Field(None, description="Image URL")
-    enable_detection: bool = Field(True, description="Enable object detection")
-    enable_classification: bool = Field(True, description="Enable classification")
-    enable_recommendations: bool = Field(False, description="Enable GNN recommendations")
-    top_k: int = Field(5, ge=1, le=20, description="Top-K classification results")
-
-
-class DetectionResult(BaseModel):
-    """Detection result"""
-    bbox: List[float]
-    class_name: str
-    confidence: float
-    area: float
-
-
-class ClassificationResult(BaseModel):
-    """Classification result"""
-    item_type: str
-    item_confidence: float
-    material_type: str
-    material_confidence: float
-    bin_type: str
-    bin_confidence: float
-    top_k_items: List[Tuple[str, float]]
-    top_k_materials: List[Tuple[str, float]]
-
-
-class RecommendationResult(BaseModel):
-    """Upcycling recommendation"""
-    target_material: str
-    score: float
-    difficulty: int
-    time_required_minutes: int
-    tools_required: List[str]
-    skills_required: List[str]
-
-
-class VisionResponse(BaseModel):
-    """Complete vision analysis response"""
-    detections: List[DetectionResult]
-    num_detections: int
-    classification: Optional[ClassificationResult]
-    recommendations: Optional[List[RecommendationResult]]
-    image_size: Tuple[int, int]
-    image_format: str
-    image_quality_score: float
-    confidence_score: float
-    total_time_ms: float
-    detection_time_ms: float
-    classification_time_ms: float
-    recommendation_time_ms: float
-    warnings: List[str]
-    errors: List[str]
+# REMOVED: Duplicate schema definitions (VisionRequest, DetectionResult, ClassificationResult, RecommendationResult, VisionResponse)
+# Now using centralized schemas from services/api_gateway/schemas.py
 
 
 @router.post("/analyze", response_model=VisionResponse)
