@@ -26,6 +26,7 @@ import httpx
 from models.vision.classifier import WasteClassifier, ClassificationResult
 from models.vision.detector import WasteDetector, DetectionResult, Detection
 from models.gnn.inference import UpcyclingGNN, RecommendationResult
+from models.vision.image_quality import AdvancedImageQualityPipeline, ImageQualityReport
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,9 @@ class IntegratedVisionResult:
     warnings: List[str]
     errors: List[str]
 
+    # NEW: Advanced image quality report
+    quality_report: Optional[ImageQualityReport] = None
+
 
 class IntegratedVisionSystem:
     """
@@ -93,6 +97,10 @@ class IntegratedVisionSystem:
             config=gnn_config,
             device=str(self.device) if isinstance(self.device, torch.device) else self.device
         )
+
+        # NEW: Initialize advanced image quality pipeline
+        self.image_quality_pipeline = AdvancedImageQualityPipeline()
+        logger.info("Advanced image quality pipeline initialized")
 
         # Performance tracking
         self.total_processed = 0
@@ -154,69 +162,37 @@ class IntegratedVisionSystem:
             logger.error(f"Failed to load models: {e}", exc_info=True)
             raise
 
-    def _validate_image(self, image: Image.Image) -> Tuple[Image.Image, List[str], float]:
+    def _validate_image(self, image: Image.Image) -> Tuple[Image.Image, List[str], float, ImageQualityReport]:
         """
-        Comprehensive image validation
+        Comprehensive image validation using Advanced Image Quality Pipeline
 
         CRITICAL: Handles ANY random image - validates and fixes issues
+
+        NEW: Uses AdvancedImageQualityPipeline for comprehensive quality checks:
+        - EXIF orientation handling
+        - Noise detection and denoising
+        - Blur detection and sharpening
+        - Transparent PNG handling
+        - Animated GIF/multi-page TIFF handling
+        - HDR tone mapping
+        - Adaptive histogram equalization
+        - JPEG quality estimation
+
+        Returns:
+            (validated_image, warnings, quality_score, quality_report)
         """
-        warnings = []
-        quality_score = 1.0
-
         try:
-            # Check image mode
-            if image.mode not in ["RGB", "RGBA", "L", "P"]:
-                warnings.append(f"Unusual image mode: {image.mode}")
-                quality_score *= 0.9
+            # Use advanced image quality pipeline
+            validated_image, quality_report = self.image_quality_pipeline.process_image(image)
 
-            # Convert to RGB
-            if image.mode != "RGB":
-                logger.info(f"Converting image from {image.mode} to RGB")
-                image = image.convert("RGB")
+            logger.info(
+                f"Image quality processing complete: "
+                f"quality_score={quality_report.quality_score:.2f}, "
+                f"warnings={len(quality_report.warnings)}, "
+                f"enhancements={len(quality_report.enhancements_applied)}"
+            )
 
-            # Check image size
-            width, height = image.size
-
-            if width < 64 or height < 64:
-                warnings.append(f"Image very small ({width}x{height}). Results may be poor.")
-                quality_score *= 0.5
-
-            if width > 4096 or height > 4096:
-                warnings.append(f"Image very large ({width}x{height}). Resizing for memory.")
-                # Resize to max 4096
-                scale = 4096 / max(width, height)
-                new_size = (int(width * scale), int(height * scale))
-                image = image.resize(new_size, Image.Resampling.LANCZOS)
-                quality_score *= 0.95
-
-            # Check aspect ratio
-            aspect_ratio = max(width, height) / min(width, height)
-            if aspect_ratio > 5:
-                warnings.append(f"Extreme aspect ratio: {aspect_ratio:.2f}")
-                quality_score *= 0.8
-
-            # Check if image is too dark or too bright
-            img_array = np.array(image)
-            mean_brightness = img_array.mean()
-
-            if mean_brightness < 30:
-                warnings.append("Image very dark. Results may be poor.")
-                quality_score *= 0.7
-            elif mean_brightness > 225:
-                warnings.append("Image very bright. Results may be poor.")
-                quality_score *= 0.7
-
-            # Check if image is mostly uniform (blank)
-            std_dev = img_array.std()
-            if std_dev < 10:
-                warnings.append("Image appears mostly uniform/blank.")
-                quality_score *= 0.5
-
-            # Check for corruption
-            if img_array.max() == 0:
-                raise ValueError("Image is completely black")
-
-            return image, warnings, quality_score
+            return validated_image, quality_report.warnings, quality_report.quality_score, quality_report
 
         except Exception as e:
             logger.error(f"Image validation failed: {e}", exc_info=True)
@@ -285,8 +261,8 @@ class IntegratedVisionSystem:
         original_mode = image.mode
 
         try:
-            # Validate and preprocess image
-            image, val_warnings, quality_score = self._validate_image(image)
+            # Validate and preprocess image using advanced quality pipeline
+            image, val_warnings, quality_score, quality_report = self._validate_image(image)
             warnings.extend(val_warnings)
 
             # Stage 1: Detection
@@ -388,7 +364,8 @@ class IntegratedVisionSystem:
                 image_quality_score=quality_score,
                 confidence_score=confidence_score,
                 warnings=warnings,
-                errors=errors
+                errors=errors,
+                quality_report=quality_report  # NEW: Include advanced quality report
             )
 
             # Update stats
