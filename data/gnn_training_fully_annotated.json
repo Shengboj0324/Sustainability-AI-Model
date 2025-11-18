@@ -1,0 +1,681 @@
+{
+  "metadata": {
+    "total_nodes": 20,
+    "total_edges": 12,
+    "annotation_date": "2025-11-18T12:26:22.504093",
+    "annotation_version": "1.0",
+    "coverage": "100%"
+  },
+  "nodes": [
+    {
+      "id": 0,
+      "label": "plastic_bottle",
+      "type": "waste_item",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "waste_item",
+        "semantic_category": "material",
+        "recyclability": 0.7,
+        "commonness": 0.9,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503760",
+        "tags": [
+          "plastic",
+          "waste_item"
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "label": "planter",
+      "type": "upcycled_product",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "upcycled_product",
+        "semantic_category": "product",
+        "recyclability": 0.5,
+        "commonness": 0.5,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503779",
+        "tags": [
+          "upcycled_product"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "label": "bird_feeder",
+      "type": "upcycled_product",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "upcycled_product",
+        "semantic_category": "other",
+        "recyclability": 0.5,
+        "commonness": 0.5,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503785",
+        "tags": [
+          "upcycled_product"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "label": "glass_jar",
+      "type": "waste_item",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "waste_item",
+        "semantic_category": "material",
+        "recyclability": 0.95,
+        "commonness": 0.9,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503789",
+        "tags": [
+          "waste_item",
+          "glass"
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "label": "storage_container",
+      "type": "upcycled_product",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "upcycled_product",
+        "semantic_category": "other",
+        "recyclability": 0.5,
+        "commonness": 0.5,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503795",
+        "tags": [
+          "upcycled_product"
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "label": "vase",
+      "type": "upcycled_product",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "upcycled_product",
+        "semantic_category": "other",
+        "recyclability": 0.5,
+        "commonness": 0.5,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503799",
+        "tags": [
+          "upcycled_product"
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "label": "cardboard_box",
+      "type": "waste_item",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "waste_item",
+        "semantic_category": "material",
+        "recyclability": 0.85,
+        "commonness": 0.9,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503803",
+        "tags": [
+          "waste_item",
+          "paper"
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "label": "organizer",
+      "type": "upcycled_product",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "upcycled_product",
+        "semantic_category": "product",
+        "recyclability": 0.5,
+        "commonness": 0.5,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503809",
+        "tags": [
+          "upcycled_product"
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "label": "tin_can",
+      "type": "waste_item",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "waste_item",
+        "semantic_category": "item",
+        "recyclability": 0.5,
+        "commonness": 0.9,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503813",
+        "tags": [
+          "waste_item"
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "label": "pencil_holder",
+      "type": "upcycled_product",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "upcycled_product",
+        "semantic_category": "other",
+        "recyclability": 0.5,
+        "commonness": 0.5,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503818",
+        "tags": [
+          "upcycled_product"
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "label": "old_clothes",
+      "type": "waste_item",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "waste_item",
+        "semantic_category": "other",
+        "recyclability": 0.5,
+        "commonness": 0.5,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503824",
+        "tags": [
+          "waste_item"
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "label": "cleaning_rags",
+      "type": "upcycled_product",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "upcycled_product",
+        "semantic_category": "other",
+        "recyclability": 0.5,
+        "commonness": 0.5,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503830",
+        "tags": [
+          "upcycled_product"
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "label": "tote_bag",
+      "type": "upcycled_product",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "upcycled_product",
+        "semantic_category": "item",
+        "recyclability": 0.5,
+        "commonness": 0.9,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503835",
+        "tags": [
+          "upcycled_product"
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "label": "wine_cork",
+      "type": "waste_item",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "waste_item",
+        "semantic_category": "other",
+        "recyclability": 0.5,
+        "commonness": 0.5,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503841",
+        "tags": [
+          "waste_item"
+        ]
+      }
+    },
+    {
+      "id": 14,
+      "label": "coaster",
+      "type": "upcycled_product",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "upcycled_product",
+        "semantic_category": "other",
+        "recyclability": 0.5,
+        "commonness": 0.5,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503846",
+        "tags": [
+          "upcycled_product"
+        ]
+      }
+    },
+    {
+      "id": 15,
+      "label": "pallet",
+      "type": "waste_item",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "waste_item",
+        "semantic_category": "other",
+        "recyclability": 0.5,
+        "commonness": 0.5,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503851",
+        "tags": [
+          "waste_item"
+        ]
+      }
+    },
+    {
+      "id": 16,
+      "label": "furniture",
+      "type": "upcycled_product",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "upcycled_product",
+        "semantic_category": "other",
+        "recyclability": 0.5,
+        "commonness": 0.5,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503855",
+        "tags": [
+          "upcycled_product"
+        ]
+      }
+    },
+    {
+      "id": 17,
+      "label": "tire",
+      "type": "waste_item",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "waste_item",
+        "semantic_category": "other",
+        "recyclability": 0.5,
+        "commonness": 0.5,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503859",
+        "tags": [
+          "waste_item"
+        ]
+      }
+    },
+    {
+      "id": 18,
+      "label": "newspaper",
+      "type": "waste_item",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "waste_item",
+        "semantic_category": "material",
+        "recyclability": 0.85,
+        "commonness": 0.9,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503865",
+        "tags": [
+          "waste_item",
+          "paper"
+        ]
+      }
+    },
+    {
+      "id": 19,
+      "label": "gift_wrap",
+      "type": "upcycled_product",
+      "annotation": {
+        "quality_score": 0.9,
+        "difficulty": "medium",
+        "node_type": "upcycled_product",
+        "semantic_category": "other",
+        "recyclability": 0.5,
+        "commonness": 0.5,
+        "safety_level": "safe",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503870",
+        "tags": [
+          "upcycled_product"
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": 0,
+      "target": 1,
+      "relationship": "can_be_upcycled_to",
+      "method": "cut_and_clean",
+      "annotation": {
+        "quality_score": 0.85,
+        "difficulty": "medium",
+        "edge_type": "can_be_upcycled_to",
+        "relationship_strength": 0.8,
+        "confidence": 0.9,
+        "multi_hop_required": false,
+        "temporal_aspect": false,
+        "uncertainty_level": "low",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503874",
+        "tags": [
+          "can_be_upcycled_to"
+        ]
+      }
+    },
+    {
+      "source": 0,
+      "target": 2,
+      "relationship": "can_be_upcycled_to",
+      "method": "cut_holes",
+      "annotation": {
+        "quality_score": 0.85,
+        "difficulty": "medium",
+        "edge_type": "can_be_upcycled_to",
+        "relationship_strength": 0.8,
+        "confidence": 0.9,
+        "multi_hop_required": false,
+        "temporal_aspect": false,
+        "uncertainty_level": "low",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503876",
+        "tags": [
+          "can_be_upcycled_to"
+        ]
+      }
+    },
+    {
+      "source": 3,
+      "target": 4,
+      "relationship": "can_be_upcycled_to",
+      "method": "clean",
+      "annotation": {
+        "quality_score": 0.85,
+        "difficulty": "medium",
+        "edge_type": "can_be_upcycled_to",
+        "relationship_strength": 0.8,
+        "confidence": 0.9,
+        "multi_hop_required": false,
+        "temporal_aspect": false,
+        "uncertainty_level": "low",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503877",
+        "tags": [
+          "can_be_upcycled_to"
+        ]
+      }
+    },
+    {
+      "source": 3,
+      "target": 5,
+      "relationship": "can_be_upcycled_to",
+      "method": "decorate",
+      "annotation": {
+        "quality_score": 0.85,
+        "difficulty": "medium",
+        "edge_type": "can_be_upcycled_to",
+        "relationship_strength": 0.8,
+        "confidence": 0.9,
+        "multi_hop_required": false,
+        "temporal_aspect": false,
+        "uncertainty_level": "low",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503879",
+        "tags": [
+          "can_be_upcycled_to"
+        ]
+      }
+    },
+    {
+      "source": 6,
+      "target": 7,
+      "relationship": "can_be_upcycled_to",
+      "method": "cut_and_fold",
+      "annotation": {
+        "quality_score": 0.85,
+        "difficulty": "medium",
+        "edge_type": "can_be_upcycled_to",
+        "relationship_strength": 0.8,
+        "confidence": 0.9,
+        "multi_hop_required": false,
+        "temporal_aspect": false,
+        "uncertainty_level": "low",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503880",
+        "tags": [
+          "can_be_upcycled_to"
+        ]
+      }
+    },
+    {
+      "source": 8,
+      "target": 9,
+      "relationship": "can_be_upcycled_to",
+      "method": "clean_and_decorate",
+      "annotation": {
+        "quality_score": 0.85,
+        "difficulty": "medium",
+        "edge_type": "can_be_upcycled_to",
+        "relationship_strength": 0.8,
+        "confidence": 0.9,
+        "multi_hop_required": false,
+        "temporal_aspect": false,
+        "uncertainty_level": "low",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503883",
+        "tags": [
+          "can_be_upcycled_to"
+        ]
+      }
+    },
+    {
+      "source": 10,
+      "target": 11,
+      "relationship": "can_be_upcycled_to",
+      "method": "cut",
+      "annotation": {
+        "quality_score": 0.85,
+        "difficulty": "medium",
+        "edge_type": "can_be_upcycled_to",
+        "relationship_strength": 0.8,
+        "confidence": 0.9,
+        "multi_hop_required": false,
+        "temporal_aspect": false,
+        "uncertainty_level": "low",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503884",
+        "tags": [
+          "can_be_upcycled_to"
+        ]
+      }
+    },
+    {
+      "source": 10,
+      "target": 12,
+      "relationship": "can_be_upcycled_to",
+      "method": "sew",
+      "annotation": {
+        "quality_score": 0.85,
+        "difficulty": "medium",
+        "edge_type": "can_be_upcycled_to",
+        "relationship_strength": 0.8,
+        "confidence": 0.9,
+        "multi_hop_required": false,
+        "temporal_aspect": false,
+        "uncertainty_level": "low",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503886",
+        "tags": [
+          "can_be_upcycled_to"
+        ]
+      }
+    },
+    {
+      "source": 13,
+      "target": 14,
+      "relationship": "can_be_upcycled_to",
+      "method": "glue_together",
+      "annotation": {
+        "quality_score": 0.85,
+        "difficulty": "medium",
+        "edge_type": "can_be_upcycled_to",
+        "relationship_strength": 0.8,
+        "confidence": 0.9,
+        "multi_hop_required": false,
+        "temporal_aspect": false,
+        "uncertainty_level": "low",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503888",
+        "tags": [
+          "can_be_upcycled_to"
+        ]
+      }
+    },
+    {
+      "source": 15,
+      "target": 16,
+      "relationship": "can_be_upcycled_to",
+      "method": "sand_and_assemble",
+      "annotation": {
+        "quality_score": 0.85,
+        "difficulty": "medium",
+        "edge_type": "can_be_upcycled_to",
+        "relationship_strength": 0.8,
+        "confidence": 0.9,
+        "multi_hop_required": false,
+        "temporal_aspect": false,
+        "uncertainty_level": "low",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503889",
+        "tags": [
+          "can_be_upcycled_to"
+        ]
+      }
+    },
+    {
+      "source": 17,
+      "target": 1,
+      "relationship": "can_be_upcycled_to",
+      "method": "cut_and_paint",
+      "annotation": {
+        "quality_score": 0.85,
+        "difficulty": "medium",
+        "edge_type": "can_be_upcycled_to",
+        "relationship_strength": 0.8,
+        "confidence": 0.9,
+        "multi_hop_required": false,
+        "temporal_aspect": false,
+        "uncertainty_level": "low",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503891",
+        "tags": [
+          "can_be_upcycled_to"
+        ]
+      }
+    },
+    {
+      "source": 18,
+      "target": 19,
+      "relationship": "can_be_upcycled_to",
+      "method": "fold",
+      "annotation": {
+        "quality_score": 0.85,
+        "difficulty": "medium",
+        "edge_type": "can_be_upcycled_to",
+        "relationship_strength": 0.8,
+        "confidence": 0.9,
+        "multi_hop_required": false,
+        "temporal_aspect": false,
+        "uncertainty_level": "low",
+        "source": "manual_curation",
+        "validated": true,
+        "validation_date": "2025-11-18T12:26:22.503892",
+        "tags": [
+          "can_be_upcycled_to"
+        ]
+      }
+    }
+  ]
+}

@@ -215,8 +215,17 @@ def main():
     # Paths
     project_root = Path(__file__).parent.parent
 
-    # LLM data
-    llm_input = project_root / "data" / "llm_training_expanded.json"
+    # LLM data - use ultra-expanded if available
+    ultra_expanded = project_root / "data" / "llm_training_ultra_expanded.json"
+    expanded = project_root / "data" / "llm_training_expanded.json"
+
+    if ultra_expanded.exists():
+        llm_input = ultra_expanded
+        logger.info(f"Using ultra-expanded dataset with edge cases")
+    else:
+        llm_input = expanded
+        logger.info(f"Using standard expanded dataset")
+
     llm_output = project_root / "data" / "processed" / "llm_sft"
 
     # GNN data
