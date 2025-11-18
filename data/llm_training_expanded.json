@@ -1,0 +1,842 @@
+[
+  {
+    "instruction": "What type of plastic is this bottle?",
+    "input": "",
+    "output": "This bottle is made of HDPE (#2). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this bottle?",
+    "input": "",
+    "output": "Yes, this is recyclable. Most facilities accept this material.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this bottle made of?",
+    "input": "",
+    "output": "This bottle is typically made of paper. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this bottle biodegradable?",
+    "input": "",
+    "output": "No, it is not biodegradable. It requires industrial composting.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What type of plastic is this container?",
+    "input": "",
+    "output": "This container is made of HDPE (#2). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this container?",
+    "input": "",
+    "output": "No, this is not recyclable. This material requires special processing.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this container made of?",
+    "input": "",
+    "output": "This container is typically made of aluminum. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this container biodegradable?",
+    "input": "",
+    "output": "Yes, it is biodegradable. It requires industrial composting.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What type of plastic is this bag?",
+    "input": "",
+    "output": "This bag is made of PS (#6). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this bag?",
+    "input": "",
+    "output": "Yes, this is recyclable. This material requires special processing.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this bag made of?",
+    "input": "",
+    "output": "This bag is typically made of biodegradable plastic. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this bag biodegradable?",
+    "input": "",
+    "output": "No, it is not biodegradable. It requires industrial composting.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What type of plastic is this wrapper?",
+    "input": "",
+    "output": "This wrapper is made of LDPE (#4). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this wrapper?",
+    "input": "",
+    "output": "Yes, this is recyclable. Most facilities accept this material.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this wrapper made of?",
+    "input": "",
+    "output": "This wrapper is typically made of ceramic. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this wrapper biodegradable?",
+    "input": "",
+    "output": "No, it is not biodegradable. It will break down naturally over time.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What type of plastic is this cup?",
+    "input": "",
+    "output": "This cup is made of PS (#6). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this cup?",
+    "input": "",
+    "output": "Yes, this is recyclable. Most facilities accept this material.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this cup made of?",
+    "input": "",
+    "output": "This cup is typically made of cardboard. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this cup biodegradable?",
+    "input": "",
+    "output": "Yes, it is biodegradable. It requires industrial composting.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What type of plastic is this plate?",
+    "input": "",
+    "output": "This plate is made of HDPE (#2). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this plate?",
+    "input": "",
+    "output": "Yes, this is recyclable. This material requires special processing.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this plate made of?",
+    "input": "",
+    "output": "This plate is typically made of plastic. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this plate biodegradable?",
+    "input": "",
+    "output": "No, it is not biodegradable. It will break down naturally over time.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What type of plastic is this utensil?",
+    "input": "",
+    "output": "This utensil is made of PP (#5). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this utensil?",
+    "input": "",
+    "output": "Yes, this is recyclable. This material requires special processing.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this utensil made of?",
+    "input": "",
+    "output": "This utensil is typically made of glass. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this utensil biodegradable?",
+    "input": "",
+    "output": "Yes, it is biodegradable. It requires industrial composting.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What type of plastic is this packaging?",
+    "input": "",
+    "output": "This packaging is made of PET (#1). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this packaging?",
+    "input": "",
+    "output": "Yes, this is recyclable. This material requires special processing.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this packaging made of?",
+    "input": "",
+    "output": "This packaging is typically made of ceramic. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this packaging biodegradable?",
+    "input": "",
+    "output": "Yes, it is biodegradable. It requires industrial composting.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What type of plastic is this box?",
+    "input": "",
+    "output": "This box is made of PS (#6). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this box?",
+    "input": "",
+    "output": "Yes, this is recyclable. Most facilities accept this material.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this box made of?",
+    "input": "",
+    "output": "This box is typically made of cardboard. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this box biodegradable?",
+    "input": "",
+    "output": "Yes, it is biodegradable. It will break down naturally over time.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What type of plastic is this can?",
+    "input": "",
+    "output": "This can is made of PP (#5). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this can?",
+    "input": "",
+    "output": "No, this is not recyclable. This material requires special processing.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this can made of?",
+    "input": "",
+    "output": "This can is typically made of ceramic. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this can biodegradable?",
+    "input": "",
+    "output": "No, it is not biodegradable. It will break down naturally over time.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What type of plastic is this jar?",
+    "input": "",
+    "output": "This jar is made of PVC (#3). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this jar?",
+    "input": "",
+    "output": "Yes, this is recyclable. This material requires special processing.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this jar made of?",
+    "input": "",
+    "output": "This jar is typically made of composite. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this jar biodegradable?",
+    "input": "",
+    "output": "No, it is not biodegradable. It requires industrial composting.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What type of plastic is this carton?",
+    "input": "",
+    "output": "This carton is made of LDPE (#4). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this carton?",
+    "input": "",
+    "output": "Yes, this is recyclable. Most facilities accept this material.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this carton made of?",
+    "input": "",
+    "output": "This carton is typically made of cardboard. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this carton biodegradable?",
+    "input": "",
+    "output": "No, it is not biodegradable. It will break down naturally over time.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What type of plastic is this tray?",
+    "input": "",
+    "output": "This tray is made of PET (#1). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this tray?",
+    "input": "",
+    "output": "Yes, this is recyclable. Most facilities accept this material.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this tray made of?",
+    "input": "",
+    "output": "This tray is typically made of aluminum. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this tray biodegradable?",
+    "input": "",
+    "output": "No, it is not biodegradable. It will break down naturally over time.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What type of plastic is this film?",
+    "input": "",
+    "output": "This film is made of PET (#1). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this film?",
+    "input": "",
+    "output": "Yes, this is recyclable. Most facilities accept this material.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this film made of?",
+    "input": "",
+    "output": "This film is typically made of paper. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this film biodegradable?",
+    "input": "",
+    "output": "No, it is not biodegradable. It will break down naturally over time.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What type of plastic is this foam?",
+    "input": "",
+    "output": "This foam is made of PVC (#3). Please check with your local recycling facility for proper disposal.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Can I recycle this foam?",
+    "input": "",
+    "output": "Yes, this is recyclable. This material requires special processing.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "What material is this foam made of?",
+    "input": "",
+    "output": "This foam is typically made of metal. It's commonly used for food packaging and containers.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "Is this foam biodegradable?",
+    "input": "",
+    "output": "Yes, it is biodegradable. It requires industrial composting.",
+    "category": "waste_identification"
+  },
+  {
+    "instruction": "How do I dispose of batteries?",
+    "input": "",
+    "output": "To dispose of batteries: 1. Check local regulations. 2. Find a designated drop-off location. 3. Prepare items properly.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Which bin should I put batteries in?",
+    "input": "",
+    "output": "Put batteries in the trash bin. This material requires special handling.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Can I throw batteries in the trash?",
+    "input": "",
+    "output": "No, do not throw this in regular trash. It contains hazardous materials that need special processing.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "How do I dispose of electronics?",
+    "input": "",
+    "output": "To dispose of electronics: 1. Check local regulations. 2. Find a designated drop-off location. 3. Prepare items properly.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Which bin should I put electronics in?",
+    "input": "",
+    "output": "Put electronics in the recycling bin. This material requires special handling.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Can I throw electronics in the trash?",
+    "input": "",
+    "output": "No, do not throw this in regular trash. It contains hazardous materials that need special processing.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "How do I dispose of paint?",
+    "input": "",
+    "output": "To dispose of paint: 1. Check local regulations. 2. Find a designated drop-off location. 3. Prepare items properly.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Which bin should I put paint in?",
+    "input": "",
+    "output": "Put paint in the recycling bin. This material requires special handling.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Can I throw paint in the trash?",
+    "input": "",
+    "output": "No, do not throw this in regular trash. It contains hazardous materials that need special processing.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "How do I dispose of oil?",
+    "input": "",
+    "output": "To dispose of oil: 1. Check local regulations. 2. Find a designated drop-off location. 3. Prepare items properly.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Which bin should I put oil in?",
+    "input": "",
+    "output": "Put oil in the compost bin. This material requires special handling.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Can I throw oil in the trash?",
+    "input": "",
+    "output": "Yes, you can dispose of this in trash. It contains hazardous materials that need special processing.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "How do I dispose of medications?",
+    "input": "",
+    "output": "To dispose of medications: 1. Check local regulations. 2. Find a designated drop-off location. 3. Prepare items properly.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Which bin should I put medications in?",
+    "input": "",
+    "output": "Put medications in the trash bin. This material requires special handling.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Can I throw medications in the trash?",
+    "input": "",
+    "output": "Yes, you can dispose of this in trash. It contains hazardous materials that need special processing.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "How do I dispose of light bulbs?",
+    "input": "",
+    "output": "To dispose of light bulbs: 1. Check local regulations. 2. Find a designated drop-off location. 3. Prepare items properly.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Which bin should I put light bulbs in?",
+    "input": "",
+    "output": "Put light bulbs in the compost bin. This material requires special handling.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Can I throw light bulbs in the trash?",
+    "input": "",
+    "output": "Yes, you can dispose of this in trash. It contains hazardous materials that need special processing.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "How do I dispose of tires?",
+    "input": "",
+    "output": "To dispose of tires: 1. Check local regulations. 2. Find a designated drop-off location. 3. Prepare items properly.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Which bin should I put tires in?",
+    "input": "",
+    "output": "Put tires in the hazardous waste bin. This material requires special handling.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Can I throw tires in the trash?",
+    "input": "",
+    "output": "Yes, you can dispose of this in trash. It contains hazardous materials that need special processing.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "How do I dispose of mattresses?",
+    "input": "",
+    "output": "To dispose of mattresses: 1. Check local regulations. 2. Find a designated drop-off location. 3. Prepare items properly.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Which bin should I put mattresses in?",
+    "input": "",
+    "output": "Put mattresses in the recycling bin. This material requires special handling.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Can I throw mattresses in the trash?",
+    "input": "",
+    "output": "Yes, you can dispose of this in trash. It contains hazardous materials that need special processing.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "How do I dispose of appliances?",
+    "input": "",
+    "output": "To dispose of appliances: 1. Check local regulations. 2. Find a designated drop-off location. 3. Prepare items properly.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Which bin should I put appliances in?",
+    "input": "",
+    "output": "Put appliances in the recycling bin. This material requires special handling.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Can I throw appliances in the trash?",
+    "input": "",
+    "output": "Yes, you can dispose of this in trash. It contains hazardous materials that need special processing.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "How do I dispose of chemicals?",
+    "input": "",
+    "output": "To dispose of chemicals: 1. Check local regulations. 2. Find a designated drop-off location. 3. Prepare items properly.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Which bin should I put chemicals in?",
+    "input": "",
+    "output": "Put chemicals in the hazardous waste bin. This material requires special handling.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Can I throw chemicals in the trash?",
+    "input": "",
+    "output": "Yes, you can dispose of this in trash. It contains hazardous materials that need special processing.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "How do I dispose of food waste?",
+    "input": "",
+    "output": "To dispose of food waste: 1. Check local regulations. 2. Find a designated drop-off location. 3. Prepare items properly.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Which bin should I put food waste in?",
+    "input": "",
+    "output": "Put food waste in the compost bin. This material requires special handling.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Can I throw food waste in the trash?",
+    "input": "",
+    "output": "Yes, you can dispose of this in trash. It contains hazardous materials that need special processing.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "How do I dispose of yard waste?",
+    "input": "",
+    "output": "To dispose of yard waste: 1. Check local regulations. 2. Find a designated drop-off location. 3. Prepare items properly.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Which bin should I put yard waste in?",
+    "input": "",
+    "output": "Put yard waste in the trash bin. This material requires special handling.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "Can I throw yard waste in the trash?",
+    "input": "",
+    "output": "Yes, you can dispose of this in trash. It contains hazardous materials that need special processing.",
+    "category": "disposal_guidance"
+  },
+  {
+    "instruction": "How can I reuse bottles?",
+    "input": "",
+    "output": "Here are creative ways to reuse bottles: 1. Planters for herbs. 2. Storage containers. 3. Art projects. 4. Home decor.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "What can I make from old bottles?",
+    "input": "",
+    "output": "You can create: Bird feeders, organizers, lamps, vases, or decorative pieces.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "Give me upcycling ideas for bottles",
+    "input": "",
+    "output": "Transform your bottles into: Useful household items, creative art, or functional furniture.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "How can I reuse jars?",
+    "input": "",
+    "output": "Here are creative ways to reuse jars: 1. Planters for herbs. 2. Storage containers. 3. Art projects. 4. Home decor.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "What can I make from old jars?",
+    "input": "",
+    "output": "You can create: Bird feeders, organizers, lamps, vases, or decorative pieces.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "Give me upcycling ideas for jars",
+    "input": "",
+    "output": "Transform your jars into: Useful household items, creative art, or functional furniture.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "How can I reuse cans?",
+    "input": "",
+    "output": "Here are creative ways to reuse cans: 1. Planters for herbs. 2. Storage containers. 3. Art projects. 4. Home decor.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "What can I make from old cans?",
+    "input": "",
+    "output": "You can create: Bird feeders, organizers, lamps, vases, or decorative pieces.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "Give me upcycling ideas for cans",
+    "input": "",
+    "output": "Transform your cans into: Useful household items, creative art, or functional furniture.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "How can I reuse boxes?",
+    "input": "",
+    "output": "Here are creative ways to reuse boxes: 1. Planters for herbs. 2. Storage containers. 3. Art projects. 4. Home decor.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "What can I make from old boxes?",
+    "input": "",
+    "output": "You can create: Bird feeders, organizers, lamps, vases, or decorative pieces.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "Give me upcycling ideas for boxes",
+    "input": "",
+    "output": "Transform your boxes into: Useful household items, creative art, or functional furniture.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "How can I reuse clothes?",
+    "input": "",
+    "output": "Here are creative ways to reuse clothes: 1. Planters for herbs. 2. Storage containers. 3. Art projects. 4. Home decor.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "What can I make from old clothes?",
+    "input": "",
+    "output": "You can create: Bird feeders, organizers, lamps, vases, or decorative pieces.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "Give me upcycling ideas for clothes",
+    "input": "",
+    "output": "Transform your clothes into: Useful household items, creative art, or functional furniture.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "How can I reuse furniture?",
+    "input": "",
+    "output": "Here are creative ways to reuse furniture: 1. Planters for herbs. 2. Storage containers. 3. Art projects. 4. Home decor.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "What can I make from old furniture?",
+    "input": "",
+    "output": "You can create: Bird feeders, organizers, lamps, vases, or decorative pieces.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "Give me upcycling ideas for furniture",
+    "input": "",
+    "output": "Transform your furniture into: Useful household items, creative art, or functional furniture.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "How can I reuse tires?",
+    "input": "",
+    "output": "Here are creative ways to reuse tires: 1. Planters for herbs. 2. Storage containers. 3. Art projects. 4. Home decor.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "What can I make from old tires?",
+    "input": "",
+    "output": "You can create: Bird feeders, organizers, lamps, vases, or decorative pieces.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "Give me upcycling ideas for tires",
+    "input": "",
+    "output": "Transform your tires into: Useful household items, creative art, or functional furniture.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "How can I reuse pallets?",
+    "input": "",
+    "output": "Here are creative ways to reuse pallets: 1. Planters for herbs. 2. Storage containers. 3. Art projects. 4. Home decor.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "What can I make from old pallets?",
+    "input": "",
+    "output": "You can create: Bird feeders, organizers, lamps, vases, or decorative pieces.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "Give me upcycling ideas for pallets",
+    "input": "",
+    "output": "Transform your pallets into: Useful household items, creative art, or functional furniture.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "How can I reuse newspapers?",
+    "input": "",
+    "output": "Here are creative ways to reuse newspapers: 1. Planters for herbs. 2. Storage containers. 3. Art projects. 4. Home decor.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "What can I make from old newspapers?",
+    "input": "",
+    "output": "You can create: Bird feeders, organizers, lamps, vases, or decorative pieces.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "Give me upcycling ideas for newspapers",
+    "input": "",
+    "output": "Transform your newspapers into: Useful household items, creative art, or functional furniture.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "How can I reuse magazines?",
+    "input": "",
+    "output": "Here are creative ways to reuse magazines: 1. Planters for herbs. 2. Storage containers. 3. Art projects. 4. Home decor.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "What can I make from old magazines?",
+    "input": "",
+    "output": "You can create: Bird feeders, organizers, lamps, vases, or decorative pieces.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "Give me upcycling ideas for magazines",
+    "input": "",
+    "output": "Transform your magazines into: Useful household items, creative art, or functional furniture.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "How can I reuse CDs?",
+    "input": "",
+    "output": "Here are creative ways to reuse CDs: 1. Planters for herbs. 2. Storage containers. 3. Art projects. 4. Home decor.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "What can I make from old CDs?",
+    "input": "",
+    "output": "You can create: Bird feeders, organizers, lamps, vases, or decorative pieces.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "Give me upcycling ideas for CDs",
+    "input": "",
+    "output": "Transform your CDs into: Useful household items, creative art, or functional furniture.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "How can I reuse wine corks?",
+    "input": "",
+    "output": "Here are creative ways to reuse wine corks: 1. Planters for herbs. 2. Storage containers. 3. Art projects. 4. Home decor.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "What can I make from old wine corks?",
+    "input": "",
+    "output": "You can create: Bird feeders, organizers, lamps, vases, or decorative pieces.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "Give me upcycling ideas for wine corks",
+    "input": "",
+    "output": "Transform your wine corks into: Useful household items, creative art, or functional furniture.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "How can I reuse egg cartons?",
+    "input": "",
+    "output": "Here are creative ways to reuse egg cartons: 1. Planters for herbs. 2. Storage containers. 3. Art projects. 4. Home decor.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "What can I make from old egg cartons?",
+    "input": "",
+    "output": "You can create: Bird feeders, organizers, lamps, vases, or decorative pieces.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "Give me upcycling ideas for egg cartons",
+    "input": "",
+    "output": "Transform your egg cartons into: Useful household items, creative art, or functional furniture.",
+    "category": "upcycling_ideas"
+  },
+  {
+    "instruction": "Why is recycling important?",
+    "input": "",
+    "output": "Recycling is crucial because it: 1. Conserves natural resources. 2. Reduces landfill waste. 3. Saves energy. 4. Reduces pollution. 5. Creates jobs in the recycling industry.",
+    "category": "sustainability_info"
+  },
+  {
+    "instruction": "What is the circular economy?",
+    "input": "",
+    "output": "The circular economy is an economic system aimed at eliminating waste and the continual use of resources through reuse, sharing, repair, refurbishment, remanufacturing and recycling.",
+    "category": "sustainability_info"
+  },
+  {
+    "instruction": "How does composting help the environment?",
+    "input": "",
+    "output": "Composting reduces methane emissions from landfills, enriches soil, reduces need for chemical fertilizers, and helps retain moisture in soil.",
+    "category": "sustainability_info"
+  },
+  {
+    "instruction": "What is zero waste?",
+    "input": "",
+    "output": "Zero waste is a philosophy that encourages redesigning resource life cycles so that all products are reused, and no trash is sent to landfills or incinerators.",
+    "category": "sustainability_info"
+  },
+  {
+    "instruction": "What are microplastics?",
+    "input": "",
+    "output": "Microplastics are tiny plastic particles less than 5mm in size that result from the breakdown of larger plastic items and are harmful to marine life and ecosystems.",
+    "category": "sustainability_info"
+  }
+]

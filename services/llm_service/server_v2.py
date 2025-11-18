@@ -32,6 +32,11 @@ from prometheus_client import Counter, Histogram, Gauge, generate_latest
 from starlette.responses import Response
 import yaml
 
+# Import NLP modules
+from intent_classifier import IntentClassifier, IntentCategory
+from entity_extractor import EntityExtractor, Entity
+from language_handler import LanguageHandler, Language
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -85,6 +90,12 @@ class LLMResponse(BaseModel):
     model: str
     generation_time_ms: float
     cached: bool = False
+    # NLP metadata
+    detected_language: Optional[str] = None
+    language_confidence: Optional[float] = None
+    intent: Optional[str] = None
+    intent_confidence: Optional[float] = None
+    entities: Optional[List[Dict[str, Any]]] = None
 
 
 # Rate limiting
@@ -182,7 +193,12 @@ class LLMServiceV2:
         self.total_tokens_generated = 0
         self.total_generation_time = 0.0
 
-        logger.info("LLMServiceV2 initialized")
+        # Initialize NLP modules
+        self.intent_classifier = IntentClassifier()
+        self.entity_extractor = EntityExtractor()
+        self.language_handler = LanguageHandler()
+
+        logger.info("LLMServiceV2 initialized with NLP modules")
 
     def _load_config(self, config_path: str) -> Dict:
         """Load configuration"""
@@ -289,6 +305,71 @@ class LLMServiceV2:
         except Exception as e:
             logger.warning(f"Model warmup failed: {e}")
 
+
+    async def preprocess_with_nlp(self, user_query: str) -> Dict[str, Any]:
+        """
+        Preprocess user query with NLP modules
+
+        Args:
+            user_query: User input text
+
+        Returns:
+            Dictionary with NLP metadata
+        """
+        try:
+            # Detect language
+            detected_lang, lang_confidence = self.language_handler.detect_language(user_query)
+            logger.info(f"Detected language: {detected_lang.value} ({lang_confidence:.2f})")
+
+            # Translate to English if needed
+            query_en = user_query
+            if detected_lang != Language.ENGLISH:
+                query_en = self.language_handler.translate_to_english(user_query, detected_lang)
+                logger.info(f"Translated to English: {query_en[:100]}...")
+
+            # Classify intent
+            intent, intent_confidence = self.intent_classifier.classify(query_en)
+            logger.info(f"Intent: {intent.value} ({intent_confidence:.2f})")
+
+            # Extract entities
+            entities = self.entity_extractor.extract(query_en)
+            logger.info(f"Extracted {len(entities)} entities")
+
+            # Get context hints for LLM
+            context_hints = self.intent_classifier.get_context_hints(intent)
+
+            return {
+                "detected_language": detected_lang.value,
+                "language_confidence": lang_confidence,
+                "intent": intent.value,
+                "intent_confidence": intent_confidence,
+                "entities": [
+                    {
+                        "text": e.text,
+                        "type": e.type,
+                        "start": e.start,
+                        "end": e.end,
+                        "confidence": e.confidence
+                    }
+                    for e in entities
+                ],
+                "context_hints": context_hints,
+                "query_en": query_en
+            }
+
+        except Exception as e:
+            logger.error(f"NLP preprocessing failed: {e}", exc_info=True)
+            # Return minimal metadata on error
+            return {
+                "detected_language": "en",
+                "language_confidence": 0.5,
+                "intent": "general_question",
+                "intent_confidence": 0.5,
+                "entities": [],
+                "context_hints": {},
+                "query_en": user_query
+            }
+
     def _format_messages(self, messages: List[Dict[str, str]], context: Optional[Dict] = None) -> str:
         """Format messages for the model"""
         # Add system prompt if not present
@@ -321,6 +402,24 @@ class LLMServiceV2:
     def _format_context(self, context: Dict[str, Any]) -> str:
         """Format context information"""
         parts = []
+
+        # NLP metadata
+        if "nlp_metadata" in context:
+            nlp = context["nlp_metadata"]
+            intent = nlp.get("intent", "")
+            entities = nlp.get("entities", [])
+
+            if intent:
+                parts.append(f"User intent: {intent}")
+
+            if entities:
+                entity_strs = [f"{e['text']} ({e['type']})" for e in entities[:5]]  # Limit to 5
+                parts.append(f"Key entities: {', '.join(entity_strs)}")
+
+            # Add context hints
+            hints = nlp.get("context_hints", {})
+            if hints.get("response_style"):
+                parts.append(f"Response style: {hints['response_style']}")
 
         # Vision results
         if "vision" in context:
@@ -506,6 +605,23 @@ async def generate_text(request: LLMRequest, http_request: Request):
             REQUESTS_TOTAL.labels(endpoint=endpoint, status="rate_limited").inc()
             raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
+        # Preprocess with NLP if user message exists
+        nlp_metadata = None
+        if request.messages and len(request.messages) > 0:
+            # Get last user message
+            user_message = None
+            for msg in reversed(request.messages):
+                if msg.get("role") == "user":
+                    user_message = msg.get("content", "")
+                    break
+
+            if user_message:
+                nlp_metadata = await llm_service.preprocess_with_nlp(user_message)
+                # Add NLP context hints to request context
+                if request.context is None:
+                    request.context = {}
+                request.context["nlp_metadata"] = nlp_metadata
+
         # Check cache
         cache_key = create_cache_key(request)
         cached_result = await request_cache.get(cache_key)
@@ -530,7 +646,13 @@ async def generate_text(request: LLMRequest, http_request: Request):
             },
             model=llm_service.config["model"]["base_model_name"],
             generation_time_ms=generation_time,
-            cached=False
+            cached=False,
+            # Add NLP metadata
+            detected_language=nlp_metadata.get("detected_language") if nlp_metadata else None,
+            language_confidence=nlp_metadata.get("language_confidence") if nlp_metadata else None,
+            intent=nlp_metadata.get("intent") if nlp_metadata else None,
+            intent_confidence=nlp_metadata.get("intent_confidence") if nlp_metadata else None,
+            entities=nlp_metadata.get("entities") if nlp_metadata else None
         )
 
         # Cache result

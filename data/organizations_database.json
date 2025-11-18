@@ -1,0 +1,164 @@
+{
+  "recycling_centers": [
+    {
+      "name": "EcoRecycle Center",
+      "type": "recycling_facility",
+      "services": ["plastic", "metal", "glass", "paper", "electronics"],
+      "location": "San Francisco, CA",
+      "contact": "info@ecorecycle.org",
+      "hours": "Mon-Sat 8AM-6PM",
+      "accepts_donations": true,
+      "special_programs": ["e-waste", "battery_recycling", "textile_recycling"]
+    },
+    {
+      "name": "Green Earth Recycling",
+      "type": "recycling_facility",
+      "services": ["all_materials", "hazardous_waste", "construction_debris"],
+      "location": "New York, NY",
+      "contact": "contact@greenearth.com",
+      "hours": "Mon-Fri 7AM-7PM, Sat 9AM-5PM",
+      "accepts_donations": true,
+      "special_programs": ["composting", "mattress_recycling", "appliance_recycling"]
+    },
+    {
+      "name": "RecycleNow",
+      "type": "recycling_facility",
+      "services": ["plastic", "metal", "glass", "paper"],
+      "location": "Los Angeles, CA",
+      "contact": "help@recyclenow.org",
+      "hours": "Daily 8AM-8PM",
+      "accepts_donations": true,
+      "special_programs": ["curbside_pickup", "business_recycling"]
+    }
+  ],
+  "donation_centers": [
+    {
+      "name": "Goodwill Industries",
+      "type": "charity_donation",
+      "services": ["clothing", "furniture", "household_items", "electronics"],
+      "location": "Nationwide",
+      "contact": "www.goodwill.org",
+      "hours": "Varies by location",
+      "accepts_donations": true,
+      "tax_deductible": true,
+      "pickup_available": true
+    },
+    {
+      "name": "Salvation Army",
+      "type": "charity_donation",
+      "services": ["clothing", "furniture", "appliances", "vehicles"],
+      "location": "Nationwide",
+      "contact": "www.salvationarmy.org",
+      "hours": "Varies by location",
+      "accepts_donations": true,
+      "tax_deductible": true,
+      "pickup_available": true
+    },
+    {
+      "name": "Habitat for Humanity ReStore",
+      "type": "charity_donation",
+      "services": ["building_materials", "furniture", "appliances", "home_goods"],
+      "location": "Nationwide",
+      "contact": "www.habitat.org/restores",
+      "hours": "Varies by location",
+      "accepts_donations": true,
+      "tax_deductible": true,
+      "pickup_available": true
+    },
+    {
+      "name": "Local Food Bank",
+      "type": "food_donation",
+      "services": ["non_perishable_food", "canned_goods"],
+      "location": "Community-based",
+      "contact": "www.feedingamerica.org",
+      "hours": "Varies by location",
+      "accepts_donations": true,
+      "tax_deductible": true,
+      "pickup_available": false
+    }
+  ],
+  "environmental_organizations": [
+    {
+      "name": "The Ocean Cleanup",
+      "type": "environmental_nonprofit",
+      "focus": ["ocean_plastic", "river_cleanup"],
+      "location": "Global",
+      "contact": "www.theoceancleanup.com",
+      "mission": "Developing advanced technologies to rid the oceans of plastic",
+      "accepts_donations": true,
+      "volunteer_opportunities": false
+    },
+    {
+      "name": "Sierra Club",
+      "type": "environmental_nonprofit",
+      "focus": ["conservation", "climate_action", "clean_energy"],
+      "location": "United States",
+      "contact": "www.sierraclub.org",
+      "mission": "Explore, enjoy, and protect the planet",
+      "accepts_donations": true,
+      "volunteer_opportunities": true
+    },
+    {
+      "name": "World Wildlife Fund",
+      "type": "environmental_nonprofit",
+      "focus": ["wildlife_conservation", "habitat_protection", "sustainability"],
+      "location": "Global",
+      "contact": "www.worldwildlife.org",
+      "mission": "Conserve nature and reduce threats to the diversity of life on Earth",
+      "accepts_donations": true,
+      "volunteer_opportunities": true
+    },
+    {
+      "name": "Greenpeace",
+      "type": "environmental_nonprofit",
+      "focus": ["climate_change", "deforestation", "ocean_protection", "pollution"],
+      "location": "Global",
+      "contact": "www.greenpeace.org",
+      "mission": "Ensure the ability of Earth to nurture life in all its diversity",
+      "accepts_donations": true,
+      "volunteer_opportunities": true
+    },
+    {
+      "name": "Earth Day Network",
+      "type": "environmental_nonprofit",
+      "focus": ["environmental_education", "climate_action", "plastic_pollution"],
+      "location": "Global",
+      "contact": "www.earthday.org",
+      "mission": "Diversify, educate and activate the environmental movement worldwide",
+      "accepts_donations": true,
+      "volunteer_opportunities": true
+    }
+  ],
+  "composting_services": [
+    {
+      "name": "CompostNow",
+      "type": "composting_service",
+      "services": ["residential_pickup", "commercial_composting"],
+      "location": "Multiple cities",
+      "contact": "www.compostnow.org",
+      "subscription_based": true,
+      "provides_bins": true
+    },
+    {
+      "name": "Municipal Composting Program",
+      "type": "government_service",
+      "services": ["curbside_composting", "drop_off_locations"],
+      "location": "City-specific",
+      "contact": "Contact local waste management",
+      "subscription_based": false,
+      "provides_bins": true
+    }
+  ],
+  "upcycling_workshops": [
+    {
+      "name": "Creative Reuse Center",
+      "type": "education_workshop",
+      "services": ["upcycling_classes", "art_supplies", "material_exchange"],
+      "location": "Community-based",
+      "contact": "Local community centers",
+      "classes_offered": ["furniture_upcycling", "textile_crafts", "art_projects"],
+      "membership_required": false
+    }
+  ]
+}
+

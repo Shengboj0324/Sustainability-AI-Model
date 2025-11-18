@@ -1,0 +1,42 @@
+{
+  "waste_management": {
+    "plastic_recycling": {
+      "title": "Comprehensive Plastic Recycling Guide",
+      "content": "Plastic recycling codes 1-7 explained:\n\n#1 PET (Polyethylene Terephthalate): Water bottles, soda bottles, food containers. RECYCLABLE in most programs.\n\n#2 HDPE (High-Density Polyethylene): Milk jugs, detergent bottles, shampoo bottles. HIGHLY RECYCLABLE.\n\n#3 PVC (Polyvinyl Chloride): Pipes, vinyl siding, some packaging. RARELY RECYCLABLE - check locally.\n\n#4 LDPE (Low-Density Polyethylene): Plastic bags, squeeze bottles, bread bags. SOMETIMES RECYCLABLE - often requires special drop-off.\n\n#5 PP (Polypropylene): Yogurt containers, bottle caps, straws. INCREASINGLY RECYCLABLE.\n\n#6 PS (Polystyrene): Foam cups, takeout containers, packing peanuts. RARELY RECYCLABLE - avoid when possible.\n\n#7 Other: Mixed plastics, bioplastics. USUALLY NOT RECYCLABLE - varies by facility.\n\nBest practices: Rinse containers, remove labels when possible, check local guidelines, never bag recyclables in plastic bags.",
+      "keywords": ["plastic", "recycling", "PET", "HDPE", "codes", "bottles"]
+    },
+    "composting_guide": {
+      "title": "Complete Composting Guide",
+      "content": "Composting transforms organic waste into nutrient-rich soil amendment.\n\nGREEN MATERIALS (Nitrogen-rich):\n- Fruit and vegetable scraps\n- Coffee grounds and filters\n- Tea bags (remove staples)\n- Grass clippings\n- Fresh plant trimmings\n- Eggshells (crushed)\n- Seaweed and kelp\n\nBROWN MATERIALS (Carbon-rich):\n- Dry leaves\n- Straw and hay\n- Wood chips and sawdust (untreated)\n- Shredded newspaper\n- Cardboard (torn into pieces)\n- Paper towels and napkins\n- Dryer lint (natural fibers only)\n\nNEVER COMPOST:\n- Meat, fish, bones\n- Dairy products\n- Oils and fats\n- Pet waste\n- Diseased plants\n- Weeds with seeds\n- Treated wood\n- Glossy paper\n\nCOMPOSTING METHODS:\n1. Hot composting: Active management, 3-6 months\n2. Cold composting: Passive, 6-12 months\n3. Vermicomposting: Using worms, 2-3 months\n4. Bokashi: Fermentation method, 2-4 weeks\n\nOptimal conditions: 3:1 brown to green ratio, moisture like wrung-out sponge, turn every 2-3 weeks, maintain 135-160°F for hot composting.",
+      "keywords": ["composting", "organic", "green", "brown", "soil", "waste"]
+    },
+    "e_waste_disposal": {
+      "title": "Electronic Waste Disposal Guide",
+      "content": "E-waste contains valuable materials and toxic substances requiring special handling.\n\nCOMMON E-WASTE:\n- Computers and laptops\n- Smartphones and tablets\n- TVs and monitors\n- Printers and scanners\n- Batteries (all types)\n- Cables and chargers\n- Small appliances\n- Gaming consoles\n\nWHY SPECIAL HANDLING:\n- Contains precious metals: gold, silver, copper, platinum\n- Contains toxic materials: lead, mercury, cadmium, beryllium\n- Data security concerns\n- Environmental contamination risk\n\nDISPOSAL OPTIONS:\n1. Manufacturer take-back programs (Apple, Dell, HP, etc.)\n2. Retailer recycling (Best Buy, Staples)\n3. Municipal e-waste collection events\n4. Certified e-waste recyclers (e-Stewards, R2 certified)\n5. Donation to schools or nonprofits (if functional)\n\nBEFORE RECYCLING:\n- Back up important data\n- Perform factory reset\n- Remove SIM cards and memory cards\n- Remove batteries if possible\n\nNEVER: Throw e-waste in regular trash or recycling bins.",
+      "keywords": ["electronics", "e-waste", "computers", "phones", "batteries", "recycling"]
+    },
+    "hazardous_waste": {
+      "title": "Hazardous Waste Disposal",
+      "content": "Household hazardous waste requires special disposal to protect health and environment.\n\nCOMMON HAZARDOUS WASTE:\n- Paints and solvents\n- Motor oil and antifreeze\n- Pesticides and herbicides\n- Cleaning chemicals\n- Batteries (car, rechargeable)\n- Fluorescent bulbs and CFLs\n- Thermometers and thermostats (mercury)\n- Propane tanks\n\nDISPOSAL METHODS:\n1. Household Hazardous Waste (HHW) collection facilities\n2. Special collection events\n3. Retailer take-back programs\n4. Auto parts stores (for automotive fluids)\n5. Battery recycling programs\n\nSAFETY TIPS:\n- Keep in original containers\n- Never mix chemicals\n- Transport upright and secure\n- Bring during daylight hours\n- Follow facility guidelines\n\nALTERNATIVES:\n- Use up products completely\n- Share with neighbors\n- Choose eco-friendly alternatives\n- Buy only what you need",
+      "keywords": ["hazardous", "chemicals", "paint", "batteries", "disposal", "toxic"]
+    },
+    "textile_recycling": {
+      "title": "Textile and Clothing Recycling",
+      "content": "Textile waste is a growing environmental concern. Most textiles are recyclable or reusable.\n\nWHAT CAN BE RECYCLED:\n- Clothing (any condition)\n- Shoes and accessories\n- Linens and towels\n- Curtains and drapes\n- Fabric scraps\n\nDISPOSAL OPTIONS:\n1. DONATE (good condition):\n   - Goodwill, Salvation Army\n   - Local shelters\n   - Dress for Success\n   - Vietnam Veterans of America\n\n2. RECYCLE (worn/damaged):\n   - H&M garment collection\n   - North Face Clothes the Loop\n   - Patagonia Worn Wear\n   - Textile recycling bins\n\n3. UPCYCLE:\n   - Cut into cleaning rags\n   - Craft projects\n   - Pet bedding\n   - Insulation material\n\nENVIRONMENTAL IMPACT:\n- 85% of textiles end up in landfills\n- Takes 200+ years to decompose\n- Textile production uses massive water and energy\n- Fast fashion creates 92 million tons of waste annually\n\nSUSTAINABLE CHOICES:\n- Buy quality over quantity\n- Choose natural fibers\n- Support sustainable brands\n- Repair and mend clothing\n- Shop secondhand",
+      "keywords": ["textiles", "clothing", "fabric", "donation", "upcycling", "fashion"]
+    }
+  },
+  "environmental_facts": {
+    "ocean_plastic": {
+      "title": "Ocean Plastic Pollution Crisis",
+      "content": "8 million metric tons of plastic enter oceans annually. By 2050, oceans may contain more plastic than fish by weight. 5 trillion plastic pieces currently float in oceans. Great Pacific Garbage Patch is twice the size of Texas. Microplastics found in 90% of seabirds, 100% of sea turtles. Plastic kills 1 million seabirds and 100,000 marine mammals yearly. Solutions: Reduce single-use plastics, support ocean cleanup initiatives, proper waste disposal, beach cleanups.",
+      "keywords": ["ocean", "plastic", "pollution", "marine", "microplastics"]
+    },
+    "climate_impact": {
+      "title": "Waste and Climate Change",
+      "content": "Landfills produce 15% of US methane emissions. Methane is 25x more potent than CO2 as greenhouse gas. Recycling reduces emissions by 35% compared to landfilling. Composting organic waste prevents methane generation. Manufacturing from recycled materials uses 30-90% less energy. One ton of recycled paper saves 17 trees, 7,000 gallons of water, 3 cubic yards of landfill space, 2 barrels of oil, 4,100 kWh of electricity.",
+      "keywords": ["climate", "methane", "emissions", "greenhouse", "recycling"]
+    }
+  }
+}
+

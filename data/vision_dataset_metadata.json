@@ -1,0 +1,71 @@
+{
+  "categories": {
+    "plastic": [
+      "bottle",
+      "container",
+      "bag",
+      "wrapper",
+      "cup",
+      "utensil"
+    ],
+    "metal": [
+      "can",
+      "foil",
+      "wire",
+      "scrap"
+    ],
+    "glass": [
+      "bottle",
+      "jar",
+      "broken_glass"
+    ],
+    "paper": [
+      "newspaper",
+      "cardboard",
+      "magazine",
+      "office_paper"
+    ],
+    "organic": [
+      "food_waste",
+      "yard_waste",
+      "compost"
+    ],
+    "electronic": [
+      "phone",
+      "computer",
+      "battery",
+      "cable"
+    ],
+    "textile": [
+      "clothing",
+      "fabric",
+      "shoes"
+    ],
+    "hazardous": [
+      "paint",
+      "chemical",
+      "battery",
+      "light_bulb"
+    ]
+  },
+  "total_categories": 8,
+  "training_requirements": {
+    "min_images_per_category": 1000,
+    "recommended_images_per_category": 5000,
+    "image_formats": [
+      "jpg",
+      "jpeg",
+      "png"
+    ],
+    "min_resolution": "224x224",
+    "recommended_resolution": "512x512"
+  },
+  "augmentation_strategies": [
+    "random_rotation",
+    "random_flip",
+    "color_jitter",
+    "random_crop",
+    "gaussian_blur",
+    "brightness_adjustment"
+  ]
+}

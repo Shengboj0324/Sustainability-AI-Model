@@ -23,6 +23,7 @@ import re
 from typing import Dict, Tuple, Optional
 from enum import Enum
 import logging
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +174,15 @@ class LanguageHandler:
             },
         }
 
+        # Cache for language detection
+        self._cache = {}
+        self._cache_max_size = 500
+
         logger.info("Language handler initialized with 8 languages")
+
+    def _get_cache_key(self, text: str) -> str:
+        """Generate cache key from text"""
+        return hashlib.md5(text.lower().strip().encode()).hexdigest()
 
     def detect_language(self, text: str) -> Tuple[Language, float]:
         """
@@ -185,47 +194,89 @@ class LanguageHandler:
         Returns:
             (detected_language, confidence_score)
         """
-        if not text or not text.strip():
+        try:
+            # Input validation
+            if not text or not isinstance(text, str):
+                logger.warning(f"Invalid input type: {type(text)}")
+                return Language.ENGLISH, 0.5
+
+            if not text.strip():
+                return Language.ENGLISH, 0.5
+
+            # Check cache first
+            cache_key = self._get_cache_key(text)
+            if cache_key in self._cache:
+                logger.debug(f"Cache hit for language detection")
+                return self._cache[cache_key]
+
+            # Truncate very long text
+            max_length = 1000
+            if len(text) > max_length:
+                logger.warning(f"Text truncated from {len(text)} to {max_length} chars")
+                text = text[:max_length]
+
+            text = text.strip()
+
+            # Check for Japanese first (unique character sets)
+            try:
+                if self.compiled_patterns[Language.JAPANESE][0].search(text):
+                    logger.info("Japanese detected via character set")
+                    result = (Language.JAPANESE, 0.95)
+                    # Cache result
+                    if len(self._cache) >= self._cache_max_size:
+                        self._cache.pop(next(iter(self._cache)))
+                    self._cache[cache_key] = result
+                    return result
+            except Exception as e:
+                logger.error(f"Error checking Japanese patterns: {e}")
+
+            # Score each language
+            scores = {}
+
+            for lang, patterns in self.compiled_patterns.items():
+                if lang == Language.JAPANESE:
+                    continue  # Already checked
+
+                score = 0
+                for pattern in patterns:
+                    try:
+                        matches = pattern.findall(text)
+                        score += len(matches)
+                    except Exception as e:
+                        logger.error(f"Pattern matching error for {lang.value}: {e}")
+                        continue
+                scores[lang] = score
+
+            # Get best match
+            if not scores or max(scores.values()) == 0:
+                # No pattern matched - default to English
+                logger.info("No language pattern matched, defaulting to English")
+                return Language.ENGLISH, 0.5
+
+            best_lang = max(scores, key=scores.get)
+            max_score = scores[best_lang]
+
+            # Calculate confidence
+            total_score = sum(scores.values())
+            confidence = max_score / total_score if total_score > 0 else 0.5
+
+            # Boost confidence if score is significantly higher
+            if max_score >= 3:
+                confidence = min(0.95, confidence + 0.2)
+
+            logger.info(f"Language detected: {best_lang.value} (confidence: {confidence:.2f})")
+
+            # Cache result (with FIFO eviction)
+            result = (best_lang, confidence)
+            if len(self._cache) >= self._cache_max_size:
+                self._cache.pop(next(iter(self._cache)))
+            self._cache[cache_key] = result
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error in language detection: {e}", exc_info=True)
             return Language.ENGLISH, 0.5
-
-        text = text.strip()
-
-        # Check for Japanese first (unique character sets)
-        if self.compiled_patterns[Language.JAPANESE][0].search(text):
-            return Language.JAPANESE, 0.95
-
-        # Score each language
-        scores = {}
-
-        for lang, patterns in self.compiled_patterns.items():
-            if lang == Language.JAPANESE:
-                continue  # Already checked
-
-            score = 0
-            for pattern in patterns:
-                matches = pattern.findall(text)
-                score += len(matches)
-            scores[lang] = score
-
-        # Get best match
-        if not scores or max(scores.values()) == 0:
-            # No pattern matched - default to English
-            return Language.ENGLISH, 0.5
-
-        best_lang = max(scores, key=scores.get)
-        max_score = scores[best_lang]
-
-        # Calculate confidence
-        total_score = sum(scores.values())
-        confidence = max_score / total_score if total_score > 0 else 0.5
-
-        # Boost confidence if score is significantly higher
-        if max_score >= 3:
-            confidence = min(0.95, confidence + 0.2)
-
-        logger.info(f"Language detected: {best_lang.value} (confidence: {confidence:.2f})")
-
-        return best_lang, confidence
 
     def translate_to_english(self, text: str, source_lang: Language) -> str:
         """

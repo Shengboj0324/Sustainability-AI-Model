@@ -17,6 +17,8 @@ import re
 from typing import Dict, List, Tuple, Optional
 from enum import Enum
 import logging
+from functools import lru_cache
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +115,15 @@ class IntentClassifier:
             for intent, patterns in self.patterns.items()
         }
 
+        # Cache for classification results
+        self._cache = {}
+        self._cache_max_size = 1000
+
         logger.info("Intent classifier initialized with 7 categories")
+
+    def _get_cache_key(self, text: str) -> str:
+        """Generate cache key from text"""
+        return hashlib.md5(text.lower().strip().encode()).hexdigest()
 
     def classify(self, text: str) -> Tuple[IntentCategory, float]:
         """
@@ -125,34 +135,76 @@ class IntentClassifier:
         Returns:
             (intent_category, confidence_score)
         """
-        if not text or not text.strip():
+        try:
+            # Input validation
+            if not text or not isinstance(text, str):
+                logger.warning(f"Invalid input type: {type(text)}")
+                return IntentCategory.GENERAL_QUESTION, 0.5
+
+            if not text.strip():
+                logger.warning("Empty text input")
+                return IntentCategory.GENERAL_QUESTION, 0.5
+
+            # Check cache first
+            cache_key = self._get_cache_key(text)
+            if cache_key in self._cache:
+                logger.debug(f"Cache hit for intent classification")
+                return self._cache[cache_key]
+
+            # Truncate very long text to prevent performance issues
+            max_length = 1000
+            if len(text) > max_length:
+                logger.warning(f"Text truncated from {len(text)} to {max_length} chars")
+                text = text[:max_length]
+
+            text = text.strip().lower()
+
+            # Score each intent with early exit optimization
+            scores = {}
+            max_possible_score = 0
+            for intent, patterns in self.compiled_patterns.items():
+                score = 0
+                max_possible_score = max(max_possible_score, len(patterns))
+                for pattern in patterns:
+                    try:
+                        if pattern.search(text):
+                            score += 1
+                            # Early exit if we have high confidence
+                            if score >= 3:
+                                break
+                    except Exception as e:
+                        logger.error(f"Pattern search error: {e}")
+                        continue
+                scores[intent] = score
+
+            # Get best match
+            if not scores or max(scores.values()) == 0:
+                # No pattern matched - default to general question
+                logger.info("No pattern matched, defaulting to GENERAL_QUESTION")
+                result = (IntentCategory.GENERAL_QUESTION, 0.3)
+                self._cache[cache_key] = result
+                return result
+
+            best_intent = max(scores, key=scores.get)
+            max_score = scores[best_intent]
+
+            # Calculate confidence (normalize by number of patterns)
+            num_patterns = len(self.compiled_patterns[best_intent])
+            confidence = min(1.0, max_score / num_patterns) if num_patterns > 0 else 0.5
+
+            logger.info(f"Intent classified: {best_intent.value} (confidence: {confidence:.2f})")
+
+            # Cache result (with LRU eviction)
+            if len(self._cache) >= self._cache_max_size:
+                # Remove oldest entry (simple FIFO for now)
+                self._cache.pop(next(iter(self._cache)))
+            self._cache[cache_key] = (best_intent, confidence)
+
+            return best_intent, confidence
+
+        except Exception as e:
+            logger.error(f"Error in intent classification: {e}", exc_info=True)
             return IntentCategory.GENERAL_QUESTION, 0.5
-
-        text = text.strip().lower()
-
-        # Score each intent
-        scores = {}
-        for intent, patterns in self.compiled_patterns.items():
-            score = 0
-            for pattern in patterns:
-                if pattern.search(text):
-                    score += 1
-            scores[intent] = score
-
-        # Get best match
-        if max(scores.values()) == 0:
-            # No pattern matched - default to general question
-            return IntentCategory.GENERAL_QUESTION, 0.3
-
-        best_intent = max(scores, key=scores.get)
-        max_score = scores[best_intent]
-
-        # Calculate confidence (normalize by number of patterns)
-        confidence = min(1.0, max_score / len(self.compiled_patterns[best_intent]))
-
-        logger.info(f"Intent classified: {best_intent.value} (confidence: {confidence:.2f})")
-
-        return best_intent, confidence
 
     def get_context_hints(self, intent: IntentCategory) -> Dict[str, any]:
         """

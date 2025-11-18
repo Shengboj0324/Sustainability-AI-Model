@@ -17,6 +17,7 @@ import re
 from typing import Dict, List, Set, Tuple
 from dataclasses import dataclass
 import logging
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,15 @@ class EntityExtractor:
         self.compiled_quantity_patterns = [re.compile(p, re.IGNORECASE) for p in self.quantity_patterns]
         self.compiled_time_patterns = [re.compile(p, re.IGNORECASE) for p in self.time_patterns]
 
+        # Cache for extraction results
+        self._cache = {}
+        self._cache_max_size = 500
+
         logger.info("Entity extractor initialized with 7 entity types")
+
+    def _get_cache_key(self, text: str) -> str:
+        """Generate cache key from text"""
+        return hashlib.md5(text.lower().strip().encode()).hexdigest()
 
     def extract(self, text: str) -> List[Entity]:
         """
@@ -128,102 +137,130 @@ class EntityExtractor:
         Returns:
             List of extracted entities
         """
-        if not text or not text.strip():
+        try:
+            # Input validation
+            if not text or not isinstance(text, str):
+                logger.warning(f"Invalid input type: {type(text)}")
+                return []
+
+            if not text.strip():
+                return []
+
+            # Check cache first
+            cache_key = self._get_cache_key(text)
+            if cache_key in self._cache:
+                logger.debug(f"Cache hit for entity extraction")
+                return self._cache[cache_key]
+
+            # Truncate very long text
+            max_length = 2000
+            if len(text) > max_length:
+                logger.warning(f"Text truncated from {len(text)} to {max_length} chars")
+                text = text[:max_length]
+
+            entities = []
+            text_lower = text.lower()
+
+            # Extract materials
+            for material in self.materials:
+                pattern = r'\b' + re.escape(material) + r'\b'
+                for match in re.finditer(pattern, text_lower):
+                    entities.append(Entity(
+                        text=match.group(),
+                        type='MATERIAL',
+                        start=match.start(),
+                        end=match.end(),
+                        confidence=1.0
+                    ))
+
+            # Extract items
+            for item in self.items:
+                pattern = r'\b' + re.escape(item) + r'\b'
+                for match in re.finditer(pattern, text_lower):
+                    entities.append(Entity(
+                        text=match.group(),
+                        type='ITEM',
+                        start=match.start(),
+                        end=match.end(),
+                        confidence=1.0
+                    ))
+
+            # Extract actions
+            for action in self.actions:
+                pattern = r'\b' + re.escape(action) + r'\b'
+                for match in re.finditer(pattern, text_lower):
+                    entities.append(Entity(
+                        text=match.group(),
+                        type='ACTION',
+                        start=match.start(),
+                        end=match.end(),
+                        confidence=1.0
+                    ))
+
+            # Extract organizations
+            for org in self.organizations:
+                pattern = r'\b' + re.escape(org) + r'\b'
+                for match in re.finditer(pattern, text_lower):
+                    entities.append(Entity(
+                        text=match.group(),
+                        type='ORGANIZATION',
+                        start=match.start(),
+                        end=match.end(),
+                        confidence=1.0
+                    ))
+
+            # Extract locations
+            for pattern in self.compiled_location_patterns:
+                for match in pattern.finditer(text):
+                    entities.append(Entity(
+                        text=match.group(),
+                        type='LOCATION',
+                        start=match.start(),
+                        end=match.end(),
+                        confidence=0.9
+                    ))
+
+            # Extract quantities
+            for pattern in self.compiled_quantity_patterns:
+                for match in pattern.finditer(text):
+                    entities.append(Entity(
+                        text=match.group(),
+                        type='QUANTITY',
+                        start=match.start(),
+                        end=match.end(),
+                        confidence=0.95
+                    ))
+
+            # Extract time expressions
+            for pattern in self.compiled_time_patterns:
+                for match in pattern.finditer(text):
+                    entities.append(Entity(
+                        text=match.group(),
+                        type='TIME',
+                        start=match.start(),
+                        end=match.end(),
+                        confidence=0.95
+                    ))
+
+            # Remove duplicates (keep highest confidence)
+            entities = self._remove_duplicates(entities)
+
+            # Sort by position
+            entities.sort(key=lambda e: e.start)
+
+            logger.info(f"Extracted {len(entities)} entities from text")
+
+            # Cache result (with FIFO eviction)
+            if len(self._cache) >= self._cache_max_size:
+                # Remove oldest entry
+                self._cache.pop(next(iter(self._cache)))
+            self._cache[cache_key] = entities
+
+            return entities
+
+        except Exception as e:
+            logger.error(f"Error in entity extraction: {e}", exc_info=True)
             return []
-
-        entities = []
-        text_lower = text.lower()
-
-        # Extract materials
-        for material in self.materials:
-            pattern = r'\b' + re.escape(material) + r'\b'
-            for match in re.finditer(pattern, text_lower):
-                entities.append(Entity(
-                    text=match.group(),
-                    type='MATERIAL',
-                    start=match.start(),
-                    end=match.end(),
-                    confidence=1.0
-                ))
-
-        # Extract items
-        for item in self.items:
-            pattern = r'\b' + re.escape(item) + r'\b'
-            for match in re.finditer(pattern, text_lower):
-                entities.append(Entity(
-                    text=match.group(),
-                    type='ITEM',
-                    start=match.start(),
-                    end=match.end(),
-                    confidence=1.0
-                ))
-
-        # Extract actions
-        for action in self.actions:
-            pattern = r'\b' + re.escape(action) + r'\b'
-            for match in re.finditer(pattern, text_lower):
-                entities.append(Entity(
-                    text=match.group(),
-                    type='ACTION',
-                    start=match.start(),
-                    end=match.end(),
-                    confidence=1.0
-                ))
-
-        # Extract organizations
-        for org in self.organizations:
-            pattern = r'\b' + re.escape(org) + r'\b'
-            for match in re.finditer(pattern, text_lower):
-                entities.append(Entity(
-                    text=match.group(),
-                    type='ORGANIZATION',
-                    start=match.start(),
-                    end=match.end(),
-                    confidence=1.0
-                ))
-
-        # Extract locations
-        for pattern in self.compiled_location_patterns:
-            for match in pattern.finditer(text):
-                entities.append(Entity(
-                    text=match.group(),
-                    type='LOCATION',
-                    start=match.start(),
-                    end=match.end(),
-                    confidence=0.9
-                ))
-
-        # Extract quantities
-        for pattern in self.compiled_quantity_patterns:
-            for match in pattern.finditer(text):
-                entities.append(Entity(
-                    text=match.group(),
-                    type='QUANTITY',
-                    start=match.start(),
-                    end=match.end(),
-                    confidence=0.95
-                ))
-
-        # Extract time expressions
-        for pattern in self.compiled_time_patterns:
-            for match in pattern.finditer(text):
-                entities.append(Entity(
-                    text=match.group(),
-                    type='TIME',
-                    start=match.start(),
-                    end=match.end(),
-                    confidence=0.95
-                ))
-
-        # Remove duplicates (keep highest confidence)
-        entities = self._remove_duplicates(entities)
-
-        # Sort by position
-        entities.sort(key=lambda e: e.start)
-
-        logger.info(f"Extracted {len(entities)} entities from text")
-
-        return entities
 
     def _remove_duplicates(self, entities: List[Entity]) -> List[Entity]:
         """Remove overlapping entities, keeping highest confidence"""

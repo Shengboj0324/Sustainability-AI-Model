@@ -1,0 +1,178 @@
+{
+  "nodes": [
+    {
+      "id": 0,
+      "label": "plastic_bottle",
+      "type": "waste_item"
+    },
+    {
+      "id": 1,
+      "label": "planter",
+      "type": "upcycled_product"
+    },
+    {
+      "id": 2,
+      "label": "bird_feeder",
+      "type": "upcycled_product"
+    },
+    {
+      "id": 3,
+      "label": "glass_jar",
+      "type": "waste_item"
+    },
+    {
+      "id": 4,
+      "label": "storage_container",
+      "type": "upcycled_product"
+    },
+    {
+      "id": 5,
+      "label": "vase",
+      "type": "upcycled_product"
+    },
+    {
+      "id": 6,
+      "label": "cardboard_box",
+      "type": "waste_item"
+    },
+    {
+      "id": 7,
+      "label": "organizer",
+      "type": "upcycled_product"
+    },
+    {
+      "id": 8,
+      "label": "tin_can",
+      "type": "waste_item"
+    },
+    {
+      "id": 9,
+      "label": "pencil_holder",
+      "type": "upcycled_product"
+    },
+    {
+      "id": 10,
+      "label": "old_clothes",
+      "type": "waste_item"
+    },
+    {
+      "id": 11,
+      "label": "cleaning_rags",
+      "type": "upcycled_product"
+    },
+    {
+      "id": 12,
+      "label": "tote_bag",
+      "type": "upcycled_product"
+    },
+    {
+      "id": 13,
+      "label": "wine_cork",
+      "type": "waste_item"
+    },
+    {
+      "id": 14,
+      "label": "coaster",
+      "type": "upcycled_product"
+    },
+    {
+      "id": 15,
+      "label": "pallet",
+      "type": "waste_item"
+    },
+    {
+      "id": 16,
+      "label": "furniture",
+      "type": "upcycled_product"
+    },
+    {
+      "id": 17,
+      "label": "tire",
+      "type": "waste_item"
+    },
+    {
+      "id": 18,
+      "label": "newspaper",
+      "type": "waste_item"
+    },
+    {
+      "id": 19,
+      "label": "gift_wrap",
+      "type": "upcycled_product"
+    }
+  ],
+  "edges": [
+    {
+      "source": 0,
+      "target": 1,
+      "relationship": "can_be_upcycled_to",
+      "method": "cut_and_clean"
+    },
+    {
+      "source": 0,
+      "target": 2,
+      "relationship": "can_be_upcycled_to",
+      "method": "cut_holes"
+    },
+    {
+      "source": 3,
+      "target": 4,
+      "relationship": "can_be_upcycled_to",
+      "method": "clean"
+    },
+    {
+      "source": 3,
+      "target": 5,
+      "relationship": "can_be_upcycled_to",
+      "method": "decorate"
+    },
+    {
+      "source": 6,
+      "target": 7,
+      "relationship": "can_be_upcycled_to",
+      "method": "cut_and_fold"
+    },
+    {
+      "source": 8,
+      "target": 9,
+      "relationship": "can_be_upcycled_to",
+      "method": "clean_and_decorate"
+    },
+    {
+      "source": 10,
+      "target": 11,
+      "relationship": "can_be_upcycled_to",
+      "method": "cut"
+    },
+    {
+      "source": 10,
+      "target": 12,
+      "relationship": "can_be_upcycled_to",
+      "method": "sew"
+    },
+    {
+      "source": 13,
+      "target": 14,
+      "relationship": "can_be_upcycled_to",
+      "method": "glue_together"
+    },
+    {
+      "source": 15,
+      "target": 16,
+      "relationship": "can_be_upcycled_to",
+      "method": "sand_and_assemble"
+    },
+    {
+      "source": 17,
+      "target": 1,
+      "relationship": "can_be_upcycled_to",
+      "method": "cut_and_paint"
+    },
+    {
+      "source": 18,
+      "target": 19,
+      "relationship": "can_be_upcycled_to",
+      "method": "fold"
+    }
+  ]
+}
