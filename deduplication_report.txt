@@ -1,0 +1,106 @@
+================================================================================
+COMPREHENSIVE DEDUPLICATION REPORT
+================================================================================
+
+1. DEPRECATED FILES TO REMOVE:
+--------------------------------------------------------------------------------
+   - services/llm_service/server.py
+   - services/vision_service/server.py
+
+2. DUPLICATE CLASSES FOUND:
+--------------------------------------------------------------------------------
+
+   Detection:
+     - models/vision/detector.py
+     - services/api_gateway/schemas.py
+
+   DetectionResult:
+     - models/vision/detector.py
+     - services/api_gateway/routers/vision.py
+
+   ClassificationResult:
+     - models/vision/classifier.py
+     - services/api_gateway/schemas.py
+     - services/api_gateway/routers/vision.py
+
+   RecommendationResult:
+     - models/gnn/inference.py
+     - services/api_gateway/routers/vision.py
+
+   LLMRequest:
+     - services/llm_service/server.py
+     - services/llm_service/server_v2.py
+
+   LLMResponse:
+     - services/llm_service/server.py
+     - services/llm_service/server_v2.py
+
+   RateLimiter:
+     - services/llm_service/server_v2.py
+     - services/rag_service/server.py
+     - services/vision_service/server_v2.py
+
+   RequestCache:
+     - services/llm_service/server_v2.py
+     - services/vision_service/server_v2.py
+
+   QueryCache:
+     - services/rag_service/server.py
+     - services/org_search_service/server.py
+     - services/kg_service/server.py
+
+   Location:
+     - services/api_gateway/schemas.py
+     - services/api_gateway/routers/organizations.py
+
+   ChatRequest:
+     - services/api_gateway/schemas.py
+     - services/api_gateway/routers/chat.py
+
+   ChatResponse:
+     - services/api_gateway/schemas.py
+     - services/api_gateway/routers/chat.py
+
+   Organization:
+     - services/api_gateway/schemas.py
+     - services/api_gateway/routers/organizations.py
+     - services/org_search_service/server.py
+
+   VisionRequest:
+     - services/api_gateway/routers/vision.py
+     - services/vision_service/server_v2.py
+
+   VisionResponse:
+     - services/api_gateway/routers/vision.py
+     - services/vision_service/server_v2.py
+
+   DummyMetric:
+     - services/org_search_service/server.py
+     - services/kg_service/server.py
+
+3. CONSOLIDATION PLAN:
+--------------------------------------------------------------------------------
+
+   1. REMOVE_DEPRECATED
+      Reason: Replaced by v2 versions with production features
+
+   2. CONSOLIDATE_SCHEMAS
+      Reason: Single source of truth for all API schemas
+      Target: services/api_gateway/schemas.py
+
+   3. CREATE_SHARED_UTILITIES
+      Reason: Eliminate duplicate utility classes across services
+      Target: services/shared/utils.py
+
+   4. CONSOLIDATE_METHODS
+      Reason: Shared methods used across multiple modules
+      Target: services/shared/common.py
+
+================================================================================
+RECOMMENDATIONS:
+================================================================================
+1. Remove deprecated server.py files (use server_v2.py)
+2. Consolidate all schemas into services/api_gateway/schemas.py
+3. Create services/shared/ directory for common utilities
+4. Update all imports to use consolidated modules
+5. Run comprehensive tests after deduplication
