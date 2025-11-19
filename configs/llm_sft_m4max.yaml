@@ -38,13 +38,17 @@ model:
     bnb_4bit_use_double_quant: false
 
 data:
-  # Training data files
+  # Training data files (processed JSONL format with chat messages)
   train_files:
-    - "data/llm_training_ultra_expanded.json"
+    - "data/processed/llm_sft/sustainability_qa_train.jsonl"
+    - "data/processed/llm_sft/upcycling_qa_train.jsonl"
+    - "data/processed/llm_sft/org_routing_train.jsonl"
 
-  # Validation data files (use same for now)
+  # Validation data files
   val_files:
-    - "data/llm_training_ultra_expanded.json"
+    - "data/processed/llm_sft/sustainability_qa_val.jsonl"
+    - "data/processed/llm_sft/upcycling_qa_val.jsonl"
+    - "data/processed/llm_sft/org_routing_val.jsonl"
   
   # Data format and processing
   format: "chat"              # OpenAI-style chat format
