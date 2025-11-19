@@ -99,24 +99,30 @@ class WasteDetector:
 
     def _setup_device(self, device: Optional[str] = None) -> str:
         """
-        Setup device with proper CUDA handling
+        Setup device with proper CUDA and MPS handling
 
-        CRITICAL: YOLOv8 uses string device names
+        CRITICAL: YOLOv8 uses string device names ("cuda", "mps", "cpu")
         """
         if device is not None:
             if device == "cuda" and not torch.cuda.is_available():
                 logger.warning("CUDA requested but not available. Falling back to CPU.")
+                return "cpu"
+            if device == "mps" and not torch.backends.mps.is_available():
+                logger.warning("MPS requested but not available. Falling back to CPU.")
                 return "cpu"
             return device
 
         # Auto-detect
         if torch.cuda.is_available():
             device = "cuda"
-            logger.info(f"CUDA available. Using GPU: {torch.cuda.get_device_name(0)}")
+            logger.info(f"🔥 CUDA available. Using GPU: {torch.cuda.get_device_name(0)}")
             logger.info(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
+        elif torch.backends.mps.is_available():
+            device = "mps"
+            logger.info("🍎 Using Apple Silicon GPU (MPS)")
         else:
             device = "cpu"
-            logger.info("Using CPU for inference")
+            logger.info("💻 Using CPU for inference")
 
         return device
 

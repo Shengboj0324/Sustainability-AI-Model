@@ -1,0 +1,153 @@
+# LLM Supervised Fine-Tuning Configuration - OPTIMIZED FOR APPLE M4 MAX
+# Domain specialization for sustainability, recycling, and upcycling
+# 
+# CRITICAL M4 MAX OPTIMIZATIONS:
+# - No quantization (not supported on MPS)
+# - FP16 instead of BF16 (BF16 not supported on MPS)
+# - Larger batch sizes (unified memory architecture)
+# - Optimized for 128GB unified memory
+
+model:
+  base_model_name: "meta-llama/Llama-3-8B-Instruct"  # or "Qwen/Qwen2.5-7B-Instruct"
+  model_type: "causal_lm"
+  trust_remote_code: true
+  
+  # LoRA configuration for efficient fine-tuning
+  lora:
+    enabled: true
+    r: 64                    # LoRA rank
+    alpha: 128               # LoRA alpha (scaling factor)
+    dropout: 0.05
+    target_modules:
+      - "q_proj"
+      - "v_proj"
+      - "k_proj"
+      - "o_proj"
+      - "gate_proj"
+      - "up_proj"
+      - "down_proj"
+    bias: "none"
+    task_type: "CAUSAL_LM"
+  
+  # Quantization DISABLED for M4 Max (not supported on MPS)
+  quantization:
+    enabled: false
+    load_in_4bit: false
+    bnb_4bit_compute_dtype: "float16"  # Changed from bfloat16
+    bnb_4bit_quant_type: "nf4"
+    bnb_4bit_use_double_quant: false
+
+data:
+  # Training data files
+  train_files:
+    - "data/llm_training_ultra_expanded.json"
+
+  # Validation data files (use same for now)
+  val_files:
+    - "data/llm_training_ultra_expanded.json"
+  
+  # Data format and processing
+  format: "chat"              # OpenAI-style chat format
+  max_length: 2048            # Maximum sequence length
+  packing: false              # Disable packing for M4 Max stability
+  num_workers: 8              # M4 Max has excellent multi-core performance
+  
+  # Data composition weights (for balanced training)
+  sampling_weights:
+    sustainability_qa: 0.35
+    upcycling_qa: 0.35
+    org_routing: 0.20
+    safety_examples: 0.10
+
+training:
+  # Trainer configuration
+  trainer: "hf_trainer"       # HuggingFace Trainer
+  output_dir: "models/llm/adapters/sustainability-m4max-v1"
+  
+  # CRITICAL M4 MAX: Larger batch sizes due to unified memory
+  per_device_train_batch_size: 8    # Increased from 4
+  per_device_eval_batch_size: 8     # Increased from 4
+  gradient_accumulation_steps: 4    # Reduced from 8 (effective batch = 32)
+  # Effective batch size = 8 * 4 = 32
+  
+  # Training duration
+  num_train_epochs: 3
+  max_steps: -1               # -1 means use num_train_epochs
+  
+  # Optimization
+  learning_rate: 1.5e-4
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  
+  # Optimizer settings
+  optim: "adamw_torch"        # Use PyTorch AdamW (better MPS support)
+  adam_beta1: 0.9
+  adam_beta2: 0.98
+  adam_epsilon: 1.0e-8
+  
+  # CRITICAL M4 MAX: FP16 instead of BF16
+  bf16: false                 # BFloat16 NOT supported on MPS
+  fp16: true                  # Use Float16 instead
+  
+  # Logging and checkpointing
+  logging_steps: 25           # More frequent logging
+  save_steps: 500             # More frequent saves
+  eval_steps: 500
+  save_total_limit: 5         # Keep more checkpoints
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  
+  # Evaluation
+  evaluation_strategy: "steps"
+  save_strategy: "steps"
+  
+  # Regularization
+  label_smoothing_factor: 0.0
+  
+  # Reproducibility
+  seed: 42
+  data_seed: 42
+
+peft:
+  use_lora: true
+  lora_inference_merge: false  # Keep adapter separate; merge later if needed
+  
+evaluation:
+  # Metrics to compute
+  metrics:
+    - "loss"
+    - "perplexity"
+  
+  # Evaluation dataset size
+  max_eval_samples: 100       # Reduced for faster evaluation
+
+inference:
+  # Inference settings for testing
+  max_new_tokens: 512
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 50
+  repetition_penalty: 1.1
+  do_sample: true
+
+system_prompt: |
+  You are ReleAF AI, an expert sustainability assistant specializing in recycling, upcycling, 
+  and waste management. You provide accurate, safe, and creative guidance on:
+  - Waste identification and proper disposal
+  - Recycling rules and regulations
+  - Upcycling projects and creative reuse
+  - Material properties and chemistry
+  - Environmental organizations and resources
+  
+  Always prioritize safety, environmental responsibility, and practical feasibility in your responses.
+
+# M4 MAX SPECIFIC NOTES:
+# - Unified memory allows larger batch sizes
+# - No quantization needed - full precision training
+# - FP16 provides good speed/accuracy tradeoff
+# - Expect ~2-3 hours training time on M4 Max
+# - Monitor memory usage with Activity Monitor
+

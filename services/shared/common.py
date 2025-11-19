@@ -59,13 +59,14 @@ def load_config(config_path: str) -> Dict[str, Any]:
         raise
 
 
-def cleanup_resources(model: Optional[torch.nn.Module] = None, 
+def cleanup_resources(model: Optional[torch.nn.Module] = None,
                      device: Optional[torch.device] = None):
     """
     Clean up model resources and free memory
-    
+
     CRITICAL: Prevents memory leaks in production
-    
+    Supports CUDA, MPS (Apple Silicon), and CPU
+
     Args:
         model: PyTorch model to clean up
         device: Device to clear cache on
@@ -78,7 +79,7 @@ def cleanup_resources(model: Optional[torch.nn.Module] = None,
             logger.info("Model moved to CPU and deleted")
         except Exception as e:
             logger.warning(f"Error cleaning up model: {e}")
-    
+
     # Clear CUDA cache if using GPU
     if device is not None and device.type == 'cuda':
         try:
@@ -86,11 +87,25 @@ def cleanup_resources(model: Optional[torch.nn.Module] = None,
             logger.info("CUDA cache cleared")
         except Exception as e:
             logger.warning(f"Error clearing CUDA cache: {e}")
-    
+
+    # Clear MPS cache if using Apple Silicon
+    if device is not None and device.type == 'mps':
+        try:
+            torch.mps.empty_cache()
+            logger.info("MPS cache cleared")
+        except Exception as e:
+            logger.warning(f"Error clearing MPS cache: {e}")
+
     # Also try to clear cache without device check
     if torch.cuda.is_available():
         try:
             torch.cuda.empty_cache()
+        except:
+            pass
+
+    if torch.backends.mps.is_available():
+        try:
+            torch.mps.empty_cache()
         except:
             pass
 

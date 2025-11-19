@@ -165,9 +165,18 @@ def main():
         name=config["training"]["experiment_name"]
     )
 
-    # Device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logger.info(f"Using device: {device}")
+    # CRITICAL: Device selection with M4 Max support
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        logger.info(f"🔥 Using CUDA GPU: {torch.cuda.get_device_name(0)}")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+        logger.info("🍎 Using Apple M4 Max GPU (MPS)")
+    else:
+        device = torch.device("cpu")
+        logger.info("💻 Using CPU")
+
+    logger.info(f"Device: {device}")
 
     # Load graph data
     data = load_graph_data(config)

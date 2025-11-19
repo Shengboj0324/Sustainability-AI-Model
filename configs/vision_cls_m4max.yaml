@@ -1,0 +1,165 @@
+# Vision Classifier Configuration - OPTIMIZED FOR APPLE M4 MAX
+# Waste and material classification from images
+#
+# CRITICAL M4 MAX OPTIMIZATIONS:
+# - Larger batch sizes (unified memory)
+# - FP16 precision
+# - Optimized data loading
+
+model:
+  backbone: "vit_base_patch16_224"  # Vision Transformer
+  pretrained: true
+  pretrained_source: "timm"
+  
+  # Multi-head classification
+  multi_head: true
+  num_classes_item: 20      # Bottle, can, box, bag, cup, textile, e-waste, etc.
+  num_classes_material: 15  # PET, HDPE, PP, PVC, glass, aluminum, paper, etc.
+  num_classes_bin: 4        # Recycle, compost, landfill, hazardous
+  
+  # Model architecture
+  drop_rate: 0.1
+  drop_path_rate: 0.1
+  
+  # Class definitions
+  item_classes:
+    - "plastic_bottle"
+    - "glass_bottle"
+    - "aluminum_can"
+    - "steel_can"
+    - "cardboard_box"
+    - "paper"
+    - "plastic_bag"
+    - "food_container"
+    - "cup"
+    - "textile"
+    - "e_waste"
+    - "battery"
+    - "light_bulb"
+    - "organic_waste"
+    - "styrofoam"
+    - "tetra_pak"
+    - "mixed_plastic"
+    - "metal_scrap"
+    - "wood"
+    - "other"
+  
+  material_classes:
+    - "PET"
+    - "HDPE"
+    - "PVC"
+    - "LDPE"
+    - "PP"
+    - "PS"
+    - "glass"
+    - "aluminum"
+    - "steel"
+    - "paper"
+    - "cardboard"
+    - "cotton"
+    - "polyester"
+    - "mixed"
+    - "other"
+
+data:
+  # Data directories
+  data_dir: "data/processed/vision_cls"
+  train_dir: "data/processed/vision_cls/train"
+  val_dir: "data/processed/vision_cls/val"
+  test_dir: "data/processed/vision_cls/test"
+  
+  # Image processing
+  input_size: 224
+  interpolation: "bicubic"
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+  
+  # CRITICAL M4 MAX: Optimized data loading
+  num_workers: 8              # M4 Max has excellent multi-core
+  pin_memory: false           # Not needed for MPS
+  persistent_workers: true
+  
+  # Augmentations for training
+  augmentations:
+    - type: "random_resized_crop"
+      size: 224
+      scale: [0.8, 1.0]
+      ratio: [0.9, 1.1]
+    - type: "horizontal_flip"
+      p: 0.5
+    - type: "color_jitter"
+      brightness: 0.2
+      contrast: 0.2
+      saturation: 0.2
+      hue: 0.05
+    - type: "random_rotation"
+      degrees: 10
+    - type: "random_affine"
+      degrees: 0
+      translate: [0.1, 0.1]
+    - type: "normalize"
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+
+training:
+  # Output
+  output_dir: "models/vision/classifier_m4max"
+  experiment_name: "waste_classifier_m4max_v1"
+  
+  # CRITICAL M4 MAX: Larger batch sizes
+  batch_size: 128             # Increased from 64
+  val_batch_size: 256         # Increased from 128
+  
+  # Training duration
+  num_epochs: 40
+  early_stopping_patience: 10
+  
+  # Optimization
+  optimizer: "adamw"
+  learning_rate: 3.0e-4
+  weight_decay: 0.05
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  
+  # Learning rate schedule
+  lr_scheduler: "cosine"
+  warmup_epochs: 3
+  min_lr: 1.0e-6
+  
+  # Regularization
+  label_smoothing: 0.1
+  mixup_alpha: 0.2
+  cutmix_alpha: 1.0
+  mixup_prob: 0.5
+  cutmix_prob: 0.5
+  
+  # Gradient clipping
+  clip_grad_norm: 1.0
+  
+  # CRITICAL M4 MAX: Use AMP with FP16
+  use_amp: true
+  
+  # Checkpointing
+  save_freq: 5
+  save_every: 5
+  save_best_only: false
+
+  # Class balancing
+  use_balanced_sampler: true
+  
+  # Logging
+  log_interval: 25
+  val_interval: 1
+
+loss:
+  # Multi-task loss configuration
+  item_type_loss: "cross_entropy"
+  material_loss: "cross_entropy"
+  bin_type_loss: "cross_entropy"
+  
+  # Loss weights
+  loss_weights:
+    item: 1.0
+    material: 1.0
+    bin: 0.5
+

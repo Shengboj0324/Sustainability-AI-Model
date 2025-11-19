@@ -159,14 +159,17 @@ class LLMServiceV2:
             }
 
     def _setup_device(self) -> torch.device:
-        """Setup device with proper CUDA handling"""
+        """Setup device with proper CUDA and MPS handling"""
         if torch.cuda.is_available():
             device = torch.device("cuda")
-            logger.info(f"CUDA available. Using GPU: {torch.cuda.get_device_name(0)}")
+            logger.info(f"🔥 CUDA available. Using GPU: {torch.cuda.get_device_name(0)}")
             logger.info(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
+        elif torch.backends.mps.is_available():
+            device = torch.device("mps")
+            logger.info("🍎 Using Apple Silicon GPU (MPS)")
         else:
             device = torch.device("cpu")
-            logger.info("Using CPU for inference")
+            logger.info("💻 Using CPU for inference")
 
         return device
 
@@ -243,8 +246,11 @@ class LLMServiceV2:
                     temperature=0.7,
                     top_p=0.9
                 )
+                # Synchronize GPU operations
                 if self.device.type == "cuda":
                     torch.cuda.synchronize()
+                elif self.device.type == "mps":
+                    torch.mps.synchronize()
 
             logger.info("Model warmup complete")
         except Exception as e:

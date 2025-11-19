@@ -35,33 +35,51 @@ def load_config(config_path: str = "configs/llm_sft.yaml"):
 
 
 def load_model_and_tokenizer(config):
-    """Load base model and tokenizer"""
+    """Load base model and tokenizer with M4 Max optimization"""
     model_name = config["model"]["base_model_name"]
-    
+
     logger.info(f"Loading tokenizer: {model_name}")
     tokenizer = AutoTokenizer.from_pretrained(
         model_name,
         trust_remote_code=config["model"]["trust_remote_code"]
     )
-    
+
     # Set padding token
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.pad_token_id = tokenizer.eos_token_id
-    
+
     logger.info(f"Loading model: {model_name}")
-    
-    # Quantization config
-    if config["model"]["quantization"]["enabled"]:
+
+    # CRITICAL: Detect device and adjust dtype for M4 Max
+    use_mps = torch.backends.mps.is_available()
+    use_cuda = torch.cuda.is_available()
+
+    if use_mps:
+        logger.info("🍎 Apple M4 Max detected - using MPS backend")
+        logger.warning("⚠️  BFloat16 not supported on MPS - using Float16 instead")
+        compute_dtype = torch.float16
+        use_quantization = False  # Quantization not supported on MPS
+    elif use_cuda:
+        logger.info("🔥 CUDA GPU detected")
+        compute_dtype = torch.bfloat16 if config["training"]["bf16"] else torch.float16
+        use_quantization = config["model"]["quantization"]["enabled"]
+    else:
+        logger.info("💻 Using CPU")
+        compute_dtype = torch.float32
+        use_quantization = False
+
+    # Quantization config (only for CUDA)
+    if use_quantization and use_cuda:
         from transformers import BitsAndBytesConfig
-        
+
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=config["model"]["quantization"]["load_in_4bit"],
-            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_compute_dtype=compute_dtype,
             bnb_4bit_quant_type=config["model"]["quantization"]["bnb_4bit_quant_type"],
             bnb_4bit_use_double_quant=config["model"]["quantization"]["bnb_4bit_use_double_quant"]
         )
-        
+
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
             quantization_config=bnb_config,
@@ -69,13 +87,19 @@ def load_model_and_tokenizer(config):
             trust_remote_code=config["model"]["trust_remote_code"]
         )
     else:
+        # For MPS or CPU: load without quantization
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            torch_dtype=torch.bfloat16 if config["training"]["bf16"] else torch.float16,
-            device_map="auto",
+            torch_dtype=compute_dtype,
+            device_map="auto" if use_cuda else None,
             trust_remote_code=config["model"]["trust_remote_code"]
         )
-    
+
+        # Move to MPS if available
+        if use_mps:
+            model = model.to('mps')
+            logger.info("✅ Model moved to MPS device")
+
     return model, tokenizer
 
 
@@ -175,7 +199,25 @@ def load_and_prepare_data(config, tokenizer):
 
 
 def get_training_arguments(config):
-    """Get training arguments"""
+    """Get training arguments with M4 Max optimization"""
+    # CRITICAL: Adjust precision for M4 Max
+    use_mps = torch.backends.mps.is_available()
+    use_cuda = torch.cuda.is_available()
+
+    if use_mps:
+        # M4 Max: Use FP16, not BF16
+        bf16 = False
+        fp16 = True
+        logger.info("🍎 M4 Max: Using FP16 precision")
+    elif use_cuda:
+        # CUDA: Use config settings
+        bf16 = config["training"]["bf16"]
+        fp16 = config["training"]["fp16"]
+    else:
+        # CPU: No mixed precision
+        bf16 = False
+        fp16 = False
+
     return TrainingArguments(
         output_dir=config["training"]["output_dir"],
         per_device_train_batch_size=config["training"]["per_device_train_batch_size"],
@@ -187,8 +229,8 @@ def get_training_arguments(config):
         warmup_ratio=config["training"]["warmup_ratio"],
         weight_decay=config["training"]["weight_decay"],
         max_grad_norm=config["training"]["max_grad_norm"],
-        bf16=config["training"]["bf16"],
-        fp16=config["training"]["fp16"],
+        bf16=bf16,
+        fp16=fp16,
         logging_steps=config["training"]["logging_steps"],
         save_steps=config["training"]["save_steps"],
         eval_steps=config["training"]["eval_steps"],
@@ -202,7 +244,8 @@ def get_training_arguments(config):
         data_seed=config["training"]["data_seed"],
         optim=config["training"]["optim"],
         report_to=["wandb"],  # Enable W&B logging
-        run_name="releaf-llm-sft"
+        run_name="releaf-llm-sft",
+        use_mps_device=use_mps  # Enable MPS if available
     )
 
 

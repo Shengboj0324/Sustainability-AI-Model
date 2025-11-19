@@ -253,11 +253,11 @@ class RAGService:
         """
         try:
             model_name = self.config["embedding"]["model_name"]
-            device = os.getenv("EMBEDDING_DEVICE", "cpu")  # cpu or cuda
+            device = os.getenv("EMBEDDING_DEVICE", "cpu")  # cpu, cuda, or mps
 
             logger.info(f"Loading embedding model: {model_name} on device: {device}")
 
-            # Check if CUDA is available when requested
+            # Check device availability
             if device == "cuda":
                 try:
                     import torch
@@ -265,7 +265,18 @@ class RAGService:
                         logger.warning("CUDA requested but not available. Falling back to CPU.")
                         device = "cpu"
                     else:
-                        logger.info(f"CUDA available. Using GPU: {torch.cuda.get_device_name(0)}")
+                        logger.info(f"🔥 CUDA available. Using GPU: {torch.cuda.get_device_name(0)}")
+                except ImportError:
+                    logger.warning("PyTorch not available. Using CPU.")
+                    device = "cpu"
+            elif device == "mps":
+                try:
+                    import torch
+                    if not torch.backends.mps.is_available():
+                        logger.warning("MPS requested but not available. Falling back to CPU.")
+                        device = "cpu"
+                    else:
+                        logger.info("🍎 MPS available. Using Apple Silicon GPU")
                 except ImportError:
                     logger.warning("PyTorch not available. Using CPU.")
                     device = "cpu"
