@@ -27,19 +27,11 @@ router = APIRouter()
 # Service URLs
 VISION_SERVICE_URL = os.getenv("VISION_SERVICE_URL", "http://localhost:8001")
 
-# REMOVED: Duplicate schema definitions (VisionRequest, DetectionResult, ClassificationResult, RecommendationResult, VisionResponse)
-# Now using centralized schemas from services/api_gateway/schemas.py
-
 
 @router.post("/analyze", response_model=VisionResponse)
 async def analyze_image(request: VisionRequest, http_request: Request):
     """
     Complete image analysis endpoint
-    
-    CRITICAL: Handles ANY random customer image
-    - Object detection (YOLOv8)
-    - Classification (ViT multi-head)
-    - Upcycling recommendations (GNN)
     """
     try:
         # Validate request
@@ -72,7 +64,6 @@ async def analyze_image(request: VisionRequest, http_request: Request):
 async def detect_objects(request: VisionRequest):
     """
     Object detection only endpoint
-    
     Faster endpoint for just detecting objects without classification
     """
     try:
