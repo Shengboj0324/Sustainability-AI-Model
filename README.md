@@ -1,27 +1,5 @@
 # Architecture & Formulations
 
-
-1. [System Overview](#system-overview)
-2. [LLM Mathematics - LoRA Fine-Tuning](#llm-mathematics)
-   - Mathematical Formulation
-   - **Why We Use LoRA - Logical Explanation**
-3. [Vision Mathematics - Multi-Head Classification](#vision-mathematics)
-   - Mathematical Formulation
-   - **Why Multi-Head Classification - Logical Explanation**
-4. [GNN Mathematics - Graph Neural Networks](#gnn-mathematics)
-   - Mathematical Formulation
-   - **Why GNN for Upcycling - Logical Explanation**
-5. [RAG Mathematics - Retrieval & Ranking](#rag-mathematics)
-   - Dense Retrieval (Semantic Search)
-   - Sparse Retrieval (BM25)
-   - Hybrid Fusion
-   - **Why Hybrid RAG - Logical Explanation**
-6. [Training Optimization](#training-optimization)
-7. [Architecture Integration](#architecture-integration)
-8. [Component Usage & Professor Presentation Guide](#professor-guide)
-
----
-
 ## 1. SYSTEM OVERVIEW
 ```
 Input → [Vision] → [LLM] → [RAG] → [GNN] → Output
@@ -796,34 +774,8 @@ if val_loss_t > val_loss_{t-patience}:
 - Layer normalization: `h_norm = (h - μ)/σ`
 - Gradient clipping: `g ← min(1, max_norm/||g||)·g`
 
-### 7.7 Production Deployment Mathematics
 
-**Load Balancing:**
-```
-Request distribution: P(server_i) = capacity_i / ∑_j capacity_j
-```
-
-**Caching Strategy:**
-```
-Cache hit rate: η = N_hits / (N_hits + N_misses)
-Expected latency: E[T] = η·T_cache + (1-η)·T_compute
-```
-
-**Auto-scaling:**
-```
-if avg_latency > threshold:
-    n_servers_new = n_servers · (avg_latency / target_latency)
-```
-
-**Resource Allocation:**
-```
-GPU Memory: M_total = M_model + M_batch + M_cache + M_overhead
-Optimal batch size: B_opt = argmax_B (throughput(B)) s.t. M(B) ≤ M_available
-```
-
----
-
-## 8. MATHEMATICAL GUARANTEES & PROPERTIES
+## 8. Properties
 
 ### 8.1 Convergence Guarantees
 
@@ -941,66 +893,3 @@ Method: AdamW with:
 - Latency: <500ms end-to-end
 - Throughput: 67,883 req/s (peak)
 - Accuracy: 97.2/100 capability score
-
----
-
-## 10. REFERENCES & MATHEMATICAL FOUNDATIONS
-
-### 10.1 Core Papers
-
-1. **Attention Is All You Need** (Vaswani et al., 2017)
-   - Transformer architecture: `Attention(Q,K,V) = softmax(QK^T/√d_k)V`
-
-2. **LoRA: Low-Rank Adaptation** (Hu et al., 2021)
-   - Rank decomposition: `ΔW = BA`, `W = W_0 + BA`
-
-3. **GraphSAGE** (Hamilton et al., 2017)
-   - Inductive learning: `h_v = σ(W·[h_v || AGG(neighbors)])`
-
-4. **GAT: Graph Attention Networks** (Veličković et al., 2018)
-   - Attention: `α_ij = softmax(LeakyReLU(a^T[Wh_i || Wh_j]))`
-
-5. **An Image is Worth 16x16 Words** (Dosovitskiy et al., 2020)
-   - Vision Transformer patch embeddings
-
-6. **BM25** (Robertson & Zaragoza, 2009)
-   - Probabilistic retrieval function
-
-### 10.2 Mathematical Notation Summary
-
-| Symbol | Meaning |
-|--------|---------|
-| `ℝ^d` | d-dimensional real vector space |
-| `∈` | Element of |
-| `⊙` | Element-wise multiplication |
-| `||·||` | Norm (L2 unless specified) |
-| `∇` | Gradient operator |
-| `σ` | Sigmoid or activation function |
-| `⊕` | Concatenation |
-| `∑` | Summation |
-| `∏` | Product |
-| `argmax` | Argument that maximizes |
-| `E[·]` | Expected value |
-| `P(·)` | Probability |
-
----
-
-## 📌 CONCLUSION
-
-This document provides a **complete mathematical specification** of the ReleAF AI architecture. Every component—from LoRA fine-tuning to graph neural networks—is grounded in rigorous mathematical formulations.
-
-**Key Takeaways:**
-1. **Modular Design**: Each component (LLM, Vision, GNN, RAG) operates in its own mathematical space
-2. **Efficient Training**: LoRA reduces parameters by 32x while maintaining performance
-3. **Hybrid Intelligence**: Combines symbolic (BM25), neural (transformers), and graph-based reasoning
-4. **Production-Ready**: Optimized for Apple M4 Max with FP16 precision and MPS backend
-
-**Mathematical Rigor**: All formulas are implemented exactly as specified, with verified convergence properties and performance guarantees.
-
----
-
-**Document Version:** 1.0
-**Last Updated:** 2025-11-20
-**Status:** ✅ Complete & Production-Ready
-
-
