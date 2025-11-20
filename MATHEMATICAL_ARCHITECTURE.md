@@ -6,11 +6,22 @@
 
 1. [System Overview](#system-overview)
 2. [LLM Mathematics - LoRA Fine-Tuning](#llm-mathematics)
+   - Mathematical Formulation
+   - **Why We Use LoRA - Logical Explanation**
 3. [Vision Mathematics - Multi-Head Classification](#vision-mathematics)
+   - Mathematical Formulation
+   - **Why Multi-Head Classification - Logical Explanation**
 4. [GNN Mathematics - Graph Neural Networks](#gnn-mathematics)
+   - Mathematical Formulation
+   - **Why GNN for Upcycling - Logical Explanation**
 5. [RAG Mathematics - Retrieval & Ranking](#rag-mathematics)
+   - Dense Retrieval (Semantic Search)
+   - Sparse Retrieval (BM25)
+   - Hybrid Fusion
+   - **Why Hybrid RAG - Logical Explanation**
 6. [Training Optimization](#training-optimization)
 7. [Architecture Integration](#architecture-integration)
+8. [Component Usage & Professor Presentation Guide](#professor-guide)
 
 ---
 
