@@ -1,7 +1,6 @@
 """
 RAG Service - Retrieval-Augmented Generation for sustainability knowledge
 
-Production-optimized for Digital Ocean deployment (Web + iOS backend):
 - Async Qdrant client with connection pooling
 - Request caching for mobile clients
 - Rate limiting and timeouts
