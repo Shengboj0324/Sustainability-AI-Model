@@ -1,8 +1,5 @@
-# 📐 ReleAF AI - Mathematical Architecture & Formulations
+# Architecture & Formulations
 
----
-
-## 📊 TABLE OF CONTENTS
 
 1. [System Overview](#system-overview)
 2. [LLM Mathematics - LoRA Fine-Tuning](#llm-mathematics)
