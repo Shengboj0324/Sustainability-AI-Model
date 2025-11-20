@@ -221,34 +221,48 @@ class SyntheticDataGenerator:
 
         return prompt, question, metadata
 
-    def generate_response(self, prompt: str) -> Optional[str]:
-        """Generate response using GPT-4"""
-        try:
-            response = self.client.chat.completions.create(
-                model=MODEL,
-                messages=[
-                    {"role": "system", "content": "You are a creative sustainability expert specializing in innovative upcycling and waste transformation. Provide detailed, inspiring, and practical advice."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=TEMPERATURE,
-                max_tokens=MAX_TOKENS
-            )
+    def generate_response(self, prompt: str, max_retries: int = 3) -> Optional[str]:
+        """Generate response using GPT-4 with exponential backoff"""
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=MODEL,
+                    messages=[
+                        {"role": "system", "content": "You are a creative sustainability expert specializing in innovative upcycling and waste transformation. Provide detailed, inspiring, and practical advice."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=TEMPERATURE,
+                    max_tokens=MAX_TOKENS
+                )
 
-            # Track costs
-            usage = response.usage
-            input_cost = (usage.prompt_tokens / 1000) * COST_PER_1K_INPUT_TOKENS
-            output_cost = (usage.completion_tokens / 1000) * COST_PER_1K_OUTPUT_TOKENS
-            self.total_cost += input_cost + output_cost
+                # Track costs
+                usage = response.usage
+                input_cost = (usage.prompt_tokens / 1000) * COST_PER_1K_INPUT_TOKENS
+                output_cost = (usage.completion_tokens / 1000) * COST_PER_1K_OUTPUT_TOKENS
+                self.total_cost += input_cost + output_cost
 
-            self.stats['total_input_tokens'] += usage.prompt_tokens
-            self.stats['total_output_tokens'] += usage.completion_tokens
+                self.stats['total_input_tokens'] += usage.prompt_tokens
+                self.stats['total_output_tokens'] += usage.completion_tokens
 
-            return response.choices[0].message.content
+                return response.choices[0].message.content
 
-        except Exception as e:
-            logger.error(f"Generation error: {e}")
-            self.stats['generation_errors'] += 1
-            return None
+            except Exception as e:
+                error_str = str(e).lower()
+                # FIX: Handle rate limits with exponential backoff
+                if 'rate' in error_str or '429' in error_str:
+                    wait_time = (2 ** attempt) * 2  # 2, 4, 8 seconds
+                    logger.warning(f"Rate limit hit, waiting {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                    self.stats['rate_limit_hits'] += 1
+                    continue
+                else:
+                    logger.error(f"Generation error: {e}")
+                    self.stats['generation_errors'] += 1
+                    return None
+
+        logger.error(f"Failed after {max_retries} retries")
+        self.stats['max_retries_exceeded'] += 1
+        return None
 
     def calculate_content_hash(self, text: str) -> str:
         """Calculate hash for deduplication"""

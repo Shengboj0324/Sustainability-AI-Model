@@ -21,6 +21,7 @@ import os
 import sys
 import json
 import logging
+import hashlib
 from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
@@ -35,14 +36,19 @@ RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw" / "llm"
 PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed" / "llm_sft"
 PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# Import scrapers
+# Import scrapers - FIX: Use absolute imports with sys.path
+SCRIPT_DIR = Path(__file__).parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
 try:
     from scrape_reddit_upcycling import RedditUpcyclingScraper
     from scrape_youtube_tutorials import YouTubeTutorialScraper
     from generate_synthetic_creative import SyntheticDataGenerator
 except ImportError as e:
     logger.error(f"Failed to import scrapers: {e}")
-    logger.error("Make sure all scraper modules are in the same directory")
+    logger.error("Make sure all scraper modules are in scripts/data directory")
+    logger.error(f"Current sys.path: {sys.path}")
     sys.exit(1)
 
 
@@ -143,60 +149,69 @@ class LLMDataCollectionOrchestrator:
             logger.warning("Continuing with available data...")
 
     def phase_4_quality_control(self):
-        """Phase 4: Quality control and deduplication"""
+        """Phase 4: Quality control and deduplication - FIX: Streaming to avoid memory overflow"""
         logger.info(f"\n{'='*60}")
         logger.info("PHASE 4: QUALITY CONTROL")
         logger.info(f"Input: {len(self.all_data):,} examples")
         logger.info(f"{'='*60}")
 
-        import hashlib
         from tqdm import tqdm
 
-        cleaned_data = []
+        # FIX: Stream to temporary file instead of loading all into memory
+        temp_file = PROCESSED_DATA_DIR / "temp_cleaned.jsonl"
 
-        for item in tqdm(self.all_data, desc="Quality control"):
-            # Extract content
-            try:
-                messages = item['messages']
-                user_msg = messages[0]['content']
-                assistant_msg = messages[1]['content']
+        with open(temp_file, 'w', encoding='utf-8') as out_f:
+            for item in tqdm(self.all_data, desc="Quality control"):
+                # Extract content
+                try:
+                    messages = item['messages']
+                    user_msg = messages[0]['content']
+                    assistant_msg = messages[1]['content']
 
-                # Content hash for deduplication
-                content = user_msg + assistant_msg
-                content_hash = hashlib.md5(content.lower().encode()).hexdigest()
+                    # Content hash for deduplication (use SHA-256 instead of MD5)
+                    content = user_msg + assistant_msg
+                    content_hash = hashlib.sha256(content.lower().encode()).hexdigest()
 
-                if content_hash in self.seen_hashes:
-                    self.stats['duplicates_removed'] += 1
+                    if content_hash in self.seen_hashes:
+                        self.stats['duplicates_removed'] += 1
+                        continue
+
+                    # Length validation
+                    word_count = len(assistant_msg.split())
+                    if word_count < 30:
+                        self.stats['too_short'] += 1
+                        continue
+                    if word_count > 2000:
+                        self.stats['too_long'] += 1
+                        continue
+
+                    # Quality check
+                    if len(user_msg) < 10:
+                        self.stats['invalid_question'] += 1
+                        continue
+
+                    self.seen_hashes.add(content_hash)
+                    out_f.write(json.dumps(item, ensure_ascii=False) + '\n')
+                    self.stats['kept'] += 1
+
+                except Exception as e:
+                    self.stats['parsing_errors'] += 1
                     continue
-
-                # Length validation
-                word_count = len(assistant_msg.split())
-                if word_count < 30:
-                    self.stats['too_short'] += 1
-                    continue
-                if word_count > 2000:
-                    self.stats['too_long'] += 1
-                    continue
-
-                # Quality check
-                if len(user_msg) < 10:
-                    self.stats['invalid_question'] += 1
-                    continue
-
-                self.seen_hashes.add(content_hash)
-                cleaned_data.append(item)
-
-            except Exception as e:
-                self.stats['parsing_errors'] += 1
-                continue
 
         logger.info(f"✅ Quality control complete")
-        logger.info(f"   Kept: {len(cleaned_data):,}")
+        logger.info(f"   Kept: {self.stats['kept']:,}")
         logger.info(f"   Removed duplicates: {self.stats['duplicates_removed']:,}")
         logger.info(f"   Removed too short: {self.stats['too_short']:,}")
         logger.info(f"   Removed too long: {self.stats['too_long']:,}")
 
-        self.all_data = cleaned_data
+        # FIX: Load cleaned data from temp file (streaming)
+        self.all_data = []
+        with open(temp_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                self.all_data.append(json.loads(line))
+
+        # Clean up temp file
+        temp_file.unlink()
 
     def phase_5_split_and_save(self, train_ratio: float = 0.95):
         """Phase 5: Train/val split and save"""

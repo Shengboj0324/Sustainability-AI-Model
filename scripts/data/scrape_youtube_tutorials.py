@@ -70,31 +70,57 @@ MIN_LIKE_RATIO = 0.7  # likes / (likes + dislikes)
 DAILY_QUOTA = 10000
 SEARCH_COST = 100  # units per search
 VIDEO_DETAILS_COST = 1  # units per video
-quota_used = 0
 
 
 class YouTubeTutorialScraper:
     """Production-grade YouTube scraper for upcycling tutorials"""
-    
+
     def __init__(self):
         """Initialize YouTube API client"""
         if not YOUTUBE_API_KEY:
             raise ValueError("YouTube API key required. Set YOUTUBE_API_KEY environment variable.")
-        
+
         self.youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
         self.scraped_data = []
         self.stats = defaultdict(int)
         self.seen_video_ids = set()
-        
+        self.quota_used = 0  # FIX: Instance variable for thread safety
+        self.checkpoint_file = OUTPUT_DIR / "youtube_checkpoint.jsonl"  # FIX: Add checkpointing
+
+        # Load checkpoint if exists
+        self.load_checkpoint()
+
         logger.info("✅ YouTube API client initialized")
-    
+
+    def load_checkpoint(self):
+        """Load checkpoint if exists - FIX: Crash recovery"""
+        if self.checkpoint_file.exists():
+            try:
+                with open(self.checkpoint_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        item = json.loads(line)
+                        self.scraped_data.append(item)
+                        if 'metadata' in item and 'video_id' in item['metadata']:
+                            self.seen_video_ids.add(item['metadata']['video_id'])
+                logger.info(f"✅ Loaded checkpoint: {len(self.scraped_data)} examples")
+            except Exception as e:
+                logger.warning(f"Failed to load checkpoint: {e}")
+
+    def save_checkpoint(self):
+        """Save checkpoint - FIX: Crash recovery"""
+        try:
+            with open(self.checkpoint_file, 'w', encoding='utf-8') as f:
+                for item in self.scraped_data:
+                    f.write(json.dumps(item, ensure_ascii=False) + '\n')
+        except Exception as e:
+            logger.error(f"Failed to save checkpoint: {e}")
+
     def check_quota(self, cost: int) -> bool:
         """Check if we have enough quota remaining"""
-        global quota_used
-        if quota_used + cost > DAILY_QUOTA:
-            logger.warning(f"⚠️  Quota limit reached ({quota_used}/{DAILY_QUOTA})")
+        if self.quota_used + cost > DAILY_QUOTA:
+            logger.warning(f"⚠️  Quota limit reached ({self.quota_used}/{DAILY_QUOTA})")
             return False
-        quota_used += cost
+        self.quota_used += cost
         return True
     
     def search_videos(self, query: str, max_results: int = 50) -> List[str]:
@@ -326,6 +352,11 @@ class YouTubeTutorialScraper:
             self.scraped_data.extend(qa_pairs)
             self.seen_video_ids.add(video_id)
             self.stats['total_collected'] += len(qa_pairs)
+
+            # FIX: Periodic checkpointing (every 50 videos)
+            if self.stats['total_collected'] % 50 == 0:
+                self.save_checkpoint()
+
             return len(qa_pairs)
 
         return 0
@@ -385,7 +416,7 @@ class YouTubeTutorialScraper:
         logger.info(f"Total collected: {self.stats['total_collected']}")
         logger.info(f"Manual transcripts: {self.stats.get('manual_transcripts', 0)}")
         logger.info(f"Auto transcripts: {self.stats.get('auto_transcripts', 0)}")
-        logger.info(f"Quota used: {quota_used}/{DAILY_QUOTA}")
+        logger.info(f"Quota used: {self.quota_used}/{DAILY_QUOTA}")  # FIX: Use instance variable
         logger.info(f"{'='*60}")
 
 

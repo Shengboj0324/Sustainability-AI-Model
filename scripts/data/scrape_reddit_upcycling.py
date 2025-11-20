@@ -59,7 +59,18 @@ MIN_BODY_LENGTH = 50
 MIN_COMMENT_LENGTH = 30
 MAX_BODY_LENGTH = 5000
 MIN_CREATIVITY_SCORE = 0.3
-BANNED_KEYWORDS = ["buy", "sell", "spam", "advertisement", "promo"]
+# FIX: Expanded safety filters
+BANNED_KEYWORDS = [
+    # Spam/commercial
+    "buy", "sell", "spam", "advertisement", "promo", "discount", "coupon", "sale",
+    "shop", "store", "purchase", "affiliate", "referral", "link in bio",
+    # Inappropriate
+    "nsfw", "xxx", "porn", "sex", "nude", "naked",
+    # Harmful
+    "weapon", "gun", "explosive", "bomb", "poison", "drug", "illegal",
+    # Low quality
+    "upvote", "karma", "follow me", "check out my", "subscribe"
+]
 
 # Rate limiting
 REQUESTS_PER_MINUTE = 55  # Conservative (Reddit allows 60)
@@ -76,19 +87,47 @@ class RedditUpcyclingScraper:
                 "Reddit API credentials not found. Set REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET environment variables.\n"
                 "Get credentials at: https://www.reddit.com/prefs/apps"
             )
-        
+
         self.reddit = praw.Reddit(
             client_id=REDDIT_CLIENT_ID,
             client_secret=REDDIT_CLIENT_SECRET,
             user_agent=REDDIT_USER_AGENT
         )
-        
+
         self.scraped_data = []
         self.stats = defaultdict(int)
         self.seen_ids = set()
-        
+        self.checkpoint_file = OUTPUT_DIR / "reddit_checkpoint.jsonl"  # FIX: Add checkpointing
+
+        # Load checkpoint if exists
+        self.load_checkpoint()
+
         logger.info("✅ Reddit API client initialized")
-    
+
+    def load_checkpoint(self):
+        """Load checkpoint if exists - FIX: Crash recovery"""
+        if self.checkpoint_file.exists():
+            try:
+                with open(self.checkpoint_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        item = json.loads(line)
+                        self.scraped_data.append(item)
+                        # Extract post ID from metadata
+                        if 'metadata' in item and 'post_id' in item['metadata']:
+                            self.seen_ids.add(item['metadata']['post_id'])
+                logger.info(f"✅ Loaded checkpoint: {len(self.scraped_data)} examples")
+            except Exception as e:
+                logger.warning(f"Failed to load checkpoint: {e}")
+
+    def save_checkpoint(self):
+        """Save checkpoint - FIX: Crash recovery"""
+        try:
+            with open(self.checkpoint_file, 'w', encoding='utf-8') as f:
+                for item in self.scraped_data:
+                    f.write(json.dumps(item, ensure_ascii=False) + '\n')
+        except Exception as e:
+            logger.error(f"Failed to save checkpoint: {e}")
+
     def validate_post(self, post) -> tuple[bool, str]:
         """Validate post quality with strict criteria"""
         try:
@@ -113,8 +152,10 @@ class RedditUpcyclingScraper:
             if any(keyword in combined_text for keyword in BANNED_KEYWORDS):
                 return False, "spam_detected"
             
-            # Check if removed/deleted
-            if post.removed_by_category or post.author is None:
+            # Check if removed/deleted - FIX: PRAW compatibility
+            if post.author is None:
+                return False, "removed_or_deleted"
+            if hasattr(post, 'removed_by_category') and post.removed_by_category:
                 return False, "removed_or_deleted"
             
             # Check NSFW (safety)
@@ -283,6 +324,10 @@ class RedditUpcyclingScraper:
                     collected += len(qa_pairs)
                     self.stats["total_collected"] += len(qa_pairs)
                     self.stats[f"from_{subreddit_name}"] += len(qa_pairs)
+
+                    # FIX: Periodic checkpointing (every 100 posts)
+                    if self.stats["total_collected"] % 100 == 0:
+                        self.save_checkpoint()
 
                     # Rate limiting
                     time.sleep(REQUEST_DELAY)
