@@ -1,0 +1,133 @@
+# LLM Supervised Fine-Tuning Configuration - RTX 5090 (24GB VRAM)
+# Optimized for 1M+ training samples with high creativity requirements
+
+model:
+  base_model_name: "meta-llama/Llama-3-8B-Instruct"
+  
+  # LoRA Configuration - INCREASED for higher innovation capability
+  lora:
+    r: 256                    # LoRA rank (increased from 64 for more capacity)
+    alpha: 512                # LoRA alpha (increased from 128)
+    dropout: 0.05
+    target_modules:
+      - q_proj
+      - k_proj
+      - v_proj
+      - o_proj
+      - gate_proj
+      - up_proj
+      - down_proj
+    bias: "none"
+    task_type: "CAUSAL_LM"
+  
+  # Quantization - Disabled for RTX 5090 (use full precision)
+  quantization:
+    enabled: false            # RTX 5090 has 24GB VRAM, no need for quantization
+    load_in_4bit: false
+    load_in_8bit: false
+    bnb_4bit_compute_dtype: "bfloat16"
+    bnb_4bit_quant_type: "nf4"
+    bnb_4bit_use_double_quant: true
+
+data:
+  # Training data - NEW large-scale dataset
+  train_files:
+    - "data/processed/llm_sft/sustainability_creative_train.jsonl"  # 1M+ examples
+  
+  # Validation data
+  val_files:
+    - "data/processed/llm_sft/sustainability_creative_val.jsonl"
+  
+  # Tokenization
+  max_length: 2048            # Maximum sequence length
+  padding: "max_length"
+  truncation: true
+
+training:
+  # Output directory
+  output_dir: "models/llm/llama3-8b-upcycling-creative-lora"
+  
+  # Training hyperparameters - OPTIMIZED for RTX 5090
+  per_device_train_batch_size: 16      # Increased from 8 (24GB VRAM)
+  per_device_eval_batch_size: 16
+  gradient_accumulation_steps: 2       # Reduced from 4 (effective batch = 32)
+  
+  # Learning rate
+  learning_rate: 2.0e-4
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.03
+  
+  # Training duration - INCREASED for 1M samples
+  num_train_epochs: 3                  # 3 full passes
+  max_steps: -1                        # -1 = use num_train_epochs
+  
+  # Optimization
+  optim: "adamw_torch"
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  
+  # Precision - BFloat16 for RTX 5090
+  bf16: true                           # RTX 5090 supports BF16
+  fp16: false                          # Don't use FP16 when BF16 available
+  tf32: true                           # Enable TF32 for faster training
+  
+  # Logging
+  logging_steps: 10
+  logging_first_step: true
+  logging_strategy: "steps"
+  
+  # Evaluation
+  evaluation_strategy: "steps"
+  eval_steps: 500                      # Evaluate every 500 steps
+  save_strategy: "steps"
+  save_steps: 500
+  save_total_limit: 3                  # Keep only 3 best checkpoints
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  
+  # Performance optimizations
+  gradient_checkpointing: true         # Save memory
+  dataloader_num_workers: 4            # Parallel data loading
+  dataloader_pin_memory: true
+  group_by_length: true                # Group similar lengths for efficiency
+  
+  # Reproducibility
+  seed: 42
+  data_seed: 42
+  
+  # Misc
+  report_to: ["tensorboard"]           # TensorBoard logging
+  disable_tqdm: false
+  remove_unused_columns: false
+  label_names: ["labels"]
+
+# Hardware-specific settings
+hardware:
+  device: "cuda"                       # RTX 5090
+  cuda_visible_devices: "0"            # Use first GPU
+  
+  # Memory optimization
+  use_cpu_offload: false               # Not needed with 24GB VRAM
+  use_disk_offload: false
+  
+  # Performance
+  torch_compile: false                 # Experimental, may cause issues
+  use_flash_attention_2: true          # Enable Flash Attention 2 for speed
+
+# Estimated training time (RTX 5090)
+# - 1M samples, batch size 16, gradient accumulation 2
+# - Effective batch size: 32
+# - Steps per epoch: 1,000,000 / 32 = 31,250
+# - Total steps: 31,250 × 3 epochs = 93,750 steps
+# - Time per step: ~1.5 seconds (with BF16 + Flash Attention)
+# - Total time: 93,750 × 1.5s = 140,625s = 39 hours
+# - **ESTIMATED: 40-50 hours (1.5-2 days)**
+
+# Expected results:
+# - Training loss: 2.3 → 1.2 (lower than before due to more data)
+# - Validation loss: 2.4 → 1.3
+# - Perplexity: ~3.7 (excellent for domain-specific model)
+# - Model size: 67MB LoRA adapter (256 rank vs 64 rank = 4x larger)
+# - Inference speed: 40-45 tokens/sec on RTX 5090
+

@@ -1,0 +1,21 @@
+# LLM Training Data Collection Dependencies
+# Install with: pip install -r requirements_llm_data_collection.txt
+
+# Reddit API
+praw>=7.7.1  # Python Reddit API Wrapper
+
+# YouTube API
+google-api-python-client>=2.108.0  # YouTube Data API v3
+youtube-transcript-api>=0.6.1  # YouTube transcript extraction
+
+# OpenAI API (for synthetic generation)
+openai>=1.3.0  # GPT-4 API client
+
+# Web scraping (for future Pinterest/WikiHow scrapers)
+beautifulsoup4>=4.12.2
+requests>=2.31.0
+selenium>=4.15.0  # For JavaScript-heavy sites
+
+# Data processing
+tqdm>=4.66.1  # Progress bars
+
