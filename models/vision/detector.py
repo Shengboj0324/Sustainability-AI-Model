@@ -1,14 +1,5 @@
 """
-YOLOv8 Object Detector - Production-grade waste detection
-
-CRITICAL FEATURES:
-- Multi-object detection in real-world scenes
-- Proper device management (CPU/CUDA)
-- NMS (Non-Maximum Suppression) configuration
-- Batch processing support
-- Confidence and IoU thresholding
-- Memory-efficient inference
-- Error handling and graceful degradation
+YOLOv8 Object Detector
 """
 
 import torch
@@ -49,14 +40,7 @@ class DetectionResult:
 
 class WasteDetector:
     """
-    Production-grade YOLOv8 waste detector
-
-    CRITICAL FEATURES:
-    - Handles ANY random image (any size, format, quality)
-    - Proper device management
-    - Configurable NMS and confidence thresholds
-    - Batch processing
-    - Memory-efficient inference
+    YOLOv8 waste detector
     """
     def __init__(
         self,
