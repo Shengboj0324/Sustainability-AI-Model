@@ -430,10 +430,8 @@ class RAGService:
             # Clear cache
             await query_cache.clear()
             logger.info("Cache cleared")
-
             # Note: SentenceTransformer models don't need explicit cleanup
             # They will be garbage collected
-
             logger.info("RAG service shutdown complete")
         except Exception as e:
             logger.error(f"Error during shutdown: {e}", exc_info=True)
@@ -445,7 +443,6 @@ class RAGService:
                 raise RuntimeError("Embedding model not initialized")
 
             start_time = time.time()
-
             # Run embedding in thread pool with timeout
             loop = asyncio.get_event_loop()
             embedding = await asyncio.wait_for(

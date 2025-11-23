@@ -221,9 +221,9 @@ class ProductionActivator:
             "services": self.services,
             "database": {
                 "neo4j": {
-                    "uri": "bolt://localhost:7687",
-                    "user": "neo4j",
-                    "password": "password"
+                    "uri": os.getenv("NEO4J_URI", "bolt://localhost:7687"),
+                    "user": os.getenv("NEO4J_USER", "neo4j"),
+                    "password": os.getenv("NEO4J_PASSWORD", "")  # SECURITY: Use environment variable
                 }
             },
             "monitoring": {

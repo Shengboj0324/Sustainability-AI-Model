@@ -9,6 +9,8 @@ CRITICAL ENHANCEMENTS FOR PRODUCTION:
 - Multi-stage reasoning with quality validation
 - Graceful degradation with helpful suggestions
 - Advanced error recovery
+- Rich answer formatting with markdown and citations
+- User feedback integration for continuous improvement
 """
 
 from fastapi import FastAPI, HTTPException
@@ -22,6 +24,12 @@ from enum import Enum
 import yaml
 import hashlib
 import json
+import sys
+from pathlib import Path
+
+# Import answer formatter
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from shared.answer_formatter import AnswerFormatter, AnswerType, FormattedAnswer
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -60,7 +68,7 @@ class OrchestratorRequest(BaseModel):
 
 class OrchestratorResponse(BaseModel):
     """Advanced orchestrator response with confidence and quality metrics"""
-    response: str = Field(..., description="Final answer")
+    response: str = Field(..., description="Final answer (plain text)")
     confidence_score: float = Field(..., ge=0.0, le=1.0, description="Overall confidence (0-1)")
     confidence_level: ConfidenceLevel = Field(..., description="Confidence category")
     sources: Optional[List[Dict[str, str]]] = Field(None, description="Information sources")
@@ -75,6 +83,14 @@ class OrchestratorResponse(BaseModel):
     image_quality_score: Optional[float] = Field(None, description="Image quality (0-1)")
     text_quality_score: Optional[float] = Field(None, description="Text quality (0-1)")
     reasoning_steps: Optional[List[str]] = Field(None, description="Reasoning chain")
+
+    # Rich formatting (NEW)
+    formatted_answer: Optional[Dict[str, Any]] = Field(None, description="Rich formatted answer with markdown/HTML")
+    answer_type: Optional[str] = Field(None, description="Answer type (how_to, factual, creative, etc.)")
+    citations: Optional[List[Dict[str, Any]]] = Field(None, description="Structured citations")
+
+    # Feedback integration (NEW)
+    response_id: Optional[str] = Field(None, description="Unique response ID for feedback tracking")
 
 
 class ConfidenceCalculator:
@@ -531,6 +547,78 @@ class WorkflowExecutor:
 # Initialize workflow executor
 executor = WorkflowExecutor()
 
+# Initialize answer formatter
+answer_formatter = AnswerFormatter()
+
+
+def generate_response_id(request: OrchestratorRequest) -> str:
+    """Generate unique response ID for feedback tracking"""
+    import hashlib
+    from datetime import datetime
+
+    content = f"{datetime.now().isoformat()}_{str(request.messages)}"
+    return hashlib.sha256(content.encode()).hexdigest()[:16]
+
+
+def format_response_with_rich_content(
+    response_text: str,
+    task_type: str,
+    sources: Optional[List[Dict]] = None,
+    confidence_score: float = 0.0,
+    result: Optional[Dict] = None
+) -> Tuple[str, Dict[str, Any], str, List[Dict]]:
+    """
+    Format response with rich content based on task type
+
+    Returns: (response_text, formatted_answer_dict, answer_type, citations)
+    """
+    # Determine answer type from task type
+    answer_type_map = {
+        "UPCYCLING_IDEA": AnswerType.CREATIVE,
+        "ORG_SEARCH": AnswerType.ORG_SEARCH,
+        "BIN_DECISION": AnswerType.FACTUAL,
+        "THEORY_QA": AnswerType.GENERAL,
+        "MATERIAL_INFO": AnswerType.FACTUAL,
+        "SAFETY_CHECK": AnswerType.FACTUAL
+    }
+
+    answer_type = answer_type_map.get(task_type, AnswerType.GENERAL)
+
+    # Extract type-specific data from result
+    kwargs = {}
+
+    if answer_type == AnswerType.CREATIVE and result:
+        # Extract creative ideas
+        ideas = result.get("ideas", [])
+        if ideas:
+            kwargs["ideas"] = ideas
+
+    elif answer_type == AnswerType.ORG_SEARCH and result:
+        # Extract organizations
+        orgs = result.get("organizations", [])
+        if orgs:
+            kwargs["organizations"] = orgs
+
+    elif answer_type == AnswerType.FACTUAL:
+        # Add confidence indicator
+        kwargs["confidence"] = confidence_score
+
+    # Format answer
+    formatted = answer_formatter.format_answer(
+        answer=response_text,
+        answer_type=answer_type,
+        sources=sources,
+        metadata={"confidence": confidence_score},
+        **kwargs
+    )
+
+    return (
+        response_text,
+        formatted.to_dict(),
+        answer_type.value,
+        formatted.citations
+    )
+
 
 @app.post("/orchestrate", response_model=OrchestratorResponse)
 async def orchestrate(request: OrchestratorRequest):
@@ -686,6 +774,18 @@ async def orchestrate(request: OrchestratorRequest):
                 "Specify what you want to know"
             ]
 
+        # Generate response ID for feedback tracking
+        response_id = generate_response_id(request)
+
+        # Format response with rich content
+        _, formatted_answer, answer_type, citations = format_response_with_rich_content(
+            response_text=response_text,
+            task_type=task_type,
+            sources=result.get("sources"),
+            confidence_score=overall_confidence,
+            result=result
+        )
+
         return OrchestratorResponse(
             response=response_text,
             confidence_score=overall_confidence,
@@ -706,7 +806,12 @@ async def orchestrate(request: OrchestratorRequest):
             processing_time_ms=processing_time,
             image_quality_score=image_quality,
             text_quality_score=text_quality,
-            reasoning_steps=result.get("reasoning_steps", [])
+            reasoning_steps=result.get("reasoning_steps", []),
+            # Rich formatting
+            formatted_answer=formatted_answer,
+            answer_type=answer_type,
+            citations=citations,
+            response_id=response_id
         )
 
     except HTTPException:

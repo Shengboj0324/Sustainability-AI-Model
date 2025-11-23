@@ -231,9 +231,11 @@ class IntegratedVisionSystem:
                     image = Image.open(io.BytesIO(response.content))
 
             elif image_path:
-                # Load from file
+                # Load from file - SECURITY FIX: Use context manager to prevent resource leak
                 logger.info(f"Loading image from file: {image_path}")
-                image = Image.open(image_path)
+                with open(image_path, 'rb') as f:
+                    image = Image.open(f)
+                    image.load()  # Load image data into memory before file closes
 
             else:
                 raise ValueError("Must provide image_b64, image_url, or image_path")
