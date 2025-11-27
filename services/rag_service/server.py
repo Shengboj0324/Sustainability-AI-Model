@@ -281,8 +281,7 @@ class RAGService:
                     device = "cpu"
 
             # Run in thread pool to avoid blocking event loop
-            loop = asyncio.get_event_loop()
-
+            # FIX: Use asyncio.to_thread() instead of deprecated get_event_loop()
             def load_model():
                 """Load model in thread pool"""
                 try:
@@ -295,7 +294,7 @@ class RAGService:
                     raise
 
             self.embedding_model = await asyncio.wait_for(
-                loop.run_in_executor(None, load_model),
+                asyncio.to_thread(load_model),
                 timeout=120.0  # 2 minute timeout for model download/loading
             )
 
@@ -334,8 +333,7 @@ class RAGService:
                 except ImportError:
                     device = "cpu"
 
-            loop = asyncio.get_event_loop()
-
+            # FIX: Use asyncio.to_thread() instead of deprecated get_event_loop()
             def load_reranker():
                 """Load reranker in thread pool"""
                 try:
@@ -348,7 +346,7 @@ class RAGService:
                     raise
 
             self.reranker = await asyncio.wait_for(
-                loop.run_in_executor(None, load_reranker),
+                asyncio.to_thread(load_reranker),
                 timeout=120.0  # 2 minute timeout
             )
 
@@ -444,10 +442,9 @@ class RAGService:
 
             start_time = time.time()
             # Run embedding in thread pool with timeout
-            loop = asyncio.get_event_loop()
+            # FIX: Use asyncio.to_thread() instead of deprecated get_event_loop()
             embedding = await asyncio.wait_for(
-                loop.run_in_executor(
-                    None,
+                asyncio.to_thread(
                     lambda: self.embedding_model.encode(query, normalize_embeddings=True)
                 ),
                 timeout=5.0  # 5 second timeout for embedding
@@ -547,10 +544,9 @@ class RAGService:
             pairs = [[query, doc.content] for doc in documents]
 
             # Run re-ranking in thread pool with timeout
-            loop = asyncio.get_event_loop()
+            # FIX: Use asyncio.to_thread() instead of deprecated get_event_loop()
             scores = await asyncio.wait_for(
-                loop.run_in_executor(
-                    None,
+                asyncio.to_thread(
                     lambda: self.reranker.predict(pairs)
                 ),
                 timeout=5.0  # 5 second timeout for re-ranking
