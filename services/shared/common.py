@@ -100,14 +100,14 @@ def cleanup_resources(model: Optional[torch.nn.Module] = None,
     if torch.cuda.is_available():
         try:
             torch.cuda.empty_cache()
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"Failed to clear CUDA cache: {e}")
 
     if torch.backends.mps.is_available():
         try:
             torch.mps.empty_cache()
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"Failed to clear MPS cache: {e}")
 
 
 def get_device(prefer_gpu: bool = True) -> torch.device:

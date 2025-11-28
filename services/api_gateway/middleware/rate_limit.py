@@ -5,6 +5,7 @@ Implements token bucket algorithm for API rate limiting
 
 import time
 import logging
+import asyncio
 from typing import Dict, Tuple
 from collections import defaultdict
 from fastapi import Request, HTTPException
@@ -15,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 class TokenBucket:
-    """Token bucket for rate limiting"""
-    
+    """Thread-safe token bucket for rate limiting"""
+
     def __init__(self, capacity: int, refill_rate: float):
         """
         Args:
@@ -27,35 +28,38 @@ class TokenBucket:
         self.refill_rate = refill_rate
         self.tokens = capacity
         self.last_refill = time.time()
-    
-    def consume(self, tokens: int = 1) -> bool:
+        self.lock = asyncio.Lock()
+
+    async def consume(self, tokens: int = 1) -> bool:
         """
-        Try to consume tokens
-        
+        Try to consume tokens (thread-safe)
+
         Returns:
             True if tokens were consumed, False otherwise
         """
-        # Refill tokens based on time elapsed
-        now = time.time()
-        elapsed = now - self.last_refill
-        self.tokens = min(
-            self.capacity,
-            self.tokens + elapsed * self.refill_rate
-        )
-        self.last_refill = now
-        
-        # Try to consume
-        if self.tokens >= tokens:
-            self.tokens -= tokens
-            return True
-        return False
-    
-    def get_wait_time(self, tokens: int = 1) -> float:
-        """Get time to wait until tokens are available"""
-        if self.tokens >= tokens:
-            return 0.0
-        needed = tokens - self.tokens
-        return needed / self.refill_rate
+        async with self.lock:
+            # Refill tokens based on time elapsed
+            now = time.time()
+            elapsed = now - self.last_refill
+            self.tokens = min(
+                self.capacity,
+                self.tokens + elapsed * self.refill_rate
+            )
+            self.last_refill = now
+
+            # Try to consume
+            if self.tokens >= tokens:
+                self.tokens -= tokens
+                return True
+            return False
+
+    async def get_wait_time(self, tokens: int = 1) -> float:
+        """Get time to wait until tokens are available (thread-safe)"""
+        async with self.lock:
+            if self.tokens >= tokens:
+                return 0.0
+            needed = tokens - self.tokens
+            return needed / self.refill_rate
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -75,29 +79,31 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.requests_per_minute = requests_per_minute
         self.burst_size = burst_size
         self.refill_rate = requests_per_minute / 60.0  # tokens per second
-        self.buckets: Dict[str, TokenBucket] = defaultdict(
-            lambda: TokenBucket(burst_size, self.refill_rate)
-        )
-        
+        self.buckets: Dict[str, TokenBucket] = {}
+        self.buckets_lock = asyncio.Lock()
+
         # Cleanup old buckets periodically
         self.last_cleanup = time.time()
         self.cleanup_interval = 300  # 5 minutes
     
     async def dispatch(self, request: Request, call_next):
-        """Process request with rate limiting"""
+        """Process request with rate limiting (thread-safe)"""
         # Skip rate limiting for health checks
         if request.url.path in ["/health", "/", "/docs", "/redoc", "/openapi.json"]:
             return await call_next(request)
-        
+
         # Get client identifier (IP address)
         client_ip = self._get_client_ip(request)
-        
-        # Get or create bucket for this client
-        bucket = self.buckets[client_ip]
-        
+
+        # Get or create bucket for this client (thread-safe)
+        async with self.buckets_lock:
+            if client_ip not in self.buckets:
+                self.buckets[client_ip] = TokenBucket(self.burst_size, self.refill_rate)
+            bucket = self.buckets[client_ip]
+
         # Try to consume a token
-        if not bucket.consume(1):
-            wait_time = bucket.get_wait_time(1)
+        if not await bucket.consume(1):
+            wait_time = await bucket.get_wait_time(1)
             logger.warning(
                 f"Rate limit exceeded for {client_ip}. "
                 f"Wait time: {wait_time:.2f}s"

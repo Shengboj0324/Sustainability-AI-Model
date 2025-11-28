@@ -15,6 +15,7 @@ from PIL import Image
 import numpy as np
 import logging
 import os
+import asyncio
 from typing import Dict, List, Tuple, Optional, Any
 from pathlib import Path
 import time
@@ -102,9 +103,10 @@ class IntegratedVisionSystem:
         self.image_quality_pipeline = AdvancedImageQualityPipeline()
         logger.info("Advanced image quality pipeline initialized")
 
-        # Performance tracking
+        # Performance tracking (thread-safe)
         self.total_processed = 0
         self.total_errors = 0
+        self.stats_lock = asyncio.Lock()
 
         logger.info(f"IntegratedVisionSystem initialized on device: {self.device}")
 
@@ -376,17 +378,19 @@ class IntegratedVisionSystem:
                 quality_report=quality_report  # NEW: Include advanced quality report
             )
 
-            # Update stats
-            self.total_processed += 1
-            if errors:
-                self.total_errors += 1
+            # Update stats (thread-safe)
+            async with self.stats_lock:
+                self.total_processed += 1
+                if errors:
+                    self.total_errors += 1
 
             logger.info(f"Analysis complete: {total_time:.2f}ms (quality={quality_score:.2f}, confidence={confidence_score:.2f})")
 
             return result
 
         except Exception as e:
-            self.total_errors += 1
+            async with self.stats_lock:
+                self.total_errors += 1
             logger.error(f"Image analysis failed: {e}", exc_info=True)
             raise
 

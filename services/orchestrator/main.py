@@ -389,6 +389,12 @@ class WorkflowExecutor:
         self.client = httpx.AsyncClient(timeout=60.0)
         self.fallback_strategy = FallbackStrategy()
         self.confidence_calculator = ConfidenceCalculator()
+
+    async def close(self):
+        """Close HTTP client connection"""
+        if self.client:
+            await self.client.aclose()
+            logger.info("HTTP client closed")
     
     async def execute_workflow(
         self,
@@ -852,6 +858,12 @@ async def orchestrate(request: OrchestratorRequest):
 async def health():
     """Health check"""
     return {"status": "healthy", "service": "orchestrator"}
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Graceful shutdown"""
+    await executor.close()
 
 
 if __name__ == "__main__":

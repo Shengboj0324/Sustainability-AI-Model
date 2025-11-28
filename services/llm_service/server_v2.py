@@ -133,10 +133,11 @@ class LLMServiceV2:
         self.system_prompt = self.config.get("system_prompt", "You are a helpful sustainability assistant.")
         self._shutdown = False
 
-        # Performance tracking
+        # Performance tracking (thread-safe)
         self.total_requests = 0
         self.total_tokens_generated = 0
         self.total_generation_time = 0.0
+        self.stats_lock = asyncio.Lock()
 
         # Initialize NLP modules
         self.intent_classifier = IntentClassifier()
@@ -466,10 +467,11 @@ class LLMServiceV2:
 
             generation_time = (time.time() - start_time) * 1000
 
-            # Update stats
-            self.total_requests += 1
-            self.total_tokens_generated += completion_tokens
-            self.total_generation_time += generation_time
+            # Update stats (thread-safe)
+            async with self.stats_lock:
+                self.total_requests += 1
+                self.total_tokens_generated += completion_tokens
+                self.total_generation_time += generation_time
 
             return response, prompt_tokens, completion_tokens, generation_time
 
