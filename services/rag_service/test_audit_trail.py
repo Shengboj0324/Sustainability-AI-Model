@@ -1,21 +1,4 @@
-"""
-Comprehensive Test Suite for Audit Trail System
 
-Tests all functionality of audit_trail.py with 100% coverage:
-- AuditRecord creation and validation
-- Checksum calculation and verification
-- AuditTrailManager initialization
-- Event recording (sync and async)
-- Batch processing and flushing
-- JSON storage (JSONL format)
-- PostgreSQL storage (if available)
-- Entity history queries
-- Thread safety under concurrent load
-- Error handling and edge cases
-
-Author: ReleAF AI Team
-Date: 2025-12-03
-"""
 
 import asyncio
 import pytest

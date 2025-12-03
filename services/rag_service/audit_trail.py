@@ -1,20 +1,4 @@
-"""
-Audit Trail System for Embedding Provenance
 
-This module provides comprehensive audit logging for all provenance-related operations.
-Tracks document access, embedding generation, version changes, and provenance updates.
-
-Features:
-- Immutable audit records
-- Async, non-blocking recording
-- Dual storage: PostgreSQL (primary) + JSON (fallback)
-- Tamper detection with checksums
-- GDPR-compliant data handling
-- High-performance batch writes
-
-Author: ReleAF AI Team
-Date: 2025-12-03
-"""
 
 import asyncio
 import json

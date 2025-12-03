@@ -1,12 +1,4 @@
-"""
-Phase 3 Integration Validation Script
 
-Validates that all Phase 1, 2, and 3 components are properly integrated
-without requiring full model loading.
-
-Author: ReleAF AI Team
-Date: 2025-12-03
-"""
 
 import sys
 from pathlib import Path

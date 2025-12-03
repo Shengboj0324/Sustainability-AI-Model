@@ -1,14 +1,4 @@
-"""
-Phase 3 Integration Test - Complete System Validation
 
-Tests the full integration of:
-- Phase 1: Enhanced Provenance Metadata
-- Phase 2: Audit Trail & Transparency API
-- Phase 3: RAG Service Integration
-
-Author: ReleAF AI Team
-Date: 2025-12-03
-"""
 
 import asyncio
 import pytest

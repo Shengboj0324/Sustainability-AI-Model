@@ -1,24 +1,5 @@
 #!/usr/bin/env python3
-"""
-Provenance Migration Script
 
-This script adds provenance metadata to existing Qdrant documents that don't have it.
-It's designed to be run once during the transition to the enhanced provenance system.
-
-Features:
-- Batch processing for performance
-- Progress tracking
-- Validation of migrated documents
-- Rollback capability
-- Dry-run mode for testing
-
-Usage:
-    python scripts/migrate_provenance.py --dry-run  # Test without making changes
-    python scripts/migrate_provenance.py            # Perform migration
-
-Author: ReleAF AI Team
-Date: 2025-12-03
-"""
 
 import asyncio
 import sys

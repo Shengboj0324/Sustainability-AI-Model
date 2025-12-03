@@ -1,20 +1,4 @@
-"""
-Transparency API for Embedding Provenance
 
-This module provides public API endpoints for querying provenance metadata,
-version information, and audit trails. Enables transparency and trust in the
-embedding system.
-
-Features:
-- Document provenance queries
-- Version information queries
-- Audit trail access (admin only)
-- Statistics and analytics
-- GDPR-compliant data access
-
-Author: ReleAF AI Team
-Date: 2025-12-03
-"""
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field

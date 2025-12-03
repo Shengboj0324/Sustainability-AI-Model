@@ -1,15 +1,3 @@
-"""
-Comprehensive Test Suite for Transparency API
-
-Tests all API endpoints in transparency_api.py:
-- GET /provenance/document/{doc_id}
-- GET /provenance/version/{version}
-- GET /provenance/audit/entity/{entity_id}
-- GET /provenance/statistics
-
-Author: ReleAF AI Team
-Date: 2025-12-03
-"""
 
 import asyncio
 import pytest
