@@ -13,11 +13,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
-# ============================================================================
-# Event Type Enums
-# ============================================================================
-
 class EventType(str, Enum):
     """Audit event types"""
     # Document events
@@ -128,8 +123,6 @@ class AuditRecord:
 
     # Integrity
     checksum: Optional[str] = None
-
-
 
 
     def calculate_checksum(self) -> str:
