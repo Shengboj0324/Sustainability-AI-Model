@@ -1,20 +1,4 @@
-"""
-Advanced RAG Retrieval Module - Ultra-Rare Query Handling
 
-CRITICAL ENHANCEMENTS for handling ANY user input:
-- Query expansion with synonyms and related terms
-- Multi-query generation for complex questions
-- Semantic chunking with overlap
-- BM25 sparse retrieval
-- Hybrid fusion with advanced weighting
-- Fallback knowledge sources
-- Query classification and routing
-- Uncertainty quantification
-
-This module addresses the user's requirement:
-"I believe that code update needs to be done in some other core components for facing
-the user's ultra rare questions and images, specifically in the multi modal files and RAG systems"
-"""
 
 import re
 import logging
