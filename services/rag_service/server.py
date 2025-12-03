@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
 from typing import Optional, List, Dict, Any, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 import logging
 import sys
@@ -25,10 +25,23 @@ import os
 import hashlib
 from functools import lru_cache
 import time
+import uuid
 
 # Import shared utilities - CRITICAL: Single source of truth
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared.utils import QueryCache
+
+# Import provenance system - NEW: Enhanced embedding provenance
+from provenance import (
+    EmbeddingMetadata,
+    DataLineage,
+    TrustIndicators,
+    ProvenanceValidator,
+    generate_checksum,
+    get_utc_timestamp,
+    PROVENANCE_SCHEMA_VERSION
+)
+from version_tracker import EmbeddingVersionTracker
 
 # Third-party imports
 try:
@@ -117,7 +130,17 @@ class DocumentType(str, Enum):
 
 @dataclass
 class RetrievedDocument:
-    """Retrieved document with metadata"""
+    """
+    Retrieved document with comprehensive provenance metadata
+
+    Enhanced with full embedding provenance tracking including:
+    - Embedding metadata (model version, generation time, checksums)
+    - Data lineage (source tracking, processing history, updates)
+    - Trust indicators (quality scores, verification status, usage stats)
+
+    Backward compatible: All new fields have defaults.
+    """
+    # Core fields (existing)
     content: str
     score: float
     doc_id: str
@@ -125,16 +148,95 @@ class RetrievedDocument:
     metadata: Dict[str, Any]
     source: Optional[str] = None
 
+    # NEW: Enhanced provenance fields
+    embedding_metadata: Optional[EmbeddingMetadata] = None
+    lineage: Optional[DataLineage] = None
+    trust_indicators: Optional[TrustIndicators] = None
+
+    def __post_init__(self):
+        """Initialize default provenance if not provided"""
+        if self.embedding_metadata is None:
+            self.embedding_metadata = EmbeddingMetadata()
+        if self.lineage is None:
+            self.lineage = DataLineage(original_source=self.source or "unknown")
+        if self.trust_indicators is None:
+            self.trust_indicators = TrustIndicators()
+
+    @property
+    def freshness_score(self) -> float:
+        """
+        Calculate freshness score based on age
+
+        Returns:
+            Float between 0.0 and 1.0 (1.0 = very fresh, 0.0 = very old)
+        """
+        if not self.lineage or not self.lineage.last_updated:
+            return 0.5  # Default for unknown age
+
+        try:
+            updated_time = datetime.fromisoformat(self.lineage.last_updated.replace('Z', '+00:00'))
+            now = datetime.now(updated_time.tzinfo)
+            age_days = (now - updated_time).days
+
+            # Exponential decay: 1.0 at 0 days, 0.5 at 180 days, 0.1 at 365 days
+            freshness = max(0.0, min(1.0, 1.0 - (age_days / 365.0)))
+            return round(freshness, 3)
+
+        except Exception as e:
+            logger.warning(f"Failed to calculate freshness score: {e}")
+            return 0.5
+
+    @property
+    def overall_trust_score(self) -> float:
+        """
+        Get overall trust score
+
+        Returns:
+            Float between 0.0 and 1.0
+        """
+        if self.trust_indicators:
+            return self.trust_indicators.trust_score
+        return 0.5
+
+    def to_dict(self, include_provenance: bool = True) -> Dict[str, Any]:
+        """
+        Convert to dictionary for API response
+
+        Args:
+            include_provenance: Whether to include full provenance metadata
+
+        Returns:
+            Dictionary representation
+        """
+        result = {
+            "content": self.content,
+            "score": self.score,
+            "doc_id": self.doc_id,
+            "doc_type": self.doc_type,
+            "metadata": self.metadata,
+            "source": self.source
+        }
+
+        if include_provenance:
+            result["embedding_metadata"] = self.embedding_metadata.to_dict() if self.embedding_metadata else {}
+            result["lineage"] = self.lineage.to_dict() if self.lineage else {}
+            result["trust_indicators"] = self.trust_indicators.to_dict() if self.trust_indicators else {}
+            result["freshness_score"] = self.freshness_score
+            result["overall_trust_score"] = self.overall_trust_score
+
+        return result
+
 
 class RetrievalRequest(BaseModel):
-    """RAG retrieval request"""
+    """RAG retrieval request with optional provenance"""
     query: str = Field(..., min_length=1, max_length=1000, description="Search query")
     top_k: int = Field(default=5, ge=1, le=50, description="Number of documents to retrieve")
     mode: RetrievalMode = Field(default=RetrievalMode.HYBRID, description="Retrieval mode")
     doc_types: Optional[List[DocumentType]] = Field(default=None, description="Filter by document types")
     location: Optional[Dict[str, float]] = Field(default=None, description="User location for local rules")
     rerank: bool = Field(default=True, description="Apply re-ranking")
-    
+    include_provenance: bool = Field(default=True, description="Include embedding provenance metadata")
+
     @validator('location')
     def validate_location(cls, v):
         """Validate location coordinates"""
@@ -169,7 +271,7 @@ class RAGService:
     """
 
     def __init__(self, config_path: str = None):
-        """Initialize RAG service"""
+        """Initialize RAG service with enhanced provenance tracking"""
         if config_path is None:
             config_path = os.getenv("RAG_CONFIG_PATH", "configs/rag.yaml")
 
@@ -180,6 +282,15 @@ class RAGService:
         self.collection_name = self.config.get("qdrant", {}).get("collection_name", "sustainability_docs")
         self.embedding_dim = self.config.get("embedding", {}).get("dimension", 1024)
         self._shutdown = False
+
+        # NEW: Initialize version tracker for embedding provenance
+        self.version_tracker = EmbeddingVersionTracker()
+
+        # NEW: Track current model information
+        self.model_name = self.config.get("embedding", {}).get("model_name", "BAAI/bge-large-en-v1.5")
+        self.model_version = "1.5.0"  # TODO: Extract from model metadata
+        self.pooling_strategy = self.config.get("embedding", {}).get("pooling", "mean")
+        self.normalize_embeddings = self.config.get("embedding", {}).get("normalize_embeddings", True)
         
     def _load_config(self, config_path: str) -> Dict[str, Any]:
         """Load configuration with validation"""
@@ -435,7 +546,12 @@ class RAGService:
             logger.error(f"Error during shutdown: {e}", exc_info=True)
 
     async def embed_query(self, query: str) -> List[float]:
-        """Generate embedding for query with timeout"""
+        """
+        Generate embedding for query with timeout
+
+        NOTE: This method returns only the embedding vector for backward compatibility.
+        For full provenance metadata, use embed_query_with_provenance().
+        """
         try:
             if self.embedding_model is None:
                 raise RuntimeError("Embedding model not initialized")
@@ -463,6 +579,66 @@ class RAGService:
             )
         except Exception as e:
             logger.error(f"Failed to embed query: {e}")
+            raise
+
+    async def embed_query_with_provenance(self, query: str) -> Tuple[List[float], EmbeddingMetadata]:
+        """
+        Generate embedding with full provenance metadata
+
+        Args:
+            query: Text to embed
+
+        Returns:
+            Tuple of (embedding vector, embedding metadata)
+        """
+        try:
+            if self.embedding_model is None:
+                raise RuntimeError("Embedding model not initialized")
+
+            start_time = time.time()
+
+            # Generate content checksum
+            content_checksum = generate_checksum(query)
+
+            # Run embedding in thread pool with timeout
+            embedding = await asyncio.wait_for(
+                asyncio.to_thread(
+                    lambda: self.embedding_model.encode(query, normalize_embeddings=self.normalize_embeddings)
+                ),
+                timeout=5.0  # 5 second timeout for embedding
+            )
+
+            generation_time_ms = (time.time() - start_time) * 1000
+            EMBEDDING_DURATION.observe(generation_time_ms / 1000)
+
+            # Get current version info
+            version_info = await self.version_tracker.get_current_version_info()
+
+            # Create embedding metadata
+            embedding_metadata = EmbeddingMetadata(
+                model_name=self.model_name,
+                model_version=self.model_version,
+                model_checksum=version_info.get('model_checksum') if version_info else None,
+                embedding_dim=self.embedding_dim,
+                normalization=self.normalize_embeddings,
+                pooling_strategy=self.pooling_strategy,
+                embedding_created_at=get_utc_timestamp(),
+                embedding_generation_time_ms=round(generation_time_ms, 2),
+                content_checksum=content_checksum,
+                schema_version=PROVENANCE_SCHEMA_VERSION,
+                migration_history=[]
+            )
+
+            return embedding.tolist(), embedding_metadata
+
+        except asyncio.TimeoutError:
+            logger.error(f"Embedding timeout for query: {query[:50]}...")
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                detail="Embedding generation timeout"
+            )
+        except Exception as e:
+            logger.error(f"Failed to embed query with provenance: {e}")
             raise
 
     async def dense_retrieval(
@@ -499,16 +675,46 @@ class RAGService:
                 timeout=timeout
             )
 
-            # Convert to RetrievedDocument
+            # Convert to RetrievedDocument with enhanced provenance
             documents = []
             for hit in search_result:
+                # Extract provenance metadata from payload
+                embedding_metadata = None
+                lineage = None
+                trust_indicators = None
+
+                # NEW: Extract embedding_metadata if present
+                if "embedding_metadata" in hit.payload:
+                    try:
+                        embedding_metadata = EmbeddingMetadata.from_dict(hit.payload["embedding_metadata"])
+                    except Exception as e:
+                        logger.warning(f"Failed to parse embedding_metadata: {e}")
+
+                # NEW: Extract lineage if present
+                if "lineage" in hit.payload:
+                    try:
+                        lineage = DataLineage.from_dict(hit.payload["lineage"])
+                    except Exception as e:
+                        logger.warning(f"Failed to parse lineage: {e}")
+
+                # NEW: Extract trust_indicators if present
+                if "trust_indicators" in hit.payload:
+                    try:
+                        trust_indicators = TrustIndicators.from_dict(hit.payload["trust_indicators"])
+                    except Exception as e:
+                        logger.warning(f"Failed to parse trust_indicators: {e}")
+
                 doc = RetrievedDocument(
                     content=hit.payload.get("content", ""),
                     score=hit.score,
                     doc_id=str(hit.id),
                     doc_type=hit.payload.get("doc_type", "unknown"),
                     metadata=hit.payload.get("metadata", {}),
-                    source=hit.payload.get("source")
+                    source=hit.payload.get("source"),
+                    # NEW: Add provenance fields
+                    embedding_metadata=embedding_metadata,
+                    lineage=lineage,
+                    trust_indicators=trust_indicators
                 )
                 documents.append(doc)
 
@@ -570,6 +776,105 @@ class RAGService:
         except Exception as e:
             logger.warning(f"Re-ranking failed: {e}. Returning original results.")
             return documents[:top_k]
+
+    async def store_document(
+        self,
+        content: str,
+        doc_type: str,
+        source: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        lineage: Optional[DataLineage] = None,
+        trust_indicators: Optional[TrustIndicators] = None
+    ) -> str:
+        """
+        Store a document with full provenance metadata
+
+        Args:
+            content: Document text content
+            doc_type: Document type (e.g., "recycling_guideline")
+            source: Source identifier
+            metadata: Additional metadata
+            lineage: Data lineage information (optional, will create default)
+            trust_indicators: Trust indicators (optional, will create default)
+
+        Returns:
+            Document ID (UUID)
+        """
+        try:
+            if self.qdrant_client is None:
+                raise RuntimeError("Qdrant client not initialized")
+
+            # Generate document ID
+            doc_id = str(uuid.uuid4())
+
+            # Generate embedding with provenance
+            embedding, embedding_metadata = await self.embed_query_with_provenance(content)
+
+            # Create default lineage if not provided
+            if lineage is None:
+                lineage = DataLineage(
+                    original_source=source,
+                    collection_method="api",
+                    collector_version="1.0.0",
+                    processing_pipeline=["ingestion", "embedding"]
+                )
+
+            # Create default trust indicators if not provided
+            if trust_indicators is None:
+                trust_indicators = TrustIndicators(
+                    source_reliability=0.8,  # Default reliability
+                    content_quality=0.8,     # Default quality
+                    freshness_score=1.0      # Fresh document
+                )
+                trust_indicators.calculate_trust_score()
+
+            # Validate provenance
+            if not ProvenanceValidator.validate_embedding_metadata(embedding_metadata):
+                logger.warning(f"Invalid embedding metadata for doc {doc_id}")
+            if not ProvenanceValidator.validate_lineage(lineage):
+                logger.warning(f"Invalid lineage for doc {doc_id}")
+            if not ProvenanceValidator.validate_trust_indicators(trust_indicators):
+                logger.warning(f"Invalid trust indicators for doc {doc_id}")
+
+            # Prepare payload with full provenance
+            payload = {
+                "content": content,
+                "doc_type": doc_type,
+                "source": source,
+                "metadata": metadata or {},
+                "embedding_metadata": embedding_metadata.to_dict(),
+                "lineage": lineage.to_dict(),
+                "trust_indicators": trust_indicators.to_dict()
+            }
+
+            # Store in Qdrant
+            await asyncio.wait_for(
+                self.qdrant_client.upsert(
+                    collection_name=self.collection_name,
+                    points=[{
+                        "id": doc_id,
+                        "vector": embedding,
+                        "payload": payload
+                    }]
+                ),
+                timeout=10.0
+            )
+
+            # Increment document count in version tracker
+            await self.version_tracker.increment_document_count()
+
+            logger.info(f"Stored document {doc_id} with full provenance")
+            return doc_id
+
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout storing document")
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                detail="Document storage timeout"
+            )
+        except Exception as e:
+            logger.error(f"Failed to store document: {e}", exc_info=True)
+            raise
 
     async def retrieve(
         self,
@@ -711,18 +1016,11 @@ async def retrieve_knowledge(request: RetrievalRequest, http_request: Request):
             rerank=request.rerank
         )
 
-        # Convert to response format
-        doc_dicts = [
-            {
-                "content": doc.content,
-                "score": doc.score,
-                "doc_id": doc.doc_id,
-                "doc_type": doc.doc_type,
-                "metadata": doc.metadata,
-                "source": doc.source
-            }
-            for doc in documents
-        ]
+        # Convert to response format with provenance
+        # Check if client wants full provenance (default: True for transparency)
+        include_provenance = request.dict().get("include_provenance", True)
+
+        doc_dicts = [doc.to_dict(include_provenance=include_provenance) for doc in documents]
 
         retrieval_time = (time.time() - start_time) * 1000
 
