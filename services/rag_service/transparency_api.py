@@ -22,8 +22,12 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
 import logging
 
-from .provenance import EmbeddingMetadata, DataLineage, TrustIndicators
-from .audit_trail import AuditRecord, EventType, EntityType, ActorType, Action
+try:
+    from .provenance import EmbeddingMetadata, DataLineage, TrustIndicators
+    from .audit_trail import AuditRecord, EventType, EntityType, ActorType, Action
+except ImportError:
+    from provenance import EmbeddingMetadata, DataLineage, TrustIndicators
+    from audit_trail import AuditRecord, EventType, EntityType, ActorType, Action
 
 logger = logging.getLogger(__name__)
 
