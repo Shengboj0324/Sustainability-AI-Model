@@ -43,6 +43,10 @@ from provenance import (
 )
 from version_tracker import EmbeddingVersionTracker
 
+# Import audit trail and transparency API - Phase 2 integration
+from audit_trail import AuditTrailManager, EventType, EntityType, ActorType, Action
+from transparency_api import create_transparency_router
+
 # Third-party imports
 try:
     from qdrant_client import AsyncQdrantClient
@@ -291,6 +295,15 @@ class RAGService:
         self.model_version = "1.5.0"  # TODO: Extract from model metadata
         self.pooling_strategy = self.config.get("embedding", {}).get("pooling", "mean")
         self.normalize_embeddings = self.config.get("embedding", {}).get("normalize_embeddings", True)
+
+        # PHASE 2: Initialize audit trail manager
+        self.audit_manager = AuditTrailManager(
+            storage_type=os.getenv("AUDIT_STORAGE_TYPE", "json"),
+            json_dir=os.getenv("AUDIT_JSON_DIR", "data/audit_trail"),
+            pg_connection_string=os.getenv("AUDIT_PG_CONNECTION"),
+            batch_size=int(os.getenv("AUDIT_BATCH_SIZE", "100")),
+            flush_interval_seconds=float(os.getenv("AUDIT_FLUSH_INTERVAL", "5.0"))
+        )
         
     def _load_config(self, config_path: str) -> Dict[str, Any]:
         """Load configuration with validation"""
@@ -348,6 +361,10 @@ class RAGService:
 
             # Connect to Qdrant
             await self._connect_qdrant()
+
+            # PHASE 2: Initialize audit trail manager
+            await self.audit_manager.async_init()
+            logger.info("Audit trail manager initialized")
 
             logger.info("RAG service initialized successfully")
 
@@ -539,6 +556,12 @@ class RAGService:
             # Clear cache
             await query_cache.clear()
             logger.info("Cache cleared")
+
+            # PHASE 2: Close audit trail manager
+            if self.audit_manager:
+                await self.audit_manager.close()
+                logger.info("Audit trail manager closed")
+
             # Note: SentenceTransformer models don't need explicit cleanup
             # They will be garbage collected
             logger.info("RAG service shutdown complete")
@@ -933,6 +956,15 @@ class RAGService:
 # Initialize service
 rag_service = RAGService()
 
+# PHASE 2: Mount transparency API router
+transparency_router = create_transparency_router(
+    rag_service,
+    rag_service.audit_manager,
+    rag_service.version_tracker
+)
+app.include_router(transparency_router)
+logger.info("Transparency API router mounted at /provenance")
+
 
 @app.on_event("startup")
 async def startup():
@@ -1045,6 +1077,24 @@ async def retrieve_knowledge(request: RetrievalRequest, http_request: Request):
             doc_types,
             response
         )
+
+        # PHASE 2: Record audit event for document access
+        for doc in documents:
+            await rag_service.audit_manager.record_event(
+                event_type=EventType.DOCUMENT_ACCESSED.value,
+                entity_type=EntityType.DOCUMENT.value,
+                entity_id=doc.doc_id,
+                action=Action.READ.value,
+                actor_type=ActorType.API.value,
+                actor_id=client_ip,
+                success=True,
+                duration_ms=retrieval_time,
+                metadata={
+                    "query": sanitized_query[:100],  # Truncate for privacy
+                    "mode": request.mode.value,
+                    "score": doc.score
+                }
+            )
 
         REQUESTS_TOTAL.labels(endpoint=endpoint, status="success").inc()
         REQUEST_DURATION.labels(endpoint=endpoint).observe(time.time() - start_time)
