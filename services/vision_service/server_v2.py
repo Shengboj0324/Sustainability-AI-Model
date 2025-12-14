@@ -37,18 +37,41 @@ from starlette.responses import Response
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared.utils import RateLimiter, RequestCache
 
+# Import monitoring components
+from common.structured_logging import get_logger, log_context, set_correlation_id
+from common.health_checks import HealthChecker, HealthStatus
+from common.alerting import init_alerting, send_alert, AlertSeverity
+from common.circuit_breaker import CircuitBreaker
+
+# Try to import optional monitoring components
+try:
+    from common.tracing import init_tracing, trace_operation
+    TRACING_AVAILABLE = True
+except ImportError:
+    TRACING_AVAILABLE = False
+    def trace_operation(name, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
+try:
+    from common.error_tracking import init_sentry, capture_exception, add_breadcrumb
+    SENTRY_AVAILABLE = True
+except ImportError:
+    SENTRY_AVAILABLE = False
+    def capture_exception(exc, **kwargs):
+        pass
+    def add_breadcrumb(msg, **kwargs):
+        pass
+
 # Import our production-grade vision system
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from models.vision.integrated_vision import IntegratedVisionSystem, IntegratedVisionResult
 from models.vision.classifier import ClassificationResult
 from models.vision.detector import Detection
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Configure structured logging
+logger = get_logger(__name__)
 
 # Prometheus metrics
 REQUESTS_TOTAL = Counter('vision_requests_total', 'Total vision requests', ['endpoint', 'status'])
@@ -76,6 +99,16 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Initialize monitoring components
+health_checker = HealthChecker(service_name="vision_service", check_timeout=5.0)
+alert_manager = None  # Initialized in startup
+vision_circuit_breaker = CircuitBreaker(
+    name="vision_model",
+    failure_threshold=3,
+    recovery_timeout=60.0,
+    expected_exception=Exception
 )
 
 
@@ -293,13 +326,128 @@ vision_service = VisionServiceV2()
 @app.on_event("startup")
 async def startup():
     """Initialize service on startup"""
-    await vision_service.initialize()
+    global alert_manager
+
+    logger.info("Starting Vision Service V2", service="vision_service", version="2.0.0")
+
+    # Initialize distributed tracing
+    if TRACING_AVAILABLE:
+        try:
+            jaeger_endpoint = os.getenv("JAEGER_ENDPOINT")
+            if jaeger_endpoint:
+                init_tracing(
+                    service_name="vision_service",
+                    service_version="2.0.0",
+                    environment=os.getenv("ENVIRONMENT", "development"),
+                    jaeger_endpoint=jaeger_endpoint,
+                    sample_rate=float(os.getenv("TRACE_SAMPLE_RATE", "0.1"))
+                )
+                logger.info("Distributed tracing initialized", jaeger_endpoint=jaeger_endpoint)
+        except Exception as e:
+            logger.warning("Failed to initialize tracing", error=str(e))
+
+    # Initialize error tracking
+    if SENTRY_AVAILABLE:
+        try:
+            sentry_dsn = os.getenv("SENTRY_DSN")
+            if sentry_dsn:
+                init_sentry(
+                    dsn=sentry_dsn,
+                    service_name="vision_service",
+                    environment=os.getenv("ENVIRONMENT", "development"),
+                    release=os.getenv("RELEASE_VERSION", "2.0.0"),
+                    traces_sample_rate=float(os.getenv("SENTRY_TRACE_SAMPLE_RATE", "0.1"))
+                )
+                logger.info("Error tracking initialized", sentry_enabled=True)
+        except Exception as e:
+            logger.warning("Failed to initialize Sentry", error=str(e))
+
+    # Initialize alerting
+    try:
+        alert_manager = init_alerting(
+            slack_webhook=os.getenv("SLACK_WEBHOOK"),
+            pagerduty_key=os.getenv("PAGERDUTY_KEY")
+        )
+        logger.info("Alerting system initialized")
+    except Exception as e:
+        logger.warning("Failed to initialize alerting", error=str(e))
+
+    # Initialize Vision service
+    try:
+        await vision_service.initialize()
+        logger.info("Vision service initialized successfully")
+
+        # Add health checks
+        async def check_vision_health():
+            if vision_service.vision_system is None:
+                return {"status": "unhealthy", "reason": "Vision system not loaded"}
+            return {"status": "healthy"}
+
+        health_checker.add_check("vision_model", check_vision_health)
+        health_checker.mark_ready()
+        health_checker.mark_startup_complete()
+
+        logger.info("Health checks configured")
+    except Exception as e:
+        logger.error("Failed to initialize Vision service", exc_info=True)
+        capture_exception(e, extra={"component": "startup"})
+
+        # Send critical alert
+        if alert_manager:
+            await send_alert(
+                title="Vision Service Startup Failed",
+                message=f"Failed to initialize Vision service: {str(e)}",
+                severity=AlertSeverity.CRITICAL,
+                service="vision_service",
+                component="startup"
+            )
+        raise
 
 
 @app.on_event("shutdown")
 async def shutdown():
     """Graceful shutdown"""
+    logger.info("Shutting down Vision Service")
+    health_checker.mark_not_ready()
     await vision_service.close()
+    logger.info("Vision Service shutdown complete")
+
+
+# Health check endpoints
+@app.get("/health/live")
+async def liveness():
+    """Liveness probe - is service alive?"""
+    return await health_checker.liveness()
+
+
+@app.get("/health/ready")
+async def readiness():
+    """Readiness probe - is service ready for traffic?"""
+    return await health_checker.readiness()
+
+
+@app.get("/health/startup")
+async def startup_probe():
+    """Startup probe - has service finished initialization?"""
+    return await health_checker.startup()
+
+
+@app.get("/health")
+async def health():
+    """Detailed health check with all dependencies"""
+    result = await health_checker.check_health()
+
+    status_code = 200
+    if result.status == HealthStatus.UNHEALTHY:
+        status_code = 503
+    elif result.status == HealthStatus.DEGRADED:
+        status_code = 200
+
+    return Response(
+        content=result.model_dump_json() if hasattr(result, 'model_dump_json') else str(result),
+        status_code=status_code,
+        media_type="application/json"
+    )
 
 
 # API Endpoints

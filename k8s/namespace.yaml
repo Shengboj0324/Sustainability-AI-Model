@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: releaf-ai
+  labels:
+    name: releaf-ai
+    environment: production
+    app.kubernetes.io/name: releaf-ai
+    app.kubernetes.io/part-of: sustainability-platform
+    app.kubernetes.io/managed-by: kubectl
+  annotations:
+    description: "ReleAF AI - Sustainability and Waste Intelligence Platform"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: releaf-ai-quota
+  namespace: releaf-ai
+spec:
+  hard:
+    requests.cpu: "50"
+    requests.memory: 100Gi
+    requests.storage: 500Gi
+    persistentvolumeclaims: "20"
+    pods: "100"
+    services: "50"
+    configmaps: "50"
+    secrets: "50"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: releaf-ai-limits
+  namespace: releaf-ai
+spec:
+  limits:
+  - max:
+      cpu: "8"
+      memory: 16Gi
+    min:
+      cpu: 100m
+      memory: 128Mi
+    default:
+      cpu: "1"
+      memory: 1Gi
+    defaultRequest:
+      cpu: 500m
+      memory: 512Mi
+    type: Container
+  - max:
+      cpu: "16"
+      memory: 32Gi
+    min:
+      cpu: 100m
+      memory: 128Mi
+    type: Pod
+

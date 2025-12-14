@@ -31,9 +31,35 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared.answer_formatter import AnswerFormatter, AnswerType, FormattedAnswer
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Import monitoring components
+from common.structured_logging import get_logger, log_context, set_correlation_id
+from common.health_checks import HealthChecker, HealthStatus
+from common.alerting import init_alerting, send_alert, AlertSeverity
+from common.circuit_breaker import CircuitBreaker
+
+# Try to import optional monitoring components
+try:
+    from common.tracing import init_tracing, trace_operation
+    TRACING_AVAILABLE = True
+except ImportError:
+    TRACING_AVAILABLE = False
+    def trace_operation(name, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
+try:
+    from common.error_tracking import init_sentry, capture_exception, add_breadcrumb
+    SENTRY_AVAILABLE = True
+except ImportError:
+    SENTRY_AVAILABLE = False
+    def capture_exception(exc, **kwargs):
+        pass
+    def add_breadcrumb(msg, **kwargs):
+        pass
+
+# Configure structured logging
+logger = get_logger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -41,6 +67,10 @@ app = FastAPI(
     description="Production-grade request routing with intelligent fallback strategies",
     version="2.0.0"
 )
+
+# Initialize monitoring components
+health_checker = HealthChecker(service_name="orchestrator", check_timeout=5.0)
+alert_manager = None  # Initialized in startup
 
 # Load configuration
 with open("configs/orchestrator.yaml", "r") as f:
@@ -854,16 +884,106 @@ async def orchestrate(request: OrchestratorRequest):
             raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/health")
-async def health():
-    """Health check"""
-    return {"status": "healthy", "service": "orchestrator"}
+@app.on_event("startup")
+async def startup():
+    """Initialize service on startup"""
+    global alert_manager
+
+    logger.info("Starting Orchestrator Service", service="orchestrator", version="2.0.0")
+
+    # Initialize distributed tracing
+    if TRACING_AVAILABLE:
+        try:
+            jaeger_endpoint = config.get("monitoring", {}).get("jaeger_endpoint")
+            if jaeger_endpoint:
+                init_tracing(
+                    service_name="orchestrator",
+                    service_version="2.0.0",
+                    environment=config.get("environment", "development"),
+                    jaeger_endpoint=jaeger_endpoint,
+                    sample_rate=float(config.get("monitoring", {}).get("trace_sample_rate", 0.1))
+                )
+                logger.info("Distributed tracing initialized", jaeger_endpoint=jaeger_endpoint)
+        except Exception as e:
+            logger.warning("Failed to initialize tracing", error=str(e))
+
+    # Initialize error tracking
+    if SENTRY_AVAILABLE:
+        try:
+            sentry_dsn = config.get("monitoring", {}).get("sentry_dsn")
+            if sentry_dsn:
+                init_sentry(
+                    dsn=sentry_dsn,
+                    service_name="orchestrator",
+                    environment=config.get("environment", "development"),
+                    release="2.0.0",
+                    traces_sample_rate=float(config.get("monitoring", {}).get("sentry_trace_sample_rate", 0.1))
+                )
+                logger.info("Error tracking initialized", sentry_enabled=True)
+        except Exception as e:
+            logger.warning("Failed to initialize Sentry", error=str(e))
+
+    # Initialize alerting
+    try:
+        alert_manager = init_alerting(
+            slack_webhook=config.get("monitoring", {}).get("slack_webhook"),
+            pagerduty_key=config.get("monitoring", {}).get("pagerduty_key")
+        )
+        logger.info("Alerting system initialized")
+    except Exception as e:
+        logger.warning("Failed to initialize alerting", error=str(e))
+
+    # Mark service as ready
+    health_checker.mark_ready()
+    health_checker.mark_startup_complete()
+    logger.info("Orchestrator service initialized successfully")
 
 
 @app.on_event("shutdown")
 async def shutdown():
     """Graceful shutdown"""
+    logger.info("Shutting down Orchestrator Service")
+    health_checker.mark_not_ready()
     await executor.close()
+    logger.info("Orchestrator Service shutdown complete")
+
+
+# Health check endpoints
+@app.get("/health/live")
+async def liveness():
+    """Liveness probe - is service alive?"""
+    return await health_checker.liveness()
+
+
+@app.get("/health/ready")
+async def readiness():
+    """Readiness probe - is service ready for traffic?"""
+    return await health_checker.readiness()
+
+
+@app.get("/health/startup")
+async def startup_probe():
+    """Startup probe - has service finished initialization?"""
+    return await health_checker.startup()
+
+
+@app.get("/health")
+async def health():
+    """Detailed health check with all dependencies"""
+    result = await health_checker.check_health()
+
+    status_code = 200
+    if result.status == HealthStatus.UNHEALTHY:
+        status_code = 503
+    elif result.status == HealthStatus.DEGRADED:
+        status_code = 200
+
+    from starlette.responses import Response
+    return Response(
+        content=result.model_dump_json() if hasattr(result, 'model_dump_json') else str(result),
+        status_code=status_code,
+        media_type="application/json"
+    )
 
 
 if __name__ == "__main__":

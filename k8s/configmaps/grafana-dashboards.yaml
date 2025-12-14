@@ -1,0 +1,166 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: releaf-ai
+  labels:
+    app: grafana
+    component: dashboards
+data:
+  releaf-overview.json: |
+    {
+      "dashboard": {
+        "title": "ReleAF AI - System Overview",
+        "tags": ["releaf", "overview"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "Request Rate (req/s)",
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{namespace=\"releaf-ai\"}[5m])) by (service)"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "Response Time (p95)",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace=\"releaf-ai\"}[5m])) by (le, service))"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "Error Rate",
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{namespace=\"releaf-ai\",status=~\"5..\"}[5m])) by (service)"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "CPU Usage",
+            "targets": [
+              {
+                "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"releaf-ai\"}[5m])) by (pod)"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "Memory Usage",
+            "targets": [
+              {
+                "expr": "sum(container_memory_working_set_bytes{namespace=\"releaf-ai\"}) by (pod)"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "Pod Status",
+            "targets": [
+              {
+                "expr": "kube_pod_status_phase{namespace=\"releaf-ai\"}"
+              }
+            ],
+            "type": "stat"
+          }
+        ]
+      }
+    }
+  releaf-services.json: |
+    {
+      "dashboard": {
+        "title": "ReleAF AI - Services",
+        "tags": ["releaf", "services"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "API Gateway - Request Rate",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{service=\"api-gateway\"}[5m])"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "LLM Service - Inference Time",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(llm_inference_duration_seconds_bucket[5m]))"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "RAG Service - Retrieval Time",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(rag_retrieval_duration_seconds_bucket[5m]))"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "Vision Service - Processing Time",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(vision_processing_duration_seconds_bucket[5m]))"
+              }
+            ],
+            "type": "graph"
+          }
+        ]
+      }
+    }
+  releaf-databases.json: |
+    {
+      "dashboard": {
+        "title": "ReleAF AI - Databases",
+        "tags": ["releaf", "databases"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "PostgreSQL - Connections",
+            "targets": [
+              {
+                "expr": "pg_stat_database_numbackends{datname=\"releaf\"}"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "Neo4j - Query Rate",
+            "targets": [
+              {
+                "expr": "rate(neo4j_bolt_messages_received_total[5m])"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "Qdrant - Vector Search Time",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(qdrant_search_duration_seconds_bucket[5m]))"
+              }
+            ],
+            "type": "graph"
+          },
+          {
+            "title": "Redis - Hit Rate",
+            "targets": [
+              {
+                "expr": "rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))"
+              }
+            ],
+            "type": "graph"
+          }
+        ]
+      }
+    }
+

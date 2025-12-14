@@ -1,0 +1,150 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: releaf-app-config
+  namespace: releaf-ai
+  labels:
+    app: releaf-ai
+    component: configuration
+data:
+  # Environment
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "info"
+  
+  # Service URLs (internal cluster DNS)
+  API_GATEWAY_URL: "http://api-gateway.releaf-ai.svc.cluster.local:8080"
+  ORCHESTRATOR_URL: "http://orchestrator.releaf-ai.svc.cluster.local:8000"
+  VISION_SERVICE_URL: "http://vision-service.releaf-ai.svc.cluster.local:8001"
+  LLM_SERVICE_URL: "http://llm-service.releaf-ai.svc.cluster.local:8002"
+  RAG_SERVICE_URL: "http://rag-service.releaf-ai.svc.cluster.local:8003"
+  KG_SERVICE_URL: "http://kg-service.releaf-ai.svc.cluster.local:8004"
+  ORG_SEARCH_SERVICE_URL: "http://org-search-service.releaf-ai.svc.cluster.local:8005"
+  
+  # Database URLs
+  POSTGRES_HOST: "postgres.releaf-ai.svc.cluster.local"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "releaf"
+  
+  NEO4J_URI: "bolt://neo4j.releaf-ai.svc.cluster.local:7687"
+  
+  QDRANT_HOST: "qdrant.releaf-ai.svc.cluster.local"
+  QDRANT_PORT: "6333"
+  QDRANT_GRPC_PORT: "6334"
+  QDRANT_COLLECTION: "sustainability_docs"
+  
+  REDIS_HOST: "redis.releaf-ai.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  
+  # Rate Limiting
+  RATE_LIMIT_REQUESTS: "100"
+  RATE_LIMIT_WINDOW: "60"
+  
+  # Caching
+  CACHE_TTL: "3600"
+  CACHE_MAX_SIZE: "10000"
+  
+  # Model Configuration
+  EMBEDDING_MODEL: "BAAI/bge-large-en-v1.5"
+  EMBEDDING_DIM: "1024"
+  RERANKER_MODEL: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+  
+  # Retrieval Configuration
+  RETRIEVAL_TOP_K: "10"
+  RETRIEVAL_MODE: "hybrid"
+  
+  # Monitoring
+  TRACE_SAMPLE_RATE: "0.1"
+  SENTRY_TRACE_SAMPLE_RATE: "0.1"
+  METRICS_PORT: "9090"
+  
+  # Performance
+  MAX_CONCURRENT: "100"
+  REQUEST_TIMEOUT: "30"
+  WORKERS: "1"
+  
+  # CORS
+  CORS_ORIGINS: "*"
+  
+  # Health Check
+  HEALTH_CHECK_INTERVAL: "10"
+  HEALTH_CHECK_TIMEOUT: "5"
+  
+  # Startup
+  STARTUP_TIMEOUT: "300"
+  GRACEFUL_SHUTDOWN_TIMEOUT: "30"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: releaf-ai
+  labels:
+    app: prometheus
+    component: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'releaf-ai-production'
+        environment: 'production'
+    
+    scrape_configs:
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - releaf-ai
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+      
+      - job_name: 'api-gateway'
+        static_configs:
+          - targets: ['api-gateway.releaf-ai.svc.cluster.local:9090']
+      
+      - job_name: 'orchestrator'
+        static_configs:
+          - targets: ['orchestrator.releaf-ai.svc.cluster.local:9090']
+      
+      - job_name: 'llm-service'
+        static_configs:
+          - targets: ['llm-service.releaf-ai.svc.cluster.local:9090']
+      
+      - job_name: 'rag-service'
+        static_configs:
+          - targets: ['rag-service.releaf-ai.svc.cluster.local:9090']
+      
+      - job_name: 'vision-service'
+        static_configs:
+          - targets: ['vision-service.releaf-ai.svc.cluster.local:9090']
+      
+      - job_name: 'kg-service'
+        static_configs:
+          - targets: ['kg-service.releaf-ai.svc.cluster.local:9090']
+      
+      - job_name: 'org-search-service'
+        static_configs:
+          - targets: ['org-search-service.releaf-ai.svc.cluster.local:9090']
+

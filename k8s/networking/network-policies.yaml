@@ -1,0 +1,296 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: releaf-ai
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-gateway
+  namespace: releaf-ai
+spec:
+  podSelector:
+    matchLabels:
+      app: api-gateway
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: orchestrator
+      ports:
+        - protocol: TCP
+          port: 8000
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-orchestrator
+  namespace: releaf-ai
+spec:
+  podSelector:
+    matchLabels:
+      app: orchestrator
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              component: ai
+      ports:
+        - protocol: TCP
+          port: 8001
+        - protocol: TCP
+          port: 8002
+        - protocol: TCP
+          port: 8003
+    - to:
+        - podSelector:
+            matchLabels:
+              component: database-service
+      ports:
+        - protocol: TCP
+          port: 8004
+        - protocol: TCP
+          port: 8005
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ai-services
+  namespace: releaf-ai
+spec:
+  podSelector:
+    matchLabels:
+      component: ai
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: orchestrator
+      ports:
+        - protocol: TCP
+          port: 8001
+        - protocol: TCP
+          port: 8002
+        - protocol: TCP
+          port: 8003
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: qdrant
+      ports:
+        - protocol: TCP
+          port: 6333
+        - protocol: TCP
+          port: 6334
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    # Allow HTTPS for model downloads (HuggingFace, etc.) - restrict in production
+    - to:
+        - namespaceSelector: {}
+          podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-database-services
+  namespace: releaf-ai
+spec:
+  podSelector:
+    matchLabels:
+      component: database-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: orchestrator
+      ports:
+        - protocol: TCP
+          port: 8004
+        - protocol: TCP
+          port: 8005
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app: neo4j
+      ports:
+        - protocol: TCP
+          port: 7687
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-databases
+  namespace: releaf-ai
+spec:
+  podSelector:
+    matchLabels:
+      component: database
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              component: ai
+        - podSelector:
+            matchLabels:
+              component: database-service
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 7687
+        - protocol: TCP
+          port: 6333
+        - protocol: TCP
+          port: 6334
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring
+  namespace: releaf-ai
+spec:
+  podSelector:
+    matchLabels:
+      component: monitoring
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow access to Prometheus from anywhere in namespace
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9090
+    # Allow access to Grafana from anywhere in namespace
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3000
+    # Allow access to Jaeger from anywhere in namespace
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 16686
+        - protocol: TCP
+          port: 14268
+        - protocol: TCP
+          port: 14250
+  egress:
+    # Allow Prometheus to scrape all pods
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 9187
+        - protocol: TCP
+          port: 9121
+        - protocol: TCP
+          port: 2004
+    # Allow DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    # Allow Kubernetes API access for Prometheus service discovery
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+

@@ -38,17 +38,40 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared.utils import RateLimiter, RequestCache
 
+# Import monitoring components
+from common.structured_logging import get_logger, log_context, set_correlation_id
+from common.health_checks import HealthChecker, HealthStatus
+from common.alerting import init_alerting, send_alert, AlertSeverity
+from common.circuit_breaker import CircuitBreaker
+
+# Try to import optional monitoring components
+try:
+    from common.tracing import init_tracing, trace_operation
+    TRACING_AVAILABLE = True
+except ImportError:
+    TRACING_AVAILABLE = False
+    def trace_operation(name, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
+try:
+    from common.error_tracking import init_sentry, capture_exception, add_breadcrumb
+    SENTRY_AVAILABLE = True
+except ImportError:
+    SENTRY_AVAILABLE = False
+    def capture_exception(exc, **kwargs):
+        pass
+    def add_breadcrumb(msg, **kwargs):
+        pass
+
 # Import NLP modules
 from intent_classifier import IntentClassifier, IntentCategory
 from entity_extractor import EntityExtractor, Entity
 from language_handler import LanguageHandler, Language
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Configure structured logging
+logger = get_logger(__name__)
 
 # Prometheus metrics
 REQUESTS_TOTAL = Counter('llm_requests_total', 'Total LLM requests', ['endpoint', 'status'])
@@ -75,6 +98,16 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Initialize monitoring components
+health_checker = HealthChecker(service_name="llm_service", check_timeout=5.0)
+alert_manager = None  # Initialized in startup
+model_circuit_breaker = CircuitBreaker(
+    name="llm_model",
+    failure_threshold=3,
+    recovery_timeout=60.0,
+    expected_exception=Exception
 )
 
 
@@ -520,13 +553,128 @@ llm_service = LLMServiceV2()
 @app.on_event("startup")
 async def startup():
     """Initialize service on startup"""
-    await llm_service.initialize()
+    global alert_manager
+
+    logger.info("Starting LLM Service V2", service="llm_service", version="2.0.0")
+
+    # Initialize distributed tracing
+    if TRACING_AVAILABLE:
+        try:
+            jaeger_endpoint = os.getenv("JAEGER_ENDPOINT")
+            if jaeger_endpoint:
+                init_tracing(
+                    service_name="llm_service",
+                    service_version="2.0.0",
+                    environment=os.getenv("ENVIRONMENT", "development"),
+                    jaeger_endpoint=jaeger_endpoint,
+                    sample_rate=float(os.getenv("TRACE_SAMPLE_RATE", "0.1"))
+                )
+                logger.info("Distributed tracing initialized", jaeger_endpoint=jaeger_endpoint)
+        except Exception as e:
+            logger.warning("Failed to initialize tracing", error=str(e))
+
+    # Initialize error tracking
+    if SENTRY_AVAILABLE:
+        try:
+            sentry_dsn = os.getenv("SENTRY_DSN")
+            if sentry_dsn:
+                init_sentry(
+                    dsn=sentry_dsn,
+                    service_name="llm_service",
+                    environment=os.getenv("ENVIRONMENT", "development"),
+                    release=os.getenv("RELEASE_VERSION", "2.0.0"),
+                    traces_sample_rate=float(os.getenv("SENTRY_TRACE_SAMPLE_RATE", "0.1"))
+                )
+                logger.info("Error tracking initialized", sentry_enabled=True)
+        except Exception as e:
+            logger.warning("Failed to initialize Sentry", error=str(e))
+
+    # Initialize alerting
+    try:
+        alert_manager = init_alerting(
+            slack_webhook=os.getenv("SLACK_WEBHOOK"),
+            pagerduty_key=os.getenv("PAGERDUTY_KEY")
+        )
+        logger.info("Alerting system initialized")
+    except Exception as e:
+        logger.warning("Failed to initialize alerting", error=str(e))
+
+    # Initialize LLM service
+    try:
+        await llm_service.initialize()
+        logger.info("LLM service initialized successfully")
+
+        # Add health checks
+        async def check_model_health():
+            if llm_service.model is None or llm_service.tokenizer is None:
+                return {"status": "unhealthy", "reason": "Model not loaded"}
+            return {"status": "healthy"}
+
+        health_checker.add_check("llm_model", check_model_health)
+        health_checker.mark_ready()
+        health_checker.mark_startup_complete()
+
+        logger.info("Health checks configured")
+    except Exception as e:
+        logger.error("Failed to initialize LLM service", exc_info=True)
+        capture_exception(e, extra={"component": "startup"})
+
+        # Send critical alert
+        if alert_manager:
+            await send_alert(
+                title="LLM Service Startup Failed",
+                message=f"Failed to initialize LLM service: {str(e)}",
+                severity=AlertSeverity.CRITICAL,
+                service="llm_service",
+                component="startup"
+            )
+        raise
 
 
 @app.on_event("shutdown")
 async def shutdown():
     """Graceful shutdown"""
+    logger.info("Shutting down LLM Service")
+    health_checker.mark_not_ready()
     await llm_service.close()
+    logger.info("LLM Service shutdown complete")
+
+
+# Health check endpoints
+@app.get("/health/live")
+async def liveness():
+    """Liveness probe - is service alive?"""
+    return await health_checker.liveness()
+
+
+@app.get("/health/ready")
+async def readiness():
+    """Readiness probe - is service ready for traffic?"""
+    return await health_checker.readiness()
+
+
+@app.get("/health/startup")
+async def startup_probe():
+    """Startup probe - has service finished initialization?"""
+    return await health_checker.startup()
+
+
+@app.get("/health")
+async def health():
+    """Detailed health check with all dependencies"""
+    result = await health_checker.check_health()
+
+    status_code = 200
+    if result.status == HealthStatus.UNHEALTHY:
+        status_code = 503
+    elif result.status == HealthStatus.DEGRADED:
+        status_code = 200
+
+    return Response(
+        content=result.model_dump_json() if hasattr(result, 'model_dump_json') else str(result),
+        status_code=status_code,
+        media_type="application/json"
+    )
 
 
 # Helper function to create cache key
@@ -539,6 +687,7 @@ def create_cache_key(request: LLMRequest) -> str:
 
 # API Endpoints
 @app.post("/generate", response_model=LLMResponse)
+@trace_operation("llm_generate")
 async def generate_text(request: LLMRequest, http_request: Request):
     """
     Generate text endpoint
@@ -549,83 +698,116 @@ async def generate_text(request: LLMRequest, http_request: Request):
     endpoint = "generate"
     start_time = time.time()
 
+    # Set correlation ID from request header or generate new one
+    correlation_id = http_request.headers.get("X-Correlation-ID")
+    set_correlation_id(correlation_id)
+
     try:
         # Get client IP
         client_ip = http_request.client.host
 
-        # Check rate limit
-        if not await rate_limiter.check_rate_limit(client_ip):
-            REQUESTS_TOTAL.labels(endpoint=endpoint, status="rate_limited").inc()
-            raise HTTPException(status_code=429, detail="Rate limit exceeded")
+        with log_context(
+            correlation_id=correlation_id,
+            endpoint=endpoint,
+            client_ip=client_ip
+        ):
+            logger.info("LLM generation request started", max_tokens=request.max_tokens)
 
-        # Preprocess with NLP if user message exists
-        nlp_metadata = None
-        if request.messages and len(request.messages) > 0:
-            # Get last user message
-            user_message = None
-            for msg in reversed(request.messages):
-                if msg.get("role") == "user":
-                    user_message = msg.get("content", "")
-                    break
+            add_breadcrumb(
+                "LLM generation request",
+                category="llm",
+                data={"max_tokens": request.max_tokens, "temperature": request.temperature}
+            )
 
-            if user_message:
-                nlp_metadata = await llm_service.preprocess_with_nlp(user_message)
-                # Add NLP context hints to request context
-                if request.context is None:
-                    request.context = {}
-                request.context["nlp_metadata"] = nlp_metadata
+            # Check rate limit
+            if not await rate_limiter.check_rate_limit(client_ip):
+                REQUESTS_TOTAL.labels(endpoint=endpoint, status="rate_limited").inc()
+                logger.warning("Rate limit exceeded", client_ip=client_ip)
+                raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
-        # Check cache
-        cache_key = create_cache_key(request)
-        cached_result = await request_cache.get(cache_key)
-        if cached_result:
-            logger.info(f"Cache hit for {cache_key[:16]}...")
-            REQUESTS_TOTAL.labels(endpoint=endpoint, status="cache_hit").inc()
-            return cached_result
+            # Preprocess with NLP if user message exists
+            nlp_metadata = None
+            if request.messages and len(request.messages) > 0:
+                # Get last user message
+                user_message = None
+                for msg in reversed(request.messages):
+                    if msg.get("role") == "user":
+                        user_message = msg.get("content", "")
+                        break
 
-        # Generate response
-        response, prompt_tokens, completion_tokens, generation_time = await llm_service.generate(
-            request,
-            timeout=60.0
-        )
+                if user_message:
+                    nlp_metadata = await llm_service.preprocess_with_nlp(user_message)
+                    # Add NLP context hints to request context
+                    if request.context is None:
+                        request.context = {}
+                    request.context["nlp_metadata"] = nlp_metadata
 
-        # Build response
-        llm_response = LLMResponse(
-            response=response,
-            usage={
-                "prompt_tokens": prompt_tokens,
-                "completion_tokens": completion_tokens,
-                "total_tokens": prompt_tokens + completion_tokens
-            },
-            model=llm_service.config["model"]["base_model_name"],
-            generation_time_ms=generation_time,
-            cached=False,
-            # Add NLP metadata
-            detected_language=nlp_metadata.get("detected_language") if nlp_metadata else None,
-            language_confidence=nlp_metadata.get("language_confidence") if nlp_metadata else None,
-            intent=nlp_metadata.get("intent") if nlp_metadata else None,
-            intent_confidence=nlp_metadata.get("intent_confidence") if nlp_metadata else None,
-            entities=nlp_metadata.get("entities") if nlp_metadata else None
-        )
+            # Check cache
+            cache_key = create_cache_key(request)
+            cached_result = await request_cache.get(cache_key)
+            if cached_result:
+                logger.info(f"Cache hit for {cache_key[:16]}...")
+                REQUESTS_TOTAL.labels(endpoint=endpoint, status="cache_hit").inc()
+                return cached_result
 
-        # Cache result
-        await request_cache.set(cache_key, llm_response)
+            # Generate response
+            response, prompt_tokens, completion_tokens, generation_time = await llm_service.generate(
+                request,
+                timeout=60.0
+            )
 
-        # Update metrics
-        REQUESTS_TOTAL.labels(endpoint=endpoint, status="success").inc()
-        REQUEST_DURATION.labels(endpoint=endpoint).observe(time.time() - start_time)
-        GENERATION_TIME.observe(generation_time)
-        TOKENS_GENERATED.inc(completion_tokens)
-        PROMPT_TOKENS.observe(prompt_tokens)
-        COMPLETION_TOKENS.observe(completion_tokens)
+            # Build response
+            llm_response = LLMResponse(
+                response=response,
+                usage={
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": prompt_tokens + completion_tokens
+                },
+                model=llm_service.config["model"]["base_model_name"],
+                generation_time_ms=generation_time,
+                cached=False,
+                # Add NLP metadata
+                detected_language=nlp_metadata.get("detected_language") if nlp_metadata else None,
+                language_confidence=nlp_metadata.get("language_confidence") if nlp_metadata else None,
+                intent=nlp_metadata.get("intent") if nlp_metadata else None,
+                intent_confidence=nlp_metadata.get("intent_confidence") if nlp_metadata else None,
+                entities=nlp_metadata.get("entities") if nlp_metadata else None
+            )
 
-        return llm_response
+            # Cache result
+            await request_cache.set(cache_key, llm_response)
+
+            # Update metrics
+            REQUESTS_TOTAL.labels(endpoint=endpoint, status="success").inc()
+            REQUEST_DURATION.labels(endpoint=endpoint).observe(time.time() - start_time)
+            GENERATION_TIME.observe(generation_time)
+            TOKENS_GENERATED.inc(completion_tokens)
+            PROMPT_TOKENS.observe(prompt_tokens)
+            COMPLETION_TOKENS.observe(completion_tokens)
+
+            logger.info(
+                "LLM generation completed",
+                tokens_generated=completion_tokens,
+                generation_time_ms=generation_time
+            )
+
+            return llm_response
 
     except HTTPException:
+        logger.warning("LLM generation failed - HTTP exception", exc_info=True)
         raise
     except Exception as e:
         REQUESTS_TOTAL.labels(endpoint=endpoint, status="error").inc()
-        logger.error(f"Generation failed: {e}", exc_info=True)
+        logger.error("LLM generation failed", exc_info=True)
+
+        # Capture exception in Sentry
+        capture_exception(
+            e,
+            extra={"endpoint": endpoint, "max_tokens": request.max_tokens},
+            tags={"service": "llm_service", "endpoint": endpoint}
+        )
+
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         ACTIVE_REQUESTS.dec()

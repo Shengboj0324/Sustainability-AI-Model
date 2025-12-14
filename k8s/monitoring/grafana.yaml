@@ -1,0 +1,175 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: releaf-ai
+  labels:
+    app: grafana
+    component: monitoring
+spec:
+  type: ClusterIP
+  ports:
+    - name: web
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+  selector:
+    app: grafana
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: releaf-ai
+  labels:
+    app: grafana
+    component: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+        component: monitoring
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.2.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: web
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-secrets
+                  key: admin-password
+            - name: GF_INSTALL_PLUGINS
+              value: "grafana-piechart-panel,grafana-clock-panel"
+            - name: GF_SERVER_ROOT_URL
+              value: "https://grafana.releaf.ai"
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          volumeMounts:
+            - name: storage
+              mountPath: /var/lib/grafana
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboards-config
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: grafana-storage
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: dashboards-config
+          configMap:
+            name: grafana-dashboards-config
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-storage
+  namespace: releaf-ai
+  labels:
+    app: grafana
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: do-block-storage
+# NOTE: Grafana admin password should be created separately for security
+# Create with: kubectl create secret generic grafana-secrets \
+#   --from-literal=admin-password=$(openssl rand -base64 32) \
+#   --namespace=releaf-ai
+#
+# For development only, you can uncomment below (NOT FOR PRODUCTION):
+# ---
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: grafana-secrets
+#   namespace: releaf-ai
+# type: Opaque
+# stringData:
+#   admin-password: "CHANGE_ME_IMMEDIATELY"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: releaf-ai
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus.releaf-ai.svc.cluster.local:9090
+        isDefault: true
+        editable: true
+      - name: Jaeger
+        type: jaeger
+        access: proxy
+        url: http://jaeger-query.releaf-ai.svc.cluster.local:16686
+        editable: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-config
+  namespace: releaf-ai
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 10
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards
+

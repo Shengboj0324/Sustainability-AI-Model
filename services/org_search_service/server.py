@@ -45,12 +45,37 @@ except ImportError as e:
     logging.error(f"Missing asyncpg dependency: {e}. Install with: pip install asyncpg")
     raise
 
-# Configure logging
-logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO"),
-    format='%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Import monitoring components
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from common.structured_logging import get_logger, log_context, set_correlation_id
+from common.health_checks import HealthChecker, check_postgres_health, HealthStatus
+from common.alerting import init_alerting, send_alert, AlertSeverity
+from common.circuit_breaker import CircuitBreaker
+
+# Try to import optional monitoring components
+try:
+    from common.tracing import init_tracing, trace_operation
+    TRACING_AVAILABLE = True
+except ImportError:
+    TRACING_AVAILABLE = False
+    def trace_operation(name, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
+try:
+    from common.error_tracking import init_sentry, capture_exception, add_breadcrumb
+    SENTRY_AVAILABLE = True
+except ImportError:
+    SENTRY_AVAILABLE = False
+    def capture_exception(exc, **kwargs):
+        pass
+    def add_breadcrumb(msg, **kwargs):
+        pass
+
+# Configure structured logging
+logger = get_logger(__name__)
 
 # Prometheus metrics
 REQUESTS_TOTAL = Counter('org_requests_total', 'Total org search requests', ['endpoint', 'status'])
@@ -77,6 +102,16 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Initialize monitoring components
+health_checker = HealthChecker(service_name="org_search_service", check_timeout=5.0)
+alert_manager = None  # Initialized in startup
+postgres_circuit_breaker = CircuitBreaker(
+    name="postgres",
+    failure_threshold=5,
+    recovery_timeout=30.0,
+    expected_exception=Exception
 )
 
 
@@ -411,13 +446,123 @@ org_service = OrgSearchService()
 @app.on_event("startup")
 async def startup():
     """Initialize service on startup"""
-    await org_service.initialize()
+    global alert_manager
+
+    logger.info("Starting Org Search Service", service="org_search_service", version="0.1.0")
+
+    # Initialize distributed tracing
+    if TRACING_AVAILABLE:
+        try:
+            jaeger_endpoint = os.getenv("JAEGER_ENDPOINT")
+            if jaeger_endpoint:
+                init_tracing(
+                    service_name="org_search_service",
+                    service_version="0.1.0",
+                    environment=os.getenv("ENVIRONMENT", "development"),
+                    jaeger_endpoint=jaeger_endpoint,
+                    sample_rate=float(os.getenv("TRACE_SAMPLE_RATE", "0.1"))
+                )
+                logger.info("Distributed tracing initialized", jaeger_endpoint=jaeger_endpoint)
+        except Exception as e:
+            logger.warning("Failed to initialize tracing", error=str(e))
+
+    # Initialize error tracking
+    if SENTRY_AVAILABLE:
+        try:
+            sentry_dsn = os.getenv("SENTRY_DSN")
+            if sentry_dsn:
+                init_sentry(
+                    dsn=sentry_dsn,
+                    service_name="org_search_service",
+                    environment=os.getenv("ENVIRONMENT", "development"),
+                    release=os.getenv("RELEASE_VERSION", "0.1.0"),
+                    traces_sample_rate=float(os.getenv("SENTRY_TRACE_SAMPLE_RATE", "0.1"))
+                )
+                logger.info("Error tracking initialized", sentry_enabled=True)
+        except Exception as e:
+            logger.warning("Failed to initialize Sentry", error=str(e))
+
+    # Initialize alerting
+    try:
+        alert_manager = init_alerting(
+            slack_webhook=os.getenv("SLACK_WEBHOOK"),
+            pagerduty_key=os.getenv("PAGERDUTY_KEY")
+        )
+        logger.info("Alerting system initialized")
+    except Exception as e:
+        logger.warning("Failed to initialize alerting", error=str(e))
+
+    # Initialize Org Search service
+    try:
+        await org_service.initialize()
+        logger.info("Org Search service initialized successfully")
+
+        # Add health checks
+        health_checker.add_check("postgres", lambda: check_postgres_health(org_service.pool))
+        health_checker.mark_ready()
+        health_checker.mark_startup_complete()
+
+        logger.info("Health checks configured")
+    except Exception as e:
+        logger.error("Failed to initialize Org Search service", exc_info=True)
+        capture_exception(e, extra={"component": "startup"})
+
+        # Send critical alert
+        if alert_manager:
+            await send_alert(
+                title="Org Search Service Startup Failed",
+                message=f"Failed to initialize Org Search service: {str(e)}",
+                severity=AlertSeverity.CRITICAL,
+                service="org_search_service",
+                component="startup"
+            )
+        raise
 
 
 @app.on_event("shutdown")
 async def shutdown():
     """Cleanup on shutdown"""
+    logger.info("Shutting down Org Search Service")
+    health_checker.mark_not_ready()
     await org_service.close()
+    logger.info("Org Search Service shutdown complete")
+
+
+# Health check endpoints
+@app.get("/health/live")
+async def liveness():
+    """Liveness probe - is service alive?"""
+    return await health_checker.liveness()
+
+
+@app.get("/health/ready")
+async def readiness():
+    """Readiness probe - is service ready for traffic?"""
+    return await health_checker.readiness()
+
+
+@app.get("/health/startup")
+async def startup_probe():
+    """Startup probe - has service finished initialization?"""
+    return await health_checker.startup()
+
+
+@app.get("/health")
+async def health():
+    """Detailed health check with all dependencies"""
+    result = await health_checker.check_health()
+
+    status_code = 200
+    if result.status == HealthStatus.UNHEALTHY:
+        status_code = 503
+    elif result.status == HealthStatus.DEGRADED:
+        status_code = 200
+
+    return Response(
+        content=result.model_dump_json() if hasattr(result, 'model_dump_json') else str(result),
+        status_code=status_code,
+        media_type="application/json"
+    )
 
 
 @app.post("/search", response_model=SearchResponse)

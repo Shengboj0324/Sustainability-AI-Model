@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: releaf-ai
+  labels:
+    app: postgres
+    component: configuration
+data:
+  postgresql.conf: |
+    # Connection Settings
+    listen_addresses = '*'
+    max_connections = 200
+    superuser_reserved_connections = 3
+    
+    # Memory Settings
+    shared_buffers = 1GB
+    effective_cache_size = 3GB
+    maintenance_work_mem = 256MB
+    work_mem = 16MB
+    
+    # WAL Settings
+    wal_level = replica
+    max_wal_size = 2GB
+    min_wal_size = 1GB
+    wal_buffers = 16MB
+    
+    # Checkpoint Settings
+    checkpoint_completion_target = 0.9
+    checkpoint_timeout = 10min
+    
+    # Query Tuning
+    random_page_cost = 1.1
+    effective_io_concurrency = 200
+    default_statistics_target = 100
+    
+    # Logging
+    logging_collector = on
+    log_directory = 'log'
+    log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'
+    log_rotation_age = 1d
+    log_rotation_size = 100MB
+    log_line_prefix = '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+    log_checkpoints = on
+    log_connections = on
+    log_disconnections = on
+    log_duration = off
+    log_lock_waits = on
+    log_statement = 'ddl'
+    log_temp_files = 0
+    
+    # Autovacuum
+    autovacuum = on
+    autovacuum_max_workers = 3
+    autovacuum_naptime = 1min
+    
+    # Performance
+    shared_preload_libraries = 'pg_stat_statements'
+    track_activity_query_size = 2048
+    pg_stat_statements.track = all
+

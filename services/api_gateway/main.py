@@ -17,9 +17,37 @@ from .routers import chat, vision, organizations
 from .middleware import RateLimitMiddleware, AuthMiddleware
 from .schemas import HealthResponse
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Import monitoring components
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from common.structured_logging import get_logger, log_context, set_correlation_id
+from common.health_checks import HealthChecker, HealthStatus
+from common.alerting import init_alerting, send_alert, AlertSeverity
+
+# Try to import optional monitoring components
+try:
+    from common.tracing import init_tracing, trace_operation
+    TRACING_AVAILABLE = True
+except ImportError:
+    TRACING_AVAILABLE = False
+    def trace_operation(name, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
+try:
+    from common.error_tracking import init_sentry, capture_exception, add_breadcrumb
+    SENTRY_AVAILABLE = True
+except ImportError:
+    SENTRY_AVAILABLE = False
+    def capture_exception(exc, **kwargs):
+        pass
+    def add_breadcrumb(msg, **kwargs):
+        pass
+
+# Configure structured logging
+logger = get_logger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -29,6 +57,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Initialize monitoring components
+health_checker = HealthChecker(service_name="api_gateway", check_timeout=5.0)
+alert_manager = None  # Initialized in startup
 
 # CORS middleware
 app.add_middleware(
@@ -135,15 +167,86 @@ async def general_exception_handler(request: Request, exc: Exception):
 @app.on_event("startup")
 async def startup_event():
     """Startup event handler"""
-    logger.info("Starting ReleAF AI API Gateway")
-    # Initialize connections, load configs, etc.
+    global alert_manager
+
+    logger.info("Starting API Gateway", service="api_gateway", version="0.1.0")
+
+    # Initialize distributed tracing
+    if TRACING_AVAILABLE:
+        try:
+            import os
+            jaeger_endpoint = os.getenv("JAEGER_ENDPOINT")
+            if jaeger_endpoint:
+                init_tracing(
+                    service_name="api_gateway",
+                    service_version="0.1.0",
+                    environment=os.getenv("ENVIRONMENT", "development"),
+                    jaeger_endpoint=jaeger_endpoint,
+                    sample_rate=float(os.getenv("TRACE_SAMPLE_RATE", "0.1"))
+                )
+                logger.info("Distributed tracing initialized", jaeger_endpoint=jaeger_endpoint)
+        except Exception as e:
+            logger.warning("Failed to initialize tracing", error=str(e))
+
+    # Initialize error tracking
+    if SENTRY_AVAILABLE:
+        try:
+            import os
+            sentry_dsn = os.getenv("SENTRY_DSN")
+            if sentry_dsn:
+                init_sentry(
+                    dsn=sentry_dsn,
+                    service_name="api_gateway",
+                    environment=os.getenv("ENVIRONMENT", "development"),
+                    release=os.getenv("RELEASE_VERSION", "0.1.0"),
+                    traces_sample_rate=float(os.getenv("SENTRY_TRACE_SAMPLE_RATE", "0.1"))
+                )
+                logger.info("Error tracking initialized", sentry_enabled=True)
+        except Exception as e:
+            logger.warning("Failed to initialize Sentry", error=str(e))
+
+    # Initialize alerting
+    try:
+        import os
+        alert_manager = init_alerting(
+            slack_webhook=os.getenv("SLACK_WEBHOOK"),
+            pagerduty_key=os.getenv("PAGERDUTY_KEY")
+        )
+        logger.info("Alerting system initialized")
+    except Exception as e:
+        logger.warning("Failed to initialize alerting", error=str(e))
+
+    # Mark service as ready
+    health_checker.mark_ready()
+    health_checker.mark_startup_complete()
+    logger.info("API Gateway initialized successfully")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Shutdown event handler"""
-    logger.info("Shutting down ReleAF AI API Gateway")
-    # Cleanup connections, save state, etc.
+    logger.info("Shutting down API Gateway")
+    health_checker.mark_not_ready()
+    logger.info("API Gateway shutdown complete")
+
+
+# Enhanced health check endpoints
+@app.get("/health/live")
+async def liveness():
+    """Liveness probe - is service alive?"""
+    return await health_checker.liveness()
+
+
+@app.get("/health/ready")
+async def readiness():
+    """Readiness probe - is service ready for traffic?"""
+    return await health_checker.readiness()
+
+
+@app.get("/health/startup")
+async def startup_probe():
+    """Startup probe - has service finished initialization?"""
+    return await health_checker.startup()
 
 
 if __name__ == "__main__":
