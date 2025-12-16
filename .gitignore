@@ -46,7 +46,7 @@ ENV/
 logs/
 *.log
 *.pid
-
+ios_deployment/
 # Models and checkpoints
 models/llm/base/
 models/llm/adapters/*/checkpoint-*
