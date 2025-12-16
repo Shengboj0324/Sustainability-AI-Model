@@ -25,11 +25,14 @@ metadata:
     # Body size
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
     
-    # CORS
+    # CORS (iOS-ready)
     nginx.ingress.kubernetes.io/enable-cors: "true"
-    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://releaf.ai,https://www.releaf.ai,https://app.releaf.ai,capacitor://localhost,ionic://localhost"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
-    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type,Authorization,X-API-Key,X-Request-ID,User-Agent,Accept,Accept-Language,Cache-Control"
+    nginx.ingress.kubernetes.io/cors-expose-headers: "X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Retry-After,X-Request-ID"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-max-age: "3600"
     
     # Security headers
     nginx.ingress.kubernetes.io/configuration-snippet: |

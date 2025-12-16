@@ -63,8 +63,8 @@ data:
   REQUEST_TIMEOUT: "30"
   WORKERS: "1"
   
-  # CORS
-  CORS_ORIGINS: "*"
+  # CORS (iOS-ready)
+  CORS_ORIGINS: "https://releaf.ai,https://www.releaf.ai,https://app.releaf.ai,capacitor://localhost,ionic://localhost"
   
   # Health Check
   HEALTH_CHECK_INTERVAL: "10"

@@ -12,6 +12,8 @@ import httpx
 import time
 from datetime import datetime
 import logging
+import os
+import uuid
 
 from .routers import chat, vision, organizations
 from .middleware import RateLimitMiddleware, AuthMiddleware
@@ -62,14 +64,70 @@ app = FastAPI(
 health_checker = HealthChecker(service_name="api_gateway", check_timeout=5.0)
 alert_manager = None  # Initialized in startup
 
-# CORS middleware
+# Load CORS origins from environment (iOS-ready)
+ALLOWED_ORIGINS: List[str] = os.getenv(
+    "CORS_ORIGINS",
+    "https://releaf.ai,https://www.releaf.ai,https://app.releaf.ai,capacitor://localhost,ionic://localhost"
+).split(",")
+
+# CORS middleware (iOS-ready)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-API-Key",
+        "X-Request-ID",
+        "User-Agent",
+        "Accept",
+        "Accept-Language",
+        "Cache-Control"
+    ],
+    expose_headers=[
+        "X-RateLimit-Limit",
+        "X-RateLimit-Remaining",
+        "X-RateLimit-Reset",
+        "Retry-After",
+        "X-Request-ID"
+    ],
+    max_age=3600,
 )
+
+# Request ID middleware for tracing
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    """Add unique request ID for tracing"""
+    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+
+    # Set correlation ID for structured logging
+    set_correlation_id(request_id)
+
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
+
+# User-Agent tracking middleware
+@app.middleware("http")
+async def log_user_agent(request: Request, call_next):
+    """Log User-Agent for iOS analytics"""
+    user_agent = request.headers.get("User-Agent", "Unknown")
+
+    # Track iOS SDK usage
+    if "ReleAF-iOS-SDK" in user_agent:
+        logger.info(f"iOS SDK request: {user_agent}", extra={
+            "user_agent": user_agent,
+            "path": request.url.path,
+            "method": request.method,
+            "client_ip": request.client.host if request.client else "unknown"
+        })
+
+    response = await call_next(request)
+    return response
+
 
 # Custom middleware
 app.add_middleware(RateLimitMiddleware)
@@ -97,14 +155,52 @@ async def health_check():
     """Health check endpoint"""
     # Check downstream services
     services_status = await check_downstream_services()
-    
+
     all_healthy = all(status["healthy"] for status in services_status.values())
-    
+
     return HealthResponse(
         status="healthy" if all_healthy else "degraded",
         timestamp=datetime.utcnow(),
         services=services_status
     )
+
+
+@app.get("/health/ios", response_model=Dict[str, Any])
+async def ios_health_check():
+    """iOS-specific health check with client info"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "ios_support": True,
+        "api_version": "v1",
+        "features": {
+            "chat": True,
+            "vision": True,
+            "organization_search": True,
+            "offline_support": True,
+            "image_analysis": True,
+            "geospatial_search": True
+        },
+        "rate_limits": {
+            "standard": {
+                "requests_per_minute": 100,
+                "burst": 20
+            },
+            "premium": {
+                "requests_per_minute": 500,
+                "burst": 100
+            },
+            "enterprise": {
+                "requests_per_minute": 1000,
+                "burst": 200
+            }
+        },
+        "endpoints": {
+            "chat": "/api/v1/chat",
+            "vision": "/api/v1/vision/analyze",
+            "organizations": "/api/v1/organizations/search"
+        }
+    }
 
 
 async def check_downstream_services() -> Dict[str, Dict[str, Any]]:

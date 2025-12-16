@@ -11,6 +11,7 @@ from collections import defaultdict
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -85,48 +86,83 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # Cleanup old buckets periodically
         self.last_cleanup = time.time()
         self.cleanup_interval = 300  # 5 minutes
-    
+
+    def _get_rate_limit_tier(self, request: Request) -> Tuple[int, int]:
+        """
+        Determine rate limit tier based on API key or user tier
+
+        Returns:
+            Tuple of (requests_per_minute, burst_size)
+        """
+        # Check for premium tier (from API key validation)
+        api_key = request.headers.get("X-API-Key", "")
+        user_tier = getattr(request.state, "user_tier", "standard") if hasattr(request, "state") else "standard"
+
+        # Check environment variable for tier-based limits
+        enable_tiers = os.getenv("RATE_LIMIT_TIERS_ENABLED", "true").lower() == "true"
+
+        if not enable_tiers:
+            return (self.requests_per_minute, self.burst_size)
+
+        # Determine tier
+        if user_tier == "premium" or api_key.startswith("premium_"):
+            return (500, 100)  # Premium: 500 req/min
+        elif user_tier == "enterprise" or api_key.startswith("enterprise_"):
+            return (1000, 200)  # Enterprise: 1000 req/min
+        else:
+            return (100, 20)  # Standard: 100 req/min
+
     async def dispatch(self, request: Request, call_next):
         """Process request with rate limiting (thread-safe)"""
         # Skip rate limiting for health checks
-        if request.url.path in ["/health", "/", "/docs", "/redoc", "/openapi.json"]:
+        if request.url.path in ["/health", "/health/ios", "/", "/docs", "/redoc", "/openapi.json"]:
             return await call_next(request)
 
-        # Get client identifier (IP address)
+        # Get client identifier (IP address or API key)
         client_ip = self._get_client_ip(request)
+        api_key = request.headers.get("X-API-Key", "")
+        client_id = api_key if api_key else client_ip
+
+        # Get rate limit tier
+        requests_per_minute, burst_size = self._get_rate_limit_tier(request)
 
         # Get or create bucket for this client (thread-safe)
         async with self.buckets_lock:
-            if client_ip not in self.buckets:
-                self.buckets[client_ip] = TokenBucket(self.burst_size, self.refill_rate)
-            bucket = self.buckets[client_ip]
+            if client_id not in self.buckets:
+                self.buckets[client_id] = TokenBucket(
+                    capacity=burst_size,
+                    refill_rate=requests_per_minute / 60.0
+                )
+            bucket = self.buckets[client_id]
 
         # Try to consume a token
         if not await bucket.consume(1):
             wait_time = await bucket.get_wait_time(1)
             logger.warning(
-                f"Rate limit exceeded for {client_ip}. "
-                f"Wait time: {wait_time:.2f}s"
+                f"Rate limit exceeded for {client_id}. "
+                f"Wait time: {wait_time:.2f}s, Tier limit: {requests_per_minute}/min"
             )
             return JSONResponse(
                 status_code=429,
                 content={
                     "error": "Rate limit exceeded",
                     "retry_after": int(wait_time) + 1,
-                    "limit": self.requests_per_minute,
+                    "limit": requests_per_minute,
                     "window": "1 minute"
                 },
                 headers={
                     "Retry-After": str(int(wait_time) + 1),
-                    "X-RateLimit-Limit": str(self.requests_per_minute),
-                    "X-RateLimit-Remaining": "0"
+                    "X-RateLimit-Limit": str(requests_per_minute),
+                    "X-RateLimit-Remaining": "0",
+                    "X-RateLimit-Reset": str(int(time.time() + wait_time))
                 }
             )
-        
+
         # Add rate limit headers
         response = await call_next(request)
-        response.headers["X-RateLimit-Limit"] = str(self.requests_per_minute)
+        response.headers["X-RateLimit-Limit"] = str(requests_per_minute)
         response.headers["X-RateLimit-Remaining"] = str(int(bucket.tokens))
+        response.headers["X-RateLimit-Reset"] = str(int(time.time() + 60))
         
         # Periodic cleanup
         self._cleanup_old_buckets()
