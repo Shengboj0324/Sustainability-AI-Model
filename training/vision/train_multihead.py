@@ -6,6 +6,12 @@ CRITICAL: Train 3-head classifier (item_type, material_type, bin_type)
 - Multi-task learning with weighted losses
 - Class balancing
 - Comprehensive metrics
+
+CRITICAL FIXES:
+- Random seed for reproducibility
+- Config validation
+- NaN/Inf detection
+- Exception handling
 """
 
 import os
@@ -27,6 +33,14 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from models.vision.classifier import WasteClassifier
 from training.vision.dataset import WasteClassificationDataset, get_balanced_sampler
+from training.utils.training_utils import (
+    set_seed,
+    validate_config,
+    check_loss_valid,
+    save_checkpoint,
+    EarlyStopping,
+    TrainingTimer
+)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

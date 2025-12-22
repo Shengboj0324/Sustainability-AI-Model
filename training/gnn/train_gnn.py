@@ -5,6 +5,13 @@ CRITICAL: Train GraphSAGE/GAT for upcycling recommendations
 - Link prediction task (CAN_BE_UPCYCLED_TO edges)
 - Node classification task (Material properties)
 - Comprehensive metrics
+
+CRITICAL FIXES:
+- Random seed for reproducibility
+- Config validation
+- NaN/Inf detection
+- Exception handling
+- Early stopping
 """
 
 import os
@@ -22,12 +29,21 @@ from torch_geometric.loader import NeighborLoader
 from tqdm import tqdm
 import wandb
 import pandas as pd
+import numpy as np
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from models.gnn.inference import UpcyclingGNN
+from training.utils.training_utils import (
+    set_seed,
+    validate_config,
+    check_loss_valid,
+    save_checkpoint,
+    EarlyStopping,
+    TrainingTimer
+)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -67,7 +83,11 @@ def load_graph_data(config: dict) -> Data:
 
 
 def create_train_val_test_split(data: Data, config: dict) -> Tuple[Data, Data, Data]:
-    """Split graph into train/val/test"""
+    """
+    Split graph into train/val/test
+
+    CRITICAL FIX: Validate split ratios and sizes
+    """
     num_nodes = data.num_nodes
 
     # Random permutation
@@ -76,9 +96,32 @@ def create_train_val_test_split(data: Data, config: dict) -> Tuple[Data, Data, D
     # Calculate split indices
     train_ratio = config["data"]["train_ratio"]
     val_ratio = config["data"]["val_ratio"]
+    test_ratio = config["data"]["test_ratio"]
+
+    # CRITICAL FIX: Validate split ratios
+    total_ratio = train_ratio + val_ratio + test_ratio
+    if not np.isclose(total_ratio, 1.0, atol=1e-6):
+        raise ValueError(
+            f"Split ratios must sum to 1.0, got {total_ratio} "
+            f"(train={train_ratio}, val={val_ratio}, test={test_ratio})"
+        )
+
+    if train_ratio <= 0 or val_ratio <= 0 or test_ratio <= 0:
+        raise ValueError("All split ratios must be positive")
 
     train_end = int(num_nodes * train_ratio)
     val_end = train_end + int(num_nodes * val_ratio)
+
+    # CRITICAL FIX: Validate split sizes
+    train_size = train_end
+    val_size = val_end - train_end
+    test_size = num_nodes - val_end
+
+    if train_size == 0 or val_size == 0 or test_size == 0:
+        raise ValueError(
+            f"Invalid split sizes: train={train_size}, val={val_size}, test={test_size}. "
+            f"Total nodes={num_nodes}. Adjust split ratios."
+        )
 
     # Create masks
     train_mask = torch.zeros(num_nodes, dtype=torch.bool)
@@ -146,6 +189,10 @@ def train_epoch_link_prediction(model, data, optimizer, device, config):
 
     loss = pos_loss + neg_loss
 
+    # CRITICAL FIX: Check for NaN/Inf loss
+    if not torch.isfinite(loss):
+        raise ValueError(f"Loss became {loss.item()}, training diverged!")
+
     # Backward
     loss.backward()
     optimizer.step()
@@ -154,29 +201,41 @@ def train_epoch_link_prediction(model, data, optimizer, device, config):
 
 
 def main():
-    """Main training function"""
-    # Load config
-    config = load_config()
+    """
+    Main training function
 
-    # Initialize wandb
-    wandb.init(
-        project="releaf-gnn",
-        config=config,
-        name=config["training"]["experiment_name"]
-    )
+    CRITICAL FIXES: Seed setting, config validation, exception handling
+    """
+    try:
+        # Load config
+        config = load_config()
 
-    # CRITICAL: Device selection with M4 Max support
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-        logger.info(f"🔥 Using CUDA GPU: {torch.cuda.get_device_name(0)}")
-    elif torch.backends.mps.is_available():
-        device = torch.device("mps")
-        logger.info("🍎 Using Apple M4 Max GPU (MPS)")
-    else:
-        device = torch.device("cpu")
-        logger.info("💻 Using CPU")
+        # CRITICAL FIX: Validate configuration
+        validate_config(config)
 
-    logger.info(f"Device: {device}")
+        # CRITICAL FIX: Set random seed for reproducibility
+        seed = config["training"].get("seed", 42)
+        set_seed(seed)
+
+        # Initialize wandb
+        wandb.init(
+            project="releaf-gnn",
+            config=config,
+            name=config["training"]["experiment_name"]
+        )
+
+        # CRITICAL: Device selection with M4 Max support
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+            logger.info(f"🔥 Using CUDA GPU: {torch.cuda.get_device_name(0)}")
+        elif torch.backends.mps.is_available():
+            device = torch.device("mps")
+            logger.info("🍎 Using Apple M4 Max GPU (MPS)")
+        else:
+            device = torch.device("cpu")
+            logger.info("💻 Using CPU")
+
+        logger.info(f"Device: {device}")
 
     # Load graph data
     data = load_graph_data(config)
@@ -257,19 +316,46 @@ if __name__ == "__main__":
 
 
 def negative_sampling(edge_index, num_nodes, num_neg_samples):
-    """Sample negative edges"""
-    # Simple random negative sampling
+    """
+    Sample negative edges
+
+    CRITICAL FIX: Efficient vectorized negative sampling with timeout protection
+    """
     neg_edges = []
     edge_set = set(map(tuple, edge_index.t().tolist()))
 
-    while len(neg_edges) < num_neg_samples:
-        src = torch.randint(0, num_nodes, (1,)).item()
-        dst = torch.randint(0, num_nodes, (1,)).item()
+    # CRITICAL FIX: Vectorized sampling with max attempts to prevent infinite loops
+    max_attempts = 100
+    batch_size = num_neg_samples * 2  # Sample more than needed for efficiency
 
-        if src != dst and (src, dst) not in edge_set:
-            neg_edges.append([src, dst])
+    for attempt in range(max_attempts):
+        if len(neg_edges) >= num_neg_samples:
+            break
 
-    return torch.tensor(neg_edges, dtype=torch.long).t()
+        # Vectorized sampling
+        src = torch.randint(0, num_nodes, (batch_size,))
+        dst = torch.randint(0, num_nodes, (batch_size,))
+
+        # Filter self-loops
+        mask = (src != dst)
+        candidates = torch.stack([src[mask], dst[mask]], dim=1)
+
+        # Filter existing edges
+        for edge in candidates:
+            edge_tuple = tuple(edge.tolist())
+            if edge_tuple not in edge_set:
+                neg_edges.append(edge.tolist())
+                if len(neg_edges) >= num_neg_samples:
+                    break
+
+    # CRITICAL FIX: Validate we got enough samples
+    if len(neg_edges) < num_neg_samples:
+        raise RuntimeError(
+            f"Failed to sample {num_neg_samples} negative edges after {max_attempts} attempts. "
+            f"Only got {len(neg_edges)} samples. Graph may be too dense."
+        )
+
+    return torch.tensor(neg_edges[:num_neg_samples], dtype=torch.long).t()
 
 
 @torch.no_grad()

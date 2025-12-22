@@ -146,10 +146,41 @@ def load_and_prepare_data(config, tokenizer):
     
     # Tokenization function
     def tokenize_function(examples):
-        """Tokenize chat messages"""
+        """
+        Tokenize chat messages
+
+        CRITICAL FIX: Validate message format before tokenization
+        """
         # Apply chat template
         texts = []
-        for messages in examples["messages"]:
+        for idx, messages in enumerate(examples["messages"]):
+            # CRITICAL FIX: Validate message format
+            if not isinstance(messages, list):
+                raise ValueError(
+                    f"Sample {idx}: 'messages' must be a list, got {type(messages)}"
+                )
+            if len(messages) == 0:
+                raise ValueError(f"Sample {idx}: 'messages' cannot be empty")
+
+            # Validate each message
+            for msg_idx, msg in enumerate(messages):
+                if not isinstance(msg, dict):
+                    raise ValueError(
+                        f"Sample {idx}, message {msg_idx}: message must be a dict, got {type(msg)}"
+                    )
+                if "role" not in msg or "content" not in msg:
+                    raise ValueError(
+                        f"Sample {idx}, message {msg_idx}: missing 'role' or 'content'"
+                    )
+                if msg["role"] not in ["user", "assistant", "system"]:
+                    raise ValueError(
+                        f"Sample {idx}, message {msg_idx}: invalid role '{msg['role']}'"
+                    )
+                if not isinstance(msg["content"], str) or len(msg["content"]) == 0:
+                    raise ValueError(
+                        f"Sample {idx}, message {msg_idx}: 'content' must be non-empty string"
+                    )
+
             if hasattr(tokenizer, "apply_chat_template"):
                 text = tokenizer.apply_chat_template(
                     messages,

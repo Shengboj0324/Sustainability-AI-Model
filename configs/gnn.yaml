@@ -98,7 +98,10 @@ training:
   # Output
   output_dir: "models/gnn/ckpts"
   experiment_name: "upcycling_gnn_v1"
-  
+
+  # CRITICAL: Reproducibility
+  seed: 42
+
   # Training duration
   num_epochs: 50
   early_stopping_patience: 10

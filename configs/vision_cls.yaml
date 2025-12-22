@@ -100,11 +100,14 @@ training:
   # Output
   output_dir: "models/vision/classifier"
   experiment_name: "waste_classifier_v1"
-  
+
+  # CRITICAL: Reproducibility
+  seed: 42
+
   # Batch size
   batch_size: 64
   val_batch_size: 128
-  
+
   # Training duration
   num_epochs: 40
   early_stopping_patience: 10

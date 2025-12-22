@@ -498,18 +498,6 @@ class KnowledgeGraphService:
         max_depth: int = 3,
         difficulty_level: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """
-        Find upcycling paths from source material to products
-
-        Args:
-            source_material: Starting material
-            target_product: Optional target product
-            max_depth: Maximum path length
-            difficulty_level: Filter by difficulty (easy, medium, hard)
-
-        Returns:
-            List of upcycling paths with steps and metadata
-        """
         # Validate and sanitize inputs
         try:
             source_material = InputValidator.validate_material_name(source_material)
