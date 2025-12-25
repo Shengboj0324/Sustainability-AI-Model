@@ -2,7 +2,7 @@
 Pydantic schemas for API Gateway
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime
 from enum import Enum
@@ -39,10 +39,12 @@ class ChatRequest(BaseModel):
     temperature: float = Field(0.7, ge=0, le=2)
     stream: bool = False
 
-    @validator('image', 'image_url')
-    def validate_image_input(cls, v, values):
+    @field_validator('image', 'image_url')
+    @classmethod
+    def validate_image_input(cls, v, info):
         """Ensure only one image input method is used"""
-        if values.get('image') and values.get('image_url'):
+        # In Pydantic v2, we need to check the data dict
+        if info.data.get('image') and info.data.get('image_url'):
             raise ValueError("Provide either 'image' or 'image_url', not both")
         return v
 
@@ -66,11 +68,10 @@ class VisionClassifyRequest(BaseModel):
 
 class ClassificationResult(BaseModel):
     """Single classification result"""
+    model_config = ConfigDict(populate_by_name=True)
+
     class_name: str = Field(..., alias="class")
     confidence: float = Field(..., ge=0, le=1)
-
-    class Config:
-        populate_by_name = True
 
 
 class VisionClassifyResponse(BaseModel):
@@ -90,14 +91,13 @@ class VisionDetectRequest(BaseModel):
 
 class Detection(BaseModel):
     """Single object detection"""
+    model_config = ConfigDict(populate_by_name=True)
+
     bbox: List[float] = Field(..., description="[x, y, width, height]")
     class_name: str = Field(..., alias="class")
     confidence: float = Field(..., ge=0, le=1)
     material: Optional[str] = None
     material_confidence: Optional[float] = None
-
-    class Config:
-        populate_by_name = True
 
 
 class VisionDetectResponse(BaseModel):

@@ -140,7 +140,8 @@ class UpcyclingPathQuery(BaseModel):
     source_material: str = Field(..., min_length=1, max_length=100)
     target_product: Optional[str] = Field(default=None, max_length=100)
     max_depth: int = Field(default=3, ge=1, le=5)
-    difficulty_level: Optional[str] = Field(default=None, regex="^(easy|medium|hard)$")
+    # CRITICAL FIX: Pydantic v2 uses 'pattern' instead of 'regex'
+    difficulty_level: Optional[str] = Field(default=None, pattern="^(easy|medium|hard)$")
 
 
 class RelationshipQuery(BaseModel):
@@ -1083,31 +1084,56 @@ async def startup():
     except Exception as e:
         logger.warning("Failed to initialize alerting", error=str(e))
 
-    # Initialize KG service
-    try:
-        await kg_service.initialize()
-        logger.info("KG service initialized successfully")
+    # CRITICAL FIX: Initialize KG service with retry logic
+    max_retries = int(os.getenv("STARTUP_MAX_RETRIES", "3"))
+    retry_delay = float(os.getenv("STARTUP_RETRY_DELAY", "2.0"))
 
-        # Add health checks
-        health_checker.add_check("neo4j", lambda: check_neo4j_health(kg_service.driver))
-        health_checker.mark_ready()
-        health_checker.mark_startup_complete()
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Initializing KG service (attempt {attempt + 1}/{max_retries})")
+            await kg_service.initialize()
+            logger.info("KG service initialized successfully")
 
-        logger.info("Health checks configured")
-    except Exception as e:
-        logger.error("Failed to initialize KG service", exc_info=True)
-        capture_exception(e, extra={"component": "startup"})
+            # Add health checks
+            health_checker.add_check("neo4j", lambda: check_neo4j_health(kg_service.driver))
+            health_checker.mark_ready()
+            health_checker.mark_startup_complete()
 
-        # Send critical alert
-        if alert_manager:
-            await send_alert(
-                title="KG Service Startup Failed",
-                message=f"Failed to initialize KG service: {str(e)}",
-                severity=AlertSeverity.CRITICAL,
-                service="kg_service",
-                component="startup"
+            logger.info("Health checks configured")
+            break  # Success, exit retry loop
+
+        except Exception as e:
+            logger.error(
+                f"Failed to initialize KG service (attempt {attempt + 1}/{max_retries})",
+                exc_info=True,
+                attempt=attempt + 1,
+                max_retries=max_retries
             )
-        raise
+            capture_exception(e, extra={"component": "startup", "attempt": attempt + 1})
+
+            if attempt < max_retries - 1:
+                # Not the last attempt, wait and retry
+                logger.info(f"Retrying in {retry_delay} seconds...")
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                # Last attempt failed, start in degraded mode
+                logger.error("All initialization attempts failed, starting in degraded mode")
+                health_checker.mark_not_ready()
+
+                # Send critical alert
+                if alert_manager:
+                    await send_alert(
+                        title="KG Service Startup Failed",
+                        message=f"Failed to initialize KG service after {max_retries} attempts: {str(e)}",
+                        severity=AlertSeverity.CRITICAL,
+                        service="kg_service",
+                        component="startup"
+                    )
+
+                # Don't raise - allow service to start in degraded mode
+                # Circuit breaker will protect endpoints
+                logger.warning("Service started in degraded mode - circuit breaker will protect endpoints")
 
 
 @app.on_event("shutdown")
@@ -1247,235 +1273,295 @@ async def get_material_properties(query: MaterialQuery, http_request: Request):
 
 
 @app.post("/upcycling/paths", response_model=KGResponse)
-async def find_upcycling_paths_endpoint(query: UpcyclingPathQuery):
+async def find_upcycling_paths_endpoint(query: UpcyclingPathQuery, http_request: Request):
     """
     Find upcycling paths from material to products
 
     Discovers creative ways to transform waste materials into
     useful products, with step-by-step guidance.
     """
+    # CRITICAL FIX: Add correlation ID propagation for distributed tracing
+    correlation_id = http_request.headers.get("X-Correlation-ID")
+    set_correlation_id(correlation_id)
+
+    # CRITICAL FIX: Add request timeout wrapper to prevent hanging
+    async def _handle_request():
+        try:
+            start_time = datetime.now()
+
+            paths = await kg_service.find_upcycling_paths(
+                source_material=query.source_material,
+                target_product=query.target_product,
+                max_depth=query.max_depth,
+                difficulty_level=query.difficulty_level
+            )
+
+            query_time = (datetime.now() - start_time).total_seconds() * 1000
+
+            return KGResponse(
+                results=paths,
+                query_type="upcycling_paths",
+                num_results=len(paths),
+                query_time_ms=query_time,
+                metadata={
+                    "source": query.source_material,
+                    "target": query.target_product,
+                    "max_depth": query.max_depth,
+                    "difficulty": query.difficulty_level,
+                    "correlation_id": correlation_id
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Upcycling paths request failed: {e}", exc_info=True, correlation_id=correlation_id)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Query failed: {str(e)}"
+            )
+
     try:
-        start_time = datetime.now()
-
-        paths = await kg_service.find_upcycling_paths(
-            source_material=query.source_material,
-            target_product=query.target_product,
-            max_depth=query.max_depth,
-            difficulty_level=query.difficulty_level
+        return await asyncio.wait_for(
+            _handle_request(),
+            timeout=float(os.getenv("REQUEST_TIMEOUT", "30.0"))
         )
-
-        query_time = (datetime.now() - start_time).total_seconds() * 1000
-
-        return KGResponse(
-            results=paths,
-            query_type="upcycling_paths",
-            num_results=len(paths),
-            query_time_ms=query_time,
-            metadata={
-                "source": query.source_material,
-                "target": query.target_product,
-                "max_depth": query.max_depth,
-                "difficulty": query.difficulty_level
-            }
-        )
-
-    except Exception as e:
-        logger.error(f"Upcycling paths request failed: {e}", exc_info=True)
+    except asyncio.TimeoutError:
+        logger.error("Request timeout", correlation_id=correlation_id, endpoint="upcycling_paths")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Query failed: {str(e)}"
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Request timeout - query took too long"
         )
 
 
 @app.post("/relationships", response_model=KGResponse)
-async def query_relationships_endpoint(query: RelationshipQuery):
+async def query_relationships_endpoint(query: RelationshipQuery, http_request: Request):
     """
     Query general relationships from an entity
 
     Explores connections between materials, products, and processes
     in the knowledge graph.
     """
+    # CRITICAL FIX: Add correlation ID propagation
+    correlation_id = http_request.headers.get("X-Correlation-ID")
+    set_correlation_id(correlation_id)
+
+    # CRITICAL FIX: Add request timeout wrapper
+    async def _handle_request():
+        try:
+            start_time = datetime.now()
+
+            relationships = await kg_service.query_relationships(
+                entity=query.entity,
+                relationship_type=query.relationship_type,
+                max_hops=query.max_hops
+            )
+
+            query_time = (datetime.now() - start_time).total_seconds() * 1000
+
+            return KGResponse(
+                results=relationships,
+                query_type="relationships",
+                num_results=len(relationships),
+                query_time_ms=query_time,
+                metadata={
+                    "entity": query.entity,
+                    "relationship_type": query.relationship_type,
+                    "max_hops": query.max_hops,
+                    "correlation_id": correlation_id
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Relationships request failed: {e}", exc_info=True, correlation_id=correlation_id)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Query failed: {str(e)}"
+            )
+
     try:
-        start_time = datetime.now()
-
-        relationships = await kg_service.query_relationships(
-            entity=query.entity,
-            relationship_type=query.relationship_type,
-            max_hops=query.max_hops
+        return await asyncio.wait_for(
+            _handle_request(),
+            timeout=float(os.getenv("REQUEST_TIMEOUT", "30.0"))
         )
-
-        query_time = (datetime.now() - start_time).total_seconds() * 1000
-
-        return KGResponse(
-            results=relationships,
-            query_type="relationships",
-            num_results=len(relationships),
-            query_time_ms=query_time,
-            metadata={
-                "entity": query.entity,
-                "relationship_type": query.relationship_type,
-                "max_hops": query.max_hops
-            }
-        )
-
-    except Exception as e:
-        logger.error(f"Relationships request failed: {e}", exc_info=True)
+    except asyncio.TimeoutError:
+        logger.error("Request timeout", correlation_id=correlation_id, endpoint="relationships")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Query failed: {str(e)}"
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Request timeout - query took too long"
         )
 
 
 @app.post("/similar-materials", response_model=KGResponse)
-async def find_similar_materials_endpoint(query: SimilarMaterialsQuery):
+async def find_similar_materials_endpoint(query: SimilarMaterialsQuery, http_request: Request):
     """
     Find materials similar to the given material
 
     Returns materials with similar properties, recycling categories,
     and environmental characteristics.
     """
+    # CRITICAL FIX: Add correlation ID propagation
+    correlation_id = http_request.headers.get("X-Correlation-ID")
+    set_correlation_id(correlation_id)
+
+    # CRITICAL FIX: Add request timeout wrapper
+    async def _handle_request():
+        try:
+            start_time = datetime.now()
+
+            similar_materials = await kg_service.find_similar_materials(
+                material_name=query.material_name,
+                similarity_threshold=query.similarity_threshold,
+                max_results=query.max_results
+            )
+
+            query_time = (datetime.now() - start_time).total_seconds() * 1000
+
+            return KGResponse(
+                results=similar_materials,
+                query_type="similar_materials",
+                num_results=len(similar_materials),
+                query_time_ms=query_time,
+                metadata={
+                    "material": query.material_name,
+                    "threshold": query.similarity_threshold,
+                    "max_results": query.max_results,
+                    "correlation_id": correlation_id
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Similar materials request failed: {e}", exc_info=True, correlation_id=correlation_id)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Query failed: {str(e)}"
+            )
+
     try:
-        start_time = datetime.now()
-
-        similar_materials = await kg_service.find_similar_materials(
-            material_name=query.material_name,
-            similarity_threshold=query.similarity_threshold,
-            max_results=query.max_results
+        return await asyncio.wait_for(
+            _handle_request(),
+            timeout=float(os.getenv("REQUEST_TIMEOUT", "30.0"))
         )
-
-        query_time = (datetime.now() - start_time).total_seconds() * 1000
-
-        return KGResponse(
-            results=similar_materials,
-            query_type="similar_materials",
-            num_results=len(similar_materials),
-            query_time_ms=query_time,
-            metadata={
-                "material": query.material_name,
-                "threshold": query.similarity_threshold,
-                "max_results": query.max_results
-            }
-        )
-
-    except Exception as e:
-        logger.error(f"Similar materials request failed: {e}", exc_info=True)
+    except asyncio.TimeoutError:
+        logger.error("Request timeout", correlation_id=correlation_id, endpoint="similar_materials")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Query failed: {str(e)}"
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Request timeout - query took too long"
         )
 
 
 @app.post("/recycling-process", response_model=KGResponse)
-async def query_recycling_process_endpoint(query: RecyclingProcessQuery):
+async def query_recycling_process_endpoint(query: RecyclingProcessQuery, http_request: Request):
     """
     Query recycling process for a material
 
     Returns detailed recycling process information including steps,
     facilities, and requirements.
     """
+    # CRITICAL FIX: Add correlation ID propagation
+    correlation_id = http_request.headers.get("X-Correlation-ID")
+    set_correlation_id(correlation_id)
+
+    # CRITICAL FIX: Add request timeout wrapper
+    async def _handle_request():
+        try:
+            start_time = datetime.now()
+
+            process_info = await kg_service.query_recycling_process(
+                material_name=query.material_name,
+                include_steps=query.include_steps,
+                include_facilities=query.include_facilities
+            )
+
+            query_time = (datetime.now() - start_time).total_seconds() * 1000
+
+            return KGResponse(
+                results=[process_info],
+                query_type="recycling_process",
+                num_results=1,
+                query_time_ms=query_time,
+                metadata={
+                    "material": query.material_name,
+                    "include_steps": query.include_steps,
+                    "include_facilities": query.include_facilities,
+                    "correlation_id": correlation_id
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Recycling process request failed: {e}", exc_info=True, correlation_id=correlation_id)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Query failed: {str(e)}"
+            )
+
     try:
-        start_time = datetime.now()
-
-        process_info = await kg_service.query_recycling_process(
-            material_name=query.material_name,
-            include_steps=query.include_steps,
-            include_facilities=query.include_facilities
+        return await asyncio.wait_for(
+            _handle_request(),
+            timeout=float(os.getenv("REQUEST_TIMEOUT", "30.0"))
         )
-
-        query_time = (datetime.now() - start_time).total_seconds() * 1000
-
-        return KGResponse(
-            results=[process_info],
-            query_type="recycling_process",
-            num_results=1,
-            query_time_ms=query_time,
-            metadata={
-                "material": query.material_name,
-                "include_steps": query.include_steps,
-                "include_facilities": query.include_facilities
-            }
-        )
-
-    except Exception as e:
-        logger.error(f"Recycling process request failed: {e}", exc_info=True)
+    except asyncio.TimeoutError:
+        logger.error("Request timeout", correlation_id=correlation_id, endpoint="recycling_process")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Query failed: {str(e)}"
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Request timeout - query took too long"
         )
 
 
 @app.post("/compatibility", response_model=KGResponse)
-async def check_compatibility_endpoint(query: CompatibilityQuery):
+async def check_compatibility_endpoint(query: CompatibilityQuery, http_request: Request):
     """
     Check material compatibility for upcycling
 
     Returns compatibility score and reasons for combining two materials
     in upcycling projects.
     """
-    try:
-        start_time = datetime.now()
+    # CRITICAL FIX: Add correlation ID propagation
+    correlation_id = http_request.headers.get("X-Correlation-ID")
+    set_correlation_id(correlation_id)
 
-        compatibility_info = await kg_service.check_material_compatibility(
-            material1=query.material1,
-            material2=query.material2,
-            context=query.context
-        )
-
-        query_time = (datetime.now() - start_time).total_seconds() * 1000
-
-        return KGResponse(
-            results=[compatibility_info],
-            query_type="compatibility",
-            num_results=1,
-            query_time_ms=query_time,
-            metadata={
-                "material1": query.material1,
-                "material2": query.material2,
-                "context": query.context
-            }
-        )
-
-    except Exception as e:
-        logger.error(f"Compatibility check request failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Query failed: {str(e)}"
-        )
-
-
-@app.get("/health")
-async def health():
-    """
-    Health check endpoint for load balancer
-
-    Returns detailed health status for monitoring
-    """
-    is_healthy = (
-        kg_service.driver is not None and
-        not kg_service._shutdown
-    )
-
-    # Try a simple query to verify connection
-    if is_healthy:
+    # CRITICAL FIX: Add request timeout wrapper
+    async def _handle_request():
         try:
-            async with kg_service.driver.session(database=kg_service.database) as session:
-                await asyncio.wait_for(
-                    session.run("RETURN 1"),
-                    timeout=5.0
-                )
-        except Exception as e:
-            logger.warning(f"Health check query failed: {e}")
-            is_healthy = False
+            start_time = datetime.now()
 
-    return {
-        "status": "healthy" if is_healthy else "unhealthy",
-        "service": "knowledge_graph",
-        "version": "0.1.0",
-        "neo4j_connected": is_healthy,
-        "database": kg_service.database,
-        "cache_size": len(query_cache.cache),
-        "shutdown": kg_service._shutdown
-    }
+            compatibility_info = await kg_service.check_material_compatibility(
+                material1=query.material1,
+                material2=query.material2,
+                context=query.context
+            )
+
+            query_time = (datetime.now() - start_time).total_seconds() * 1000
+
+            return KGResponse(
+                results=[compatibility_info],
+                query_type="compatibility",
+                num_results=1,
+                query_time_ms=query_time,
+                metadata={
+                    "material1": query.material1,
+                    "material2": query.material2,
+                    "context": query.context,
+                    "correlation_id": correlation_id
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Compatibility check request failed: {e}", exc_info=True, correlation_id=correlation_id)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Query failed: {str(e)}"
+            )
+
+    try:
+        return await asyncio.wait_for(
+            _handle_request(),
+            timeout=float(os.getenv("REQUEST_TIMEOUT", "30.0"))
+        )
+    except asyncio.TimeoutError:
+        logger.error("Request timeout", correlation_id=correlation_id, endpoint="compatibility")
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Request timeout - query took too long"
+        )
 
 
 @app.get("/stats")

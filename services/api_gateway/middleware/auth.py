@@ -20,16 +20,31 @@ class AuthMiddleware(BaseHTTPMiddleware):
     For production, integrate with proper auth service (OAuth2, JWT, etc.)
     """
     
-    def __init__(self, app, require_auth: bool = False):
+    def __init__(self, app, require_auth: bool = True):
         super().__init__(app)
-        self.require_auth = require_auth
-        
+
+        # CRITICAL FIX: Check environment mode
+        env = os.getenv("ENV", "production").lower()
+        self.is_dev_mode = env in ("dev", "development", "local")
+
+        # CRITICAL FIX: In production, auth is ALWAYS required
+        if env == "production" and not require_auth:
+            logger.error("SECURITY: Cannot disable auth in production mode!")
+            raise ValueError("Authentication cannot be disabled in production")
+
+        self.require_auth = require_auth if self.is_dev_mode else True
+
         # Load valid API keys from environment
         api_keys_str = os.getenv("VALID_API_KEYS", "")
         self.valid_api_keys = set(
             key.strip() for key in api_keys_str.split(",") if key.strip()
         )
-        
+
+        # CRITICAL FIX: Fail closed - require keys in production
+        if not self.valid_api_keys and not self.is_dev_mode:
+            logger.error("SECURITY: No API keys configured in production mode!")
+            raise ValueError("VALID_API_KEYS must be set in production")
+
         # Public endpoints that don't require auth
         self.public_endpoints = {
             "/",
@@ -38,6 +53,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/redoc",
             "/openapi.json"
         }
+
+        logger.info(f"Auth middleware initialized: env={env}, require_auth={self.require_auth}, keys_configured={len(self.valid_api_keys)}")
     
     async def dispatch(self, request: Request, call_next):
         """Process request with authentication"""
@@ -80,32 +97,41 @@ class AuthMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
     
     def _extract_api_key(self, request: Request) -> Optional[str]:
-        """Extract API key from request headers"""
+        """
+        Extract API key from request headers
+
+        CRITICAL FIX: Removed query param support - keys must be in headers only
+        """
         # Check X-API-Key header
         api_key = request.headers.get("X-API-Key")
         if api_key:
             return api_key
-        
+
         # Check Authorization header (Bearer token)
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             return auth_header[7:]  # Remove "Bearer " prefix
-        
-        # Check query parameter (less secure, for testing only)
-        api_key = request.query_params.get("api_key")
-        if api_key:
-            logger.warning("API key provided in query parameter (insecure)")
-            return api_key
-        
+
+        # CRITICAL FIX: Query params removed - insecure (leak in logs, analytics, referrers)
+        # API keys MUST be in headers only
+
         return None
     
     def _validate_api_key(self, api_key: str) -> bool:
-        """Validate API key"""
-        # If no valid keys configured, allow all (development mode)
+        """
+        Validate API key
+
+        CRITICAL FIX: Fail closed - no keys = reject all (except in dev mode)
+        """
+        # CRITICAL FIX: If no valid keys configured, DENY in production
         if not self.valid_api_keys:
-            logger.warning("No API keys configured - allowing all requests")
-            return True
-        
+            if self.is_dev_mode:
+                logger.warning("DEV MODE: No API keys configured - allowing all requests")
+                return True
+            else:
+                logger.error("PRODUCTION: No API keys configured - denying request")
+                return False
+
         # Check if key is in valid set
         return api_key in self.valid_api_keys
 

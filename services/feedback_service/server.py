@@ -27,7 +27,7 @@ from enum import Enum
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 import asyncpg
 from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 from starlette.responses import Response
@@ -101,10 +101,11 @@ class FeedbackRequest(BaseModel):
     # Metadata
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional metadata")
 
-    @validator('rating')
-    def validate_rating(cls, v, values):
+    @field_validator('rating')
+    @classmethod
+    def validate_rating(cls, v, info):
         """Validate rating is provided for RATING feedback type"""
-        if values.get('feedback_type') == FeedbackType.RATING and v is None:
+        if info.data.get('feedback_type') == FeedbackType.RATING and v is None:
             raise ValueError("Rating must be provided for RATING feedback type")
         return v
 

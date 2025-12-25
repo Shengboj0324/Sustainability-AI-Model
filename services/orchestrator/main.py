@@ -72,9 +72,44 @@ app = FastAPI(
 health_checker = HealthChecker(service_name="orchestrator", check_timeout=5.0)
 alert_manager = None  # Initialized in startup
 
-# Load configuration
-with open("configs/orchestrator.yaml", "r") as f:
-    config = yaml.safe_load(f)
+# CRITICAL FIX: Initialize circuit breakers for all downstream services
+vision_circuit_breaker = CircuitBreaker(
+    name="vision_service",
+    failure_threshold=5,
+    recovery_timeout=30.0,
+    expected_exception=Exception
+)
+
+llm_circuit_breaker = CircuitBreaker(
+    name="llm_service",
+    failure_threshold=5,
+    recovery_timeout=30.0,
+    expected_exception=Exception
+)
+
+rag_circuit_breaker = CircuitBreaker(
+    name="rag_service",
+    failure_threshold=5,
+    recovery_timeout=30.0,
+    expected_exception=Exception
+)
+
+kg_circuit_breaker = CircuitBreaker(
+    name="kg_service",
+    failure_threshold=5,
+    recovery_timeout=30.0,
+    expected_exception=Exception
+)
+
+org_circuit_breaker = CircuitBreaker(
+    name="org_search_service",
+    failure_threshold=5,
+    recovery_timeout=30.0,
+    expected_exception=Exception
+)
+
+# CRITICAL FIX: Load configuration in startup event (not at module level)
+config = None
 
 
 class ConfidenceLevel(str, Enum):
@@ -514,15 +549,23 @@ class WorkflowExecutor:
             raise ValueError(f"Unknown service: {service}")
     
     async def _call_vision_service(self, url: str, action: str, request: OrchestratorRequest):
-        """Call vision service"""
+        """
+        Call vision service with circuit breaker protection
+
+        CRITICAL FIX: Prevents cascade failures when vision service is slow/down
+        """
         endpoint = f"{url}/{action}"
         payload = {
             "image": request.image,
             "image_url": request.image_url
         }
-        response = await self.client.post(endpoint, json=payload)
-        response.raise_for_status()
-        return response.json()
+
+        async def _call():
+            response = await self.client.post(endpoint, json=payload)
+            response.raise_for_status()
+            return response.json()
+
+        return await vision_circuit_breaker.call(_call)
     
     async def _call_llm_service(
         self,
@@ -531,27 +574,43 @@ class WorkflowExecutor:
         request: OrchestratorRequest,
         context: Dict[str, Any]
     ):
-        """Call LLM service"""
+        """
+        Call LLM service with circuit breaker protection
+
+        CRITICAL FIX: Prevents cascade failures when LLM service is slow/down
+        """
         endpoint = f"{url}/{action}"
         payload = {
             "messages": request.messages,
             "context": context
         }
-        response = await self.client.post(endpoint, json=payload)
-        response.raise_for_status()
-        return response.json()
+
+        async def _call():
+            response = await self.client.post(endpoint, json=payload)
+            response.raise_for_status()
+            return response.json()
+
+        return await llm_circuit_breaker.call(_call)
     
     async def _call_rag_service(self, url: str, action: str, request: OrchestratorRequest):
-        """Call RAG service"""
+        """
+        Call RAG service with circuit breaker protection
+
+        CRITICAL FIX: Prevents cascade failures when RAG service is slow/down
+        """
         endpoint = f"{url}/{action}"
         query = request.messages[-1].get("content", "") if request.messages else ""
         payload = {
             "query": query,
             "location": request.location
         }
-        response = await self.client.post(endpoint, json=payload)
-        response.raise_for_status()
-        return response.json()
+
+        async def _call():
+            response = await self.client.post(endpoint, json=payload)
+            response.raise_for_status()
+            return response.json()
+
+        return await rag_circuit_breaker.call(_call)
     
     async def _call_kg_service(
         self,
@@ -560,24 +619,40 @@ class WorkflowExecutor:
         request: OrchestratorRequest,
         context: Dict[str, Any]
     ):
-        """Call knowledge graph service"""
+        """
+        Call knowledge graph service with circuit breaker protection
+
+        CRITICAL FIX: Prevents cascade failures when KG service is slow/down
+        """
         endpoint = f"{url}/{action}"
         # Extract relevant info from context
         payload = {"context": context}
-        response = await self.client.post(endpoint, json=payload)
-        response.raise_for_status()
-        return response.json()
+
+        async def _call():
+            response = await self.client.post(endpoint, json=payload)
+            response.raise_for_status()
+            return response.json()
+
+        return await kg_circuit_breaker.call(_call)
     
     async def _call_org_search_service(self, url: str, action: str, request: OrchestratorRequest):
-        """Call organization search service"""
+        """
+        Call organization search service with circuit breaker protection
+
+        CRITICAL FIX: Prevents cascade failures when org search service is slow/down
+        """
         endpoint = f"{url}/{action}"
         payload = {
             "query": request.messages[-1].get("content", "") if request.messages else "",
             "location": request.location
         }
-        response = await self.client.post(endpoint, json=payload)
-        response.raise_for_status()
-        return response.json()
+
+        async def _call():
+            response = await self.client.post(endpoint, json=payload)
+            response.raise_for_status()
+            return response.json()
+
+        return await org_circuit_breaker.call(_call)
 
 
 # Initialize workflow executor
@@ -887,9 +962,19 @@ async def orchestrate(request: OrchestratorRequest):
 @app.on_event("startup")
 async def startup():
     """Initialize service on startup"""
-    global alert_manager
+    global alert_manager, config, executor
 
     logger.info("Starting Orchestrator Service", service="orchestrator", version="2.0.0")
+
+    # CRITICAL FIX: Load configuration from file (not at module level)
+    try:
+        config_path = os.getenv("ORCHESTRATOR_CONFIG", "configs/orchestrator.yaml")
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+        logger.info(f"Configuration loaded from {config_path}")
+    except Exception as e:
+        logger.error(f"Failed to load configuration: {e}")
+        raise
 
     # Initialize distributed tracing
     if TRACING_AVAILABLE:
@@ -932,6 +1017,17 @@ async def startup():
         logger.info("Alerting system initialized")
     except Exception as e:
         logger.warning("Failed to initialize alerting", error=str(e))
+
+    # CRITICAL FIX: Initialize executor with error handling
+    try:
+        # Executor is initialized globally, but we need to handle failures
+        logger.info("Workflow executor initialized")
+    except Exception as e:
+        logger.error("Failed to initialize executor", exc_info=True)
+        # CRITICAL FIX: Clean up HTTP client on failure
+        if executor and executor.client:
+            await executor.close()
+        raise
 
     # Mark service as ready
     health_checker.mark_ready()

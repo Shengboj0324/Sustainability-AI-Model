@@ -269,34 +269,34 @@ def main():
             logger.info("💻 Using CPU")
 
         logger.info(f"Device: {device}")
-    
-    # Create model
-    model = create_model(config)
-    model = model.to(device)
-    
-    # Data loaders
-    train_loader, val_loader, class_names = get_dataloaders(config)
-    
-    # Loss function
-    criterion = nn.CrossEntropyLoss(
-        label_smoothing=config["training"]["label_smoothing"]
-    )
-    
-    # Optimizer
-    optimizer = optim.AdamW(
-        model.parameters(),
-        lr=config["training"]["learning_rate"],
-        weight_decay=config["training"]["weight_decay"],
-        betas=config["training"]["betas"],
-        eps=config["training"]["eps"]
-    )
-    
-    # Learning rate scheduler
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(
-        optimizer,
-        T_max=config["training"]["num_epochs"],
-        eta_min=config["training"]["min_lr"]
-    )
+
+        # Create model
+        model = create_model(config)
+        model = model.to(device)
+
+        # Data loaders
+        train_loader, val_loader, class_names = get_dataloaders(config)
+
+        # Loss function
+        criterion = nn.CrossEntropyLoss(
+            label_smoothing=config["training"]["label_smoothing"]
+        )
+
+        # Optimizer
+        optimizer = optim.AdamW(
+            model.parameters(),
+            lr=config["training"]["learning_rate"],
+            weight_decay=config["training"]["weight_decay"],
+            betas=config["training"]["betas"],
+            eps=config["training"]["eps"]
+        )
+
+        # Learning rate scheduler
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=config["training"]["num_epochs"],
+            eta_min=config["training"]["min_lr"]
+        )
     
         # CRITICAL FIX: Early stopping and training timer
         early_stopping = EarlyStopping(

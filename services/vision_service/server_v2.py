@@ -580,33 +580,6 @@ async def analyze_image(request: VisionRequest, http_request: Request):
         ACTIVE_REQUESTS.dec()
 
 
-@app.get("/health")
-async def health():
-    """
-    Health check endpoint for load balancer
-
-    Returns detailed health status for monitoring
-    """
-    is_healthy = (
-        vision_service.vision_system is not None and
-        not vision_service._shutdown
-    )
-
-    stats = {}
-    if vision_service.vision_system:
-        stats = vision_service.vision_system.get_stats()
-
-    return {
-        "status": "healthy" if is_healthy else "unhealthy",
-        "service": "vision_v2",
-        "version": "2.0.0",
-        "vision_system_loaded": vision_service.vision_system is not None,
-        "shutdown": vision_service._shutdown,
-        "cache_size": len(request_cache.cache),
-        "stats": stats
-    }
-
-
 @app.get("/stats")
 async def get_stats():
     """Get service statistics"""

@@ -11,7 +11,7 @@ RAG Service - Retrieval-Augmented Generation for sustainability knowledge
 
 from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
@@ -36,6 +36,7 @@ from common.structured_logging import get_logger, log_context, set_correlation_i
 from common.health_checks import HealthChecker, check_qdrant_health, HealthStatus
 from common.alerting import init_alerting, send_alert, AlertSeverity
 from common.circuit_breaker import CircuitBreaker
+from common.environment import check_environment
 
 # Try to import optional monitoring components
 try:
@@ -59,7 +60,8 @@ except ImportError:
         pass
 
 # Import provenance system - NEW: Enhanced embedding provenance
-from provenance import (
+# CRITICAL FIX: Use relative imports for local modules
+from .provenance import (
     EmbeddingMetadata,
     DataLineage,
     TrustIndicators,
@@ -68,25 +70,48 @@ from provenance import (
     get_utc_timestamp,
     PROVENANCE_SCHEMA_VERSION
 )
-from version_tracker import EmbeddingVersionTracker
+from .version_tracker import EmbeddingVersionTracker
 
 # Import audit trail and transparency API - Phase 2 integration
-from audit_trail import AuditTrailManager, EventType, EntityType, ActorType, Action
-from transparency_api import create_transparency_router
+from .audit_trail import AuditTrailManager, EventType, EntityType, ActorType, Action
+from .transparency_api import create_transparency_router
 
 # Third-party imports
+# CRITICAL FIX: Make sentence-transformers optional (depends on transformers)
+SENTENCE_TRANSFORMERS_AVAILABLE = True
+SENTENCE_TRANSFORMERS_ERROR = None
 try:
     from qdrant_client import AsyncQdrantClient
     from qdrant_client.models import Distance, VectorParams, Filter, FieldCondition, MatchValue
-    from sentence_transformers import SentenceTransformer, CrossEncoder
     from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
     from starlette.responses import Response
 except ImportError as e:
-    logging.error(f"Missing dependencies: {e}. Install with: pip install qdrant-client sentence-transformers prometheus-client")
+    logging.error(f"Missing dependencies: {e}. Install with: pip install qdrant-client prometheus-client")
     raise
+
+try:
+    from sentence_transformers import SentenceTransformer, CrossEncoder
+except Exception as e:
+    SENTENCE_TRANSFORMERS_AVAILABLE = False
+    SENTENCE_TRANSFORMERS_ERROR = str(e)
+    # Create dummy classes for type hints
+    class SentenceTransformer:
+        pass
+    class CrossEncoder:
+        pass
 
 # Configure structured logging
 logger = get_logger(__name__)
+
+# Check environment
+env_info = check_environment(raise_on_issues=False)
+if not SENTENCE_TRANSFORMERS_AVAILABLE:
+    logger.error(
+        "⚠️  SENTENCE-TRANSFORMERS NOT AVAILABLE - RAG service will run in degraded mode\n"
+        f"   Error: {SENTENCE_TRANSFORMERS_ERROR}\n"
+        "   The service will start but RAG endpoints will return errors.\n"
+        "   See ENVIRONMENT_FIX_GUIDE.md for solutions."
+    )
 
 # Prometheus metrics
 REQUESTS_TOTAL = Counter('rag_requests_total', 'Total RAG requests', ['endpoint', 'status'])
@@ -274,7 +299,8 @@ class RetrievalRequest(BaseModel):
     rerank: bool = Field(default=True, description="Apply re-ranking")
     include_provenance: bool = Field(default=True, description="Include embedding provenance metadata")
 
-    @validator('location')
+    @field_validator('location')
+    @classmethod
     def validate_location(cls, v):
         """Validate location coordinates"""
         if v is not None:
@@ -296,6 +322,67 @@ class RetrievalResponse(BaseModel):
     metadata: Dict[str, Any]
 
 
+def validate_metadata(metadata: Dict[str, Any], max_depth: int = 3, max_size_bytes: int = 10000) -> Dict[str, Any]:
+    """
+    Validate and sanitize metadata dictionary
+
+    CRITICAL FIX: Prevents injection attacks and data corruption
+
+    Args:
+        metadata: Metadata dictionary to validate
+        max_depth: Maximum nesting depth
+        max_size_bytes: Maximum size in bytes
+
+    Returns:
+        Sanitized metadata dictionary
+
+    Raises:
+        ValueError: If metadata is invalid
+    """
+    import json
+
+    if metadata is None:
+        return {}
+
+    if not isinstance(metadata, dict):
+        raise ValueError("Metadata must be a dictionary")
+
+    # Check size
+    try:
+        metadata_json = json.dumps(metadata)
+        if len(metadata_json.encode('utf-8')) > max_size_bytes:
+            raise ValueError(f"Metadata too large (max {max_size_bytes} bytes)")
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"Metadata not JSON serializable: {e}")
+
+    # Check depth
+    def check_depth(obj, current_depth=0):
+        if current_depth > max_depth:
+            raise ValueError(f"Metadata nesting too deep (max {max_depth} levels)")
+        if isinstance(obj, dict):
+            for value in obj.values():
+                check_depth(value, current_depth + 1)
+        elif isinstance(obj, list):
+            for item in obj:
+                check_depth(item, current_depth + 1)
+
+    check_depth(metadata)
+
+    # Sanitize string values (prevent injection)
+    def sanitize_strings(obj):
+        if isinstance(obj, dict):
+            return {k: sanitize_strings(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [sanitize_strings(item) for item in obj]
+        elif isinstance(obj, str):
+            # Remove potentially dangerous characters
+            return obj.replace('\x00', '').replace('\r', '').replace('\n', ' ')[:1000]
+        else:
+            return obj
+
+    return sanitize_strings(metadata)
+
+
 class RAGService:
     """
     Production-grade RAG service optimized for Digital Ocean deployment
@@ -305,6 +392,9 @@ class RAGService:
     - Request timeouts
     - Memory-efficient model loading
     - Graceful shutdown
+    - Circuit breaker protection
+    - Concurrency control
+    - Input validation
     """
 
     def __init__(self, config_path: str = None):
@@ -319,6 +409,15 @@ class RAGService:
         self.collection_name = self.config.get("qdrant", {}).get("collection_name", "sustainability_docs")
         self.embedding_dim = self.config.get("embedding", {}).get("dimension", 1024)
         self._shutdown = False
+
+        # CRITICAL FIX: Add semaphore to limit concurrent model access
+        # Prevents thread safety issues and OOM errors
+        max_concurrent_embeddings = int(os.getenv("MAX_CONCURRENT_EMBEDDINGS", "10"))
+        self._embedding_semaphore = asyncio.Semaphore(max_concurrent_embeddings)
+
+        # Add semaphore for reranker
+        max_concurrent_reranks = int(os.getenv("MAX_CONCURRENT_RERANKS", "5"))
+        self._rerank_semaphore = asyncio.Semaphore(max_concurrent_reranks)
 
         # NEW: Initialize version tracker for embedding provenance
         self.version_tracker = EmbeddingVersionTracker()
@@ -409,13 +508,17 @@ class RAGService:
                 return f"{major}.{minor}.0"
 
             # Pattern 3: Check if model has config.json with version info
+            # CRITICAL FIX: Lazy import to avoid transformers dependency issues
             try:
-                from transformers import AutoConfig
-                config = AutoConfig.from_pretrained(model_name, trust_remote_code=False)
-                if hasattr(config, 'version'):
-                    return str(config.version)
-                if hasattr(config, 'model_version'):
-                    return str(config.model_version)
+                # Import inside try block to handle missing/broken transformers
+                import importlib
+                if importlib.util.find_spec('transformers'):
+                    from transformers import AutoConfig
+                    config = AutoConfig.from_pretrained(model_name, trust_remote_code=False)
+                    if hasattr(config, 'version'):
+                        return str(config.version)
+                    if hasattr(config, 'model_version'):
+                        return str(config.model_version)
             except Exception as e:
                 logger.debug(f"Could not load model config for version extraction: {e}")
 
@@ -430,7 +533,24 @@ class RAGService:
             return "unknown"
 
     async def initialize(self):
-        """Initialize models and connections"""
+        """
+        Initialize models and connections
+
+        CRITICAL FIX: Gracefully degrade if sentence-transformers not available
+        """
+        # Check if sentence-transformers is available
+        if not SENTENCE_TRANSFORMERS_AVAILABLE:
+            logger.error(
+                "⚠️  Cannot initialize RAG - sentence-transformers not available\n"
+                f"   Error: {SENTENCE_TRANSFORMERS_ERROR}\n"
+                "   Service will run in degraded mode (health checks only)\n"
+                "   See ENVIRONMENT_FIX_GUIDE.md for solutions"
+            )
+            self.embedding_model = None
+            self.reranker = None
+            self.qdrant_client = None
+            return
+
         try:
             logger.info("Initializing RAG service...")
 
@@ -651,7 +771,9 @@ class RAGService:
 
     async def embed_query(self, query: str) -> List[float]:
         """
-        Generate embedding for query with timeout
+        Generate embedding for query with timeout and concurrency control
+
+        CRITICAL FIX: Added semaphore to prevent thread safety issues
 
         NOTE: This method returns only the embedding vector for backward compatibility.
         For full provenance metadata, use embed_query_with_provenance().
@@ -661,14 +783,17 @@ class RAGService:
                 raise RuntimeError("Embedding model not initialized")
 
             start_time = time.time()
-            # Run embedding in thread pool with timeout
-            # FIX: Use asyncio.to_thread() instead of deprecated get_event_loop()
-            embedding = await asyncio.wait_for(
-                asyncio.to_thread(
-                    lambda: self.embedding_model.encode(query, normalize_embeddings=True)
-                ),
-                timeout=5.0  # 5 second timeout for embedding
-            )
+
+            # CRITICAL FIX: Use semaphore to limit concurrent model access
+            async with self._embedding_semaphore:
+                # Run embedding in thread pool with timeout
+                # FIX: Use asyncio.to_thread() instead of deprecated get_event_loop()
+                embedding = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        lambda: self.embedding_model.encode(query, normalize_embeddings=True)
+                    ),
+                    timeout=5.0  # 5 second timeout for embedding
+                )
 
             duration = time.time() - start_time
             EMBEDDING_DURATION.observe(duration)
@@ -687,7 +812,9 @@ class RAGService:
 
     async def embed_query_with_provenance(self, query: str) -> Tuple[List[float], EmbeddingMetadata]:
         """
-        Generate embedding with full provenance metadata
+        Generate embedding with full provenance metadata and concurrency control
+
+        CRITICAL FIX: Added semaphore to prevent thread safety issues
 
         Args:
             query: Text to embed
@@ -704,13 +831,15 @@ class RAGService:
             # Generate content checksum
             content_checksum = generate_checksum(query)
 
-            # Run embedding in thread pool with timeout
-            embedding = await asyncio.wait_for(
-                asyncio.to_thread(
-                    lambda: self.embedding_model.encode(query, normalize_embeddings=self.normalize_embeddings)
-                ),
-                timeout=5.0  # 5 second timeout for embedding
-            )
+            # CRITICAL FIX: Use semaphore to limit concurrent model access
+            async with self._embedding_semaphore:
+                # Run embedding in thread pool with timeout
+                embedding = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        lambda: self.embedding_model.encode(query, normalize_embeddings=self.normalize_embeddings)
+                    ),
+                    timeout=5.0  # 5 second timeout for embedding
+                )
 
             generation_time_ms = (time.time() - start_time) * 1000
             EMBEDDING_DURATION.observe(generation_time_ms / 1000)
@@ -751,7 +880,11 @@ class RAGService:
         top_k: int,
         doc_types: Optional[List[str]] = None
     ) -> List[RetrievedDocument]:
-        """Dense vector retrieval with timeout"""
+        """
+        Dense vector retrieval with timeout and circuit breaker protection
+
+        CRITICAL FIX: Added circuit breaker to prevent cascade failures
+        """
         try:
             start_time = time.time()
 
@@ -767,17 +900,23 @@ class RAGService:
                     ]
                 )
 
-            # Search with timeout
+            # CRITICAL FIX: Wrap Qdrant call with circuit breaker
             timeout = self.config["retrieval"].get("timeout", 10)
-            search_result = await asyncio.wait_for(
-                self.qdrant_client.search(
-                    collection_name=self.collection_name,
-                    query_vector=query_embedding,
-                    limit=top_k,
-                    query_filter=query_filter
-                ),
-                timeout=timeout
-            )
+
+            async def _search():
+                """Qdrant search with circuit breaker protection"""
+                return await asyncio.wait_for(
+                    self.qdrant_client.search(
+                        collection_name=self.collection_name,
+                        query_vector=query_embedding,
+                        limit=top_k,
+                        query_filter=query_filter
+                    ),
+                    timeout=timeout
+                )
+
+            # Execute with circuit breaker
+            search_result = await qdrant_circuit_breaker.call(_search)
 
             # Convert to RetrievedDocument with enhanced provenance
             documents = []
@@ -843,7 +982,11 @@ class RAGService:
         documents: List[RetrievedDocument],
         top_k: int
     ) -> List[RetrievedDocument]:
-        """Re-rank documents using cross-encoder with timeout"""
+        """
+        Re-rank documents using cross-encoder with timeout and concurrency control
+
+        CRITICAL FIX: Added semaphore to prevent thread safety issues
+        """
         try:
             if self.reranker is None or not documents:
                 return documents[:top_k]
@@ -853,14 +996,16 @@ class RAGService:
             # Prepare pairs for re-ranking
             pairs = [[query, doc.content] for doc in documents]
 
-            # Run re-ranking in thread pool with timeout
-            # FIX: Use asyncio.to_thread() instead of deprecated get_event_loop()
-            scores = await asyncio.wait_for(
-                asyncio.to_thread(
-                    lambda: self.reranker.predict(pairs)
-                ),
-                timeout=5.0  # 5 second timeout for re-ranking
-            )
+            # CRITICAL FIX: Use semaphore to limit concurrent reranker access
+            async with self._rerank_semaphore:
+                # Run re-ranking in thread pool with timeout
+                # FIX: Use asyncio.to_thread() instead of deprecated get_event_loop()
+                scores = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        lambda: self.reranker.predict(pairs)
+                    ),
+                    timeout=5.0  # 5 second timeout for re-ranking
+                )
 
             # Update scores and sort
             for doc, score in zip(documents, scores):
@@ -932,6 +1077,16 @@ class RAGService:
                 )
                 trust_indicators.calculate_trust_score()
 
+            # CRITICAL FIX: Validate and sanitize metadata
+            try:
+                validated_metadata = validate_metadata(metadata or {})
+            except ValueError as e:
+                logger.error(f"Invalid metadata for doc {doc_id}: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid metadata: {str(e)}"
+                )
+
             # Validate provenance
             if not ProvenanceValidator.validate_embedding_metadata(embedding_metadata):
                 logger.warning(f"Invalid embedding metadata for doc {doc_id}")
@@ -945,24 +1100,28 @@ class RAGService:
                 "content": content,
                 "doc_type": doc_type,
                 "source": source,
-                "metadata": metadata or {},
+                "metadata": validated_metadata,  # Use validated metadata
                 "embedding_metadata": embedding_metadata.to_dict(),
                 "lineage": lineage.to_dict(),
                 "trust_indicators": trust_indicators.to_dict()
             }
 
-            # Store in Qdrant
-            await asyncio.wait_for(
-                self.qdrant_client.upsert(
-                    collection_name=self.collection_name,
-                    points=[{
-                        "id": doc_id,
-                        "vector": embedding,
-                        "payload": payload
-                    }]
-                ),
-                timeout=10.0
-            )
+            # CRITICAL FIX: Store in Qdrant with circuit breaker protection
+            async def _upsert():
+                """Qdrant upsert with circuit breaker protection"""
+                return await asyncio.wait_for(
+                    self.qdrant_client.upsert(
+                        collection_name=self.collection_name,
+                        points=[{
+                            "id": doc_id,
+                            "vector": embedding,
+                            "payload": payload
+                        }]
+                    ),
+                    timeout=10.0
+                )
+
+            await qdrant_circuit_breaker.call(_upsert)
 
             # Increment document count in version tracker
             await self.version_tracker.increment_document_count()
@@ -1096,31 +1255,65 @@ async def startup():
     except Exception as e:
         logger.warning("Failed to initialize alerting", error=str(e))
 
-    # Initialize RAG service
-    try:
-        await rag_service.initialize()
-        logger.info("RAG service initialized successfully")
+    # CRITICAL FIX: Initialize RAG service with retry logic
+    max_retries = int(os.getenv("STARTUP_MAX_RETRIES", "3"))
+    retry_delay = float(os.getenv("STARTUP_RETRY_DELAY", "5.0"))
 
-        # Add health checks
-        health_checker.add_check("qdrant", lambda: check_qdrant_health(rag_service.qdrant_client))
-        health_checker.mark_ready()
-        health_checker.mark_startup_complete()
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Initializing RAG service (attempt {attempt + 1}/{max_retries})")
 
-        logger.info("Health checks configured")
-    except Exception as e:
-        logger.error("Failed to initialize RAG service", exc_info=True)
-        capture_exception(e, extra={"component": "startup"})
-
-        # Send critical alert
-        if alert_manager:
-            await send_alert(
-                title="RAG Service Startup Failed",
-                message=f"Failed to initialize RAG service: {str(e)}",
-                severity=AlertSeverity.CRITICAL,
-                service="rag_service",
-                component="startup"
+            # Add timeout to initialization
+            await asyncio.wait_for(
+                rag_service.initialize(),
+                timeout=float(os.getenv("STARTUP_TIMEOUT", "120.0"))
             )
-        raise
+
+            logger.info("RAG service initialized successfully")
+
+            # Add health checks
+            health_checker.add_check("qdrant", lambda: check_qdrant_health(rag_service.qdrant_client))
+            health_checker.mark_ready()
+            health_checker.mark_startup_complete()
+
+            logger.info("Health checks configured")
+            break  # Success - exit retry loop
+
+        except asyncio.TimeoutError:
+            logger.error(f"Initialization timeout (attempt {attempt + 1}/{max_retries})")
+            if attempt < max_retries - 1:
+                logger.info(f"Retrying in {retry_delay}s...")
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                logger.error("Max retries exceeded - starting in degraded mode")
+                # Don't raise - allow service to start in degraded mode
+                health_checker.mark_not_ready()
+
+        except Exception as e:
+            logger.error(f"Failed to initialize RAG service (attempt {attempt + 1}/{max_retries})", exc_info=True)
+            capture_exception(e, extra={"component": "startup", "attempt": attempt + 1})
+
+            if attempt < max_retries - 1:
+                logger.info(f"Retrying in {retry_delay}s...")
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                logger.error("Max retries exceeded - starting in degraded mode")
+
+                # Send critical alert
+                if alert_manager:
+                    await send_alert(
+                        title="RAG Service Startup Failed",
+                        message=f"Failed to initialize RAG service after {max_retries} attempts: {str(e)}",
+                        severity=AlertSeverity.CRITICAL,
+                        service="rag_service",
+                        component="startup"
+                    )
+
+                # Don't raise - allow service to start in degraded mode
+                # Health checks will show service as not ready
+                health_checker.mark_not_ready()
 
 
 @app.on_event("shutdown")
@@ -1182,17 +1375,39 @@ async def retrieve_knowledge(request: RetrievalRequest, http_request: Request):
     - Prometheus metrics
     - Timeout handling
     - Error tracking
+    - Correlation ID propagation
+    - Overall request timeout
     """
+    # CRITICAL FIX: Extract and set correlation ID for distributed tracing
+    correlation_id = http_request.headers.get("X-Correlation-ID") or http_request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    set_correlation_id(correlation_id)
+
+    # CRITICAL FIX: Check if models are available
+    if not SENTENCE_TRANSFORMERS_AVAILABLE or rag_service.embedding_model is None:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "RAG service unavailable",
+                "message": "Sentence-transformers library not available or models not loaded. "
+                          "This is likely due to x86 Python on ARM Mac. "
+                          "See ENVIRONMENT_FIX_GUIDE.md for solutions.",
+                "sentence_transformers_available": SENTENCE_TRANSFORMERS_AVAILABLE,
+                "models_loaded": rag_service.embedding_model is not None
+            }
+        )
+
     ACTIVE_REQUESTS.inc()
     endpoint = "retrieve"
 
-    try:
+    # CRITICAL FIX: Wrap entire request in timeout to prevent hanging
+    async def _handle_request():
+        """Handle request with all logic"""
         start_time = time.time()
 
         # CRITICAL: Rate limiting check
         client_ip = http_request.client.host if http_request.client else "unknown"
         if not await rate_limiter.check_rate_limit(client_ip):
-            logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+            logger.warning(f"Rate limit exceeded for IP: {client_ip}", correlation_id=correlation_id)
             REQUESTS_TOTAL.labels(endpoint=endpoint, status="rate_limited").inc()
             ACTIVE_REQUESTS.dec()
             raise HTTPException(
@@ -1270,21 +1485,46 @@ async def retrieve_knowledge(request: RetrievalRequest, http_request: Request):
             response
         )
 
-        # PHASE 2: Record audit event for document access
-        for doc in documents:
+        # CRITICAL FIX: Batch audit events to prevent memory leak
+        # Only record audit for top result (not all documents) to reduce overhead
+        # For full audit trail, enable AUDIT_FULL_RESULTS=true
+        if documents and os.getenv("AUDIT_FULL_RESULTS", "false").lower() == "true":
+            # Full audit mode: record all documents (high memory usage)
+            for doc in documents:
+                await rag_service.audit_manager.record_event(
+                    event_type=EventType.DOCUMENT_ACCESSED.value,
+                    entity_type=EntityType.DOCUMENT.value,
+                    entity_id=doc.doc_id,
+                    action=Action.READ.value,
+                    actor_type=ActorType.API.value,
+                    actor_id=client_ip,
+                    success=True,
+                    duration_ms=retrieval_time,
+                    metadata={
+                        "query": sanitized_query[:100],  # Truncate for privacy
+                        "mode": request.mode.value,
+                        "score": doc.score,
+                        "correlation_id": correlation_id
+                    }
+                )
+        elif documents:
+            # Efficient mode: record only top result
+            top_doc = documents[0]
             await rag_service.audit_manager.record_event(
                 event_type=EventType.DOCUMENT_ACCESSED.value,
                 entity_type=EntityType.DOCUMENT.value,
-                entity_id=doc.doc_id,
+                entity_id=top_doc.doc_id,
                 action=Action.READ.value,
                 actor_type=ActorType.API.value,
                 actor_id=client_ip,
                 success=True,
                 duration_ms=retrieval_time,
                 metadata={
-                    "query": sanitized_query[:100],  # Truncate for privacy
+                    "query": sanitized_query[:100],
                     "mode": request.mode.value,
-                    "score": doc.score
+                    "score": top_doc.score,
+                    "total_results": len(documents),
+                    "correlation_id": correlation_id
                 }
             )
 
@@ -1294,44 +1534,35 @@ async def retrieve_knowledge(request: RetrievalRequest, http_request: Request):
 
         return response
 
+    # End of _handle_request function
+
+    # CRITICAL FIX: Wrap entire request in timeout (30 seconds)
+    try:
+        return await asyncio.wait_for(
+            _handle_request(),
+            timeout=float(os.getenv("REQUEST_TIMEOUT", "30.0"))
+        )
+    except asyncio.TimeoutError:
+        logger.error(f"Request timeout after 30s", correlation_id=correlation_id)
+        REQUESTS_TOTAL.labels(endpoint=endpoint, status="timeout").inc()
+        ACTIVE_REQUESTS.dec()
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Request timeout - please try again"
+        )
     except HTTPException:
         REQUESTS_TOTAL.labels(endpoint=endpoint, status="error").inc()
         ACTIVE_REQUESTS.dec()
         raise
     except Exception as e:
-        logger.error(f"Retrieval request failed: {e}", exc_info=True)
+        logger.error(f"Retrieval request failed: {e}", exc_info=True, correlation_id=correlation_id)
         REQUESTS_TOTAL.labels(endpoint=endpoint, status="error").inc()
         ACTIVE_REQUESTS.dec()
+        capture_exception(e, extra={"correlation_id": correlation_id, "endpoint": endpoint})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Retrieval failed: {str(e)}"
         )
-
-
-@app.get("/health")
-async def health():
-    """
-    Health check endpoint for load balancer
-
-    Returns detailed health status for monitoring
-    """
-    is_healthy = (
-        rag_service.embedding_model is not None and
-        rag_service.qdrant_client is not None and
-        not rag_service._shutdown
-    )
-
-    return {
-        "status": "healthy" if is_healthy else "unhealthy",
-        "service": "rag",
-        "version": "0.1.0",
-        "embedding_model_loaded": rag_service.embedding_model is not None,
-        "reranker_loaded": rag_service.reranker is not None,
-        "qdrant_connected": rag_service.qdrant_client is not None,
-        "collection": rag_service.collection_name,
-        "cache_size": len(query_cache.cache),
-        "shutdown": rag_service._shutdown
-    }
 
 
 @app.get("/stats")

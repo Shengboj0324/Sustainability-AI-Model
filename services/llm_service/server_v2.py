@@ -27,12 +27,27 @@ import hashlib
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import PeftModel
+import yaml
+
+# CRITICAL FIX: Make transformers optional to handle x86/ARM environment issues
+try:
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from peft import PeftModel
+    TRANSFORMERS_AVAILABLE = True
+except Exception as e:
+    TRANSFORMERS_AVAILABLE = False
+    TRANSFORMERS_ERROR = str(e)
+    # Create dummy classes for type hints
+    class AutoModelForCausalLM:
+        pass
+    class AutoTokenizer:
+        pass
+    class PeftModel:
+        pass
+
 from prometheus_client import Counter, Histogram, Gauge, generate_latest
 from starlette.responses import Response
-import yaml
 
 # Import shared utilities - CRITICAL: Single source of truth
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -43,6 +58,7 @@ from common.structured_logging import get_logger, log_context, set_correlation_i
 from common.health_checks import HealthChecker, HealthStatus
 from common.alerting import init_alerting, send_alert, AlertSeverity
 from common.circuit_breaker import CircuitBreaker
+from common.environment import check_environment, get_optimal_device
 
 # Try to import optional monitoring components
 try:
@@ -65,13 +81,23 @@ except ImportError:
     def add_breadcrumb(msg, **kwargs):
         pass
 
-# Import NLP modules
-from intent_classifier import IntentClassifier, IntentCategory
-from entity_extractor import EntityExtractor, Entity
-from language_handler import LanguageHandler, Language
+# Import NLP modules - CRITICAL FIX: Use relative imports
+from .intent_classifier import IntentClassifier, IntentCategory
+from .entity_extractor import EntityExtractor, Entity
+from .language_handler import LanguageHandler, Language
 
 # Configure structured logging
 logger = get_logger(__name__)
+
+# CRITICAL: Check environment and warn about issues
+env_info = check_environment(raise_on_issues=False)
+if not TRANSFORMERS_AVAILABLE:
+    logger.error(
+        "⚠️  TRANSFORMERS NOT AVAILABLE - LLM service will run in degraded mode\n"
+        f"   Error: {TRANSFORMERS_ERROR}\n"
+        "   The service will start but LLM endpoints will return errors.\n"
+        "   See ENVIRONMENT_FIX_GUIDE.md for solutions."
+    )
 
 # Prometheus metrics
 REQUESTS_TOTAL = Counter('llm_requests_total', 'Total LLM requests', ['endpoint', 'status'])
@@ -192,8 +218,17 @@ class LLMServiceV2:
                 "data": {"max_length": 2048}
             }
 
-    def _setup_device(self) -> torch.device:
-        """Setup device with proper CUDA and MPS handling"""
+    def _setup_device(self):
+        """
+        Setup device with proper CUDA and MPS handling
+
+        CRITICAL FIX: Handle missing torch gracefully
+        """
+        if not TRANSFORMERS_AVAILABLE:
+            logger.warning("Torch not available - skipping device setup")
+            return None
+
+        import torch
         if torch.cuda.is_available():
             device = torch.device("cuda")
             logger.info(f"🔥 CUDA available. Using GPU: {torch.cuda.get_device_name(0)}")
@@ -208,7 +243,24 @@ class LLMServiceV2:
         return device
 
     async def initialize(self):
-        """Load model and tokenizer"""
+        """
+        Load model and tokenizer
+
+        CRITICAL FIX: Gracefully degrade if transformers not available
+        """
+        # Check if transformers is available
+        if not TRANSFORMERS_AVAILABLE:
+            logger.error(
+                "⚠️  Cannot initialize LLM - transformers not available\n"
+                f"   Error: {TRANSFORMERS_ERROR}\n"
+                "   Service will run in degraded mode (health checks only)\n"
+                "   See ENVIRONMENT_FIX_GUIDE.md for solutions"
+            )
+            self.model = None
+            self.tokenizer = None
+            self.device = None
+            return
+
         try:
             logger.info("Loading LLM model...")
             start_time = time.time()
@@ -679,10 +731,27 @@ async def health():
 
 # Helper function to create cache key
 def create_cache_key(request: LLMRequest) -> str:
-    """Create cache key from request"""
-    # Hash messages + context
-    content = str(request.messages) + str(request.context)
-    return hashlib.md5(content.encode()).hexdigest()
+    """
+    Create deterministic cache key from request
+
+    CRITICAL FIX: Use JSON with sorted keys for deterministic hashing
+    - Prevents cache misses due to dict ordering
+    - Uses SHA256 instead of MD5 (no collision risk)
+    - Includes all relevant parameters
+    """
+    import json
+
+    # Create deterministic representation with sorted keys
+    content = json.dumps({
+        "messages": request.messages,
+        "context": request.context if request.context else {},
+        "max_tokens": request.max_tokens,
+        "temperature": request.temperature,
+        "top_p": request.top_p
+    }, sort_keys=True)
+
+    # Use SHA256 for better collision resistance
+    return hashlib.sha256(content.encode()).hexdigest()
 
 
 # API Endpoints
@@ -694,6 +763,20 @@ async def generate_text(request: LLMRequest, http_request: Request):
 
     CRITICAL: LLM inference is expensive - use rate limiting and caching
     """
+    # CRITICAL FIX: Check if model is available
+    if not TRANSFORMERS_AVAILABLE or llm_service.model is None:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "LLM service unavailable",
+                "message": "Transformers library not available or model not loaded. "
+                          "This is likely due to x86 Python on ARM Mac. "
+                          "See ENVIRONMENT_FIX_GUIDE.md for solutions.",
+                "transformers_available": TRANSFORMERS_AVAILABLE,
+                "model_loaded": llm_service.model is not None
+            }
+        )
+
     ACTIVE_REQUESTS.inc()
     endpoint = "generate"
     start_time = time.time()
@@ -749,6 +832,35 @@ async def generate_text(request: LLMRequest, http_request: Request):
                 logger.info(f"Cache hit for {cache_key[:16]}...")
                 REQUESTS_TOTAL.labels(endpoint=endpoint, status="cache_hit").inc()
                 return cached_result
+
+            # CRITICAL FIX: Validate token limits before generation
+            max_context_length = llm_service.config["data"]["max_length"]
+
+            # Estimate prompt tokens (rough estimate: 1 token ≈ 4 chars)
+            prompt_text = str(request.messages) + str(request.context if request.context else "")
+            estimated_prompt_tokens = len(prompt_text) // 4
+
+            # Check if total tokens would exceed context window
+            total_estimated_tokens = estimated_prompt_tokens + request.max_tokens
+            if total_estimated_tokens > max_context_length:
+                logger.warning(
+                    "Token limit exceeded",
+                    estimated_prompt_tokens=estimated_prompt_tokens,
+                    requested_max_tokens=request.max_tokens,
+                    total=total_estimated_tokens,
+                    max_context=max_context_length
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "error": "Token limit exceeded",
+                        "estimated_prompt_tokens": estimated_prompt_tokens,
+                        "requested_max_tokens": request.max_tokens,
+                        "total_estimated_tokens": total_estimated_tokens,
+                        "max_context_length": max_context_length,
+                        "suggestion": f"Reduce max_tokens to at most {max_context_length - estimated_prompt_tokens}"
+                    }
+                )
 
             # Generate response
             response, prompt_tokens, completion_tokens, generation_time = await llm_service.generate(
@@ -835,30 +947,6 @@ async def answer_question(request: LLMRequest, http_request: Request):
 async def rank_and_explain(request: LLMRequest, http_request: Request):
     """Rank and explain organizations"""
     return await generate_text(request, http_request)
-
-
-@app.get("/health")
-async def health():
-    """
-    Health check endpoint for load balancer
-
-    Returns detailed health status for monitoring
-    """
-    is_healthy = (
-        llm_service.model is not None and
-        not llm_service._shutdown
-    )
-
-    return {
-        "status": "healthy" if is_healthy else "unhealthy",
-        "service": "llm_v2",
-        "version": "2.0.0",
-        "model_loaded": llm_service.model is not None,
-        "tokenizer_loaded": llm_service.tokenizer is not None,
-        "device": str(llm_service.device) if llm_service.device else "none",
-        "shutdown": llm_service._shutdown,
-        "cache_size": len(request_cache.cache)
-    }
 
 
 @app.get("/stats")

@@ -237,78 +237,83 @@ def main():
 
         logger.info(f"Device: {device}")
 
-    # Load graph data
-    data = load_graph_data(config)
-    data = create_train_val_test_split(data, config)
+        # Load graph data
+        data = load_graph_data(config)
+        data = create_train_val_test_split(data, config)
 
-    # Create model
-    model = create_model(config, device)
+        # Create model
+        model = create_model(config, device)
 
-    # Optimizer
-    optimizer = optim.Adam(
-        model.parameters(),
-        lr=config["training"]["learning_rate"],
-        weight_decay=config["training"]["weight_decay"]
-    )
+        # Optimizer
+        optimizer = optim.Adam(
+            model.parameters(),
+            lr=config["training"]["learning_rate"],
+            weight_decay=config["training"]["weight_decay"]
+        )
 
-    # Learning rate scheduler
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode='max',
-        factor=0.5,
-        patience=10,
-        verbose=True
-    )
+        # Learning rate scheduler
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='max',
+            factor=0.5,
+            patience=10,
+            verbose=True
+        )
 
-    # Training loop
-    best_val_acc = 0.0
-    output_dir = Path(config["training"]["output_dir"])
-    output_dir.mkdir(parents=True, exist_ok=True)
+        # Training loop
+        best_val_acc = 0.0
+        output_dir = Path(config["training"]["output_dir"])
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.info("Starting training")
-    for epoch in range(config["training"]["num_epochs"]):
-        logger.info(f"\nEpoch {epoch + 1}/{config['training']['num_epochs']}")
+        logger.info("Starting training")
+        for epoch in range(config["training"]["num_epochs"]):
+            logger.info(f"\nEpoch {epoch + 1}/{config['training']['num_epochs']}")
 
-        # Train
-        if config["task"]["type"] == "link_prediction":
-            train_loss = train_epoch_link_prediction(model, data, optimizer, device, config)
+            # Train
+            if config["task"]["type"] == "link_prediction":
+                train_loss = train_epoch_link_prediction(model, data, optimizer, device, config)
 
-            # Evaluate
-            train_acc = evaluate_link_prediction(model, data, device, data.train_mask)
-            val_acc = evaluate_link_prediction(model, data, device, data.val_mask)
+                # Evaluate
+                train_acc = evaluate_link_prediction(model, data, device, data.train_mask)
+                val_acc = evaluate_link_prediction(model, data, device, data.val_mask)
 
-            logger.info(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}, Val Acc: {val_acc:.4f}")
+                logger.info(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}, Val Acc: {val_acc:.4f}")
 
-            # Log metrics
-            wandb.log({
-                "epoch": epoch + 1,
-                "train_loss": train_loss,
-                "train_acc": train_acc,
-                "val_acc": val_acc,
-                "lr": optimizer.param_groups[0]["lr"]
-            })
+                # Log metrics
+                wandb.log({
+                    "epoch": epoch + 1,
+                    "train_loss": train_loss,
+                    "train_acc": train_acc,
+                    "val_acc": val_acc,
+                    "lr": optimizer.param_groups[0]["lr"]
+                })
 
-            # Update scheduler
-            scheduler.step(val_acc)
+                # Update scheduler
+                scheduler.step(val_acc)
 
-            # Save best model
-            if val_acc > best_val_acc:
-                best_val_acc = val_acc
-                torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'val_acc': val_acc,
-                    'config': config
-                }, output_dir / "best_model.pth")
-                logger.info(f"Saved best model with val_acc: {val_acc:.4f}")
+                # Save best model
+                if val_acc > best_val_acc:
+                    best_val_acc = val_acc
+                    torch.save({
+                        'epoch': epoch,
+                        'model_state_dict': model.state_dict(),
+                        'optimizer_state_dict': optimizer.state_dict(),
+                        'val_acc': val_acc,
+                        'config': config
+                    }, output_dir / "best_model.pth")
+                    logger.info(f"Saved best model with val_acc: {val_acc:.4f}")
 
-    # Final evaluation on test set
-    test_acc = evaluate_link_prediction(model, data, device, data.test_mask)
-    logger.info(f"\nTraining complete! Best val_acc: {best_val_acc:.4f}, Test acc: {test_acc:.4f}")
+        # Final evaluation on test set
+        test_acc = evaluate_link_prediction(model, data, device, data.test_mask)
+        logger.info(f"\nTraining complete! Best val_acc: {best_val_acc:.4f}, Test acc: {test_acc:.4f}")
 
-    wandb.log({"test_acc": test_acc})
-    wandb.finish()
+        wandb.log({"test_acc": test_acc})
+        wandb.finish()
+
+    except Exception as e:
+        logger.error(f"Training failed: {e}", exc_info=True)
+        wandb.finish(exit_code=1)
+        raise
 
 
 if __name__ == "__main__":

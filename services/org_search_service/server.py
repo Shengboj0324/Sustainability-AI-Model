@@ -645,40 +645,6 @@ async def search_organizations_endpoint(request: SearchRequest, http_request: Re
 
 
 
-@app.get("/health")
-async def health():
-    """
-    Health check endpoint for load balancer
-
-    Returns detailed health status
-    """
-    is_healthy = (
-        org_service.pool is not None and
-        not org_service._shutdown
-    )
-
-    # Verify database connection
-    if is_healthy:
-        try:
-            async with org_service.pool.acquire() as conn:
-                await asyncio.wait_for(
-                    conn.fetchval("SELECT 1"),
-                    timeout=5.0
-                )
-        except Exception as e:
-            logger.warning(f"Health check failed: {e}")
-            is_healthy = False
-
-    return {
-        "status": "healthy" if is_healthy else "unhealthy",
-        "service": "organization_search",
-        "version": "0.1.0",
-        "database_connected": is_healthy,
-        "cache_size": len(query_cache.cache),
-        "shutdown": org_service._shutdown
-    }
-
-
 @app.get("/stats")
 async def get_stats():
     """Get service statistics"""

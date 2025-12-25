@@ -543,20 +543,3 @@ class AnswerFormatter:
 
         return plain.strip()
 
-        markdown_content = "\n".join(md_parts)
-
-        # Generate HTML if enabled
-        html_content = self._markdown_to_html(markdown_content) if self.enable_html else None
-
-        # Generate plain text
-        plain_text = self._markdown_to_plain(markdown_content)
-
-        return FormattedAnswer(
-            answer_type=AnswerType.HOW_TO.value,
-            content=markdown_content,
-            html_content=html_content,
-            plain_text=plain_text,
-            citations=self._extract_citations(sources) if sources else [],
-            metadata=metadata or {}
-        )
-

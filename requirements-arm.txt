@@ -1,0 +1,189 @@
+# ReleAF AI - ARM (Apple Silicon) Requirements
+# Optimized for M1/M2/M3/M4 Max Macs
+#
+# CRITICAL: Use this file on ARM Macs to avoid x86/ARM compatibility issues
+#
+# Installation:
+#   1. Ensure you're using ARM Python:
+#      $ python -c "import platform; print(platform.machine())"
+#      # Should print: arm64
+#
+#   2. Install dependencies:
+#      $ pip install -r requirements-arm.txt
+
+# ============================================================================
+# Core ML Stack - Apple Silicon Optimized
+# ============================================================================
+
+# PyTorch for Apple Silicon (MPS backend)
+torch>=2.1.0
+torchvision>=0.16.0
+torchaudio>=2.1.0
+
+# JAX for Apple Silicon
+# CRITICAL: Use jax-metal instead of jax/jaxlib to avoid AVX issues
+jax-metal>=0.0.5
+
+# TensorFlow for Apple Silicon
+# CRITICAL: Use tensorflow-macos and tensorflow-metal
+tensorflow-macos>=2.15.0
+tensorflow-metal>=1.1.0
+
+# ============================================================================
+# Transformers Ecosystem
+# ============================================================================
+
+# HuggingFace Transformers
+transformers>=4.35.0
+accelerate>=0.25.0
+peft>=0.7.0
+datasets>=2.15.0
+tokenizers>=0.15.0
+
+# Sentence Transformers (for RAG)
+sentence-transformers>=2.2.2
+
+# ============================================================================
+# Graph Neural Networks
+# ============================================================================
+
+# PyTorch Geometric (ARM compatible)
+torch-geometric>=2.4.0
+torch-scatter>=2.1.2
+torch-sparse>=0.6.18
+
+# Neo4j Driver
+neo4j>=5.14.0
+
+# ============================================================================
+# Vector Database & Search
+# ============================================================================
+
+# Qdrant Client
+qdrant-client>=1.7.0
+
+# PostgreSQL with PostGIS
+asyncpg>=0.29.0
+psycopg2-binary>=2.9.9
+
+# ============================================================================
+# Web Framework & API
+# ============================================================================
+
+# FastAPI
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+python-multipart>=0.0.6
+
+# ============================================================================
+# Monitoring & Observability
+# ============================================================================
+
+# Prometheus
+prometheus-client>=0.19.0
+
+# Structured Logging
+structlog>=23.2.0
+
+# Error Tracking (optional)
+sentry-sdk>=1.38.0
+
+# OpenTelemetry (optional)
+opentelemetry-api>=1.21.0
+opentelemetry-sdk>=1.21.0
+opentelemetry-instrumentation-fastapi>=0.42b0
+opentelemetry-instrumentation-httpx>=0.42b0
+opentelemetry-exporter-otlp>=1.21.0
+
+# ============================================================================
+# Computer Vision
+# ============================================================================
+
+# Vision Models
+timm>=0.9.12
+opencv-python>=4.8.1
+Pillow>=10.1.0
+albumentations>=1.3.1
+
+# Object Detection
+ultralytics>=8.0.220  # YOLOv8
+
+# ============================================================================
+# Data Processing
+# ============================================================================
+
+# Data manipulation
+numpy>=1.24.0
+pandas>=2.1.0
+scipy>=1.11.0
+
+# Serialization
+pyyaml>=6.0.1
+orjson>=3.9.10
+
+# ============================================================================
+# Utilities
+# ============================================================================
+
+# HTTP clients
+httpx>=0.25.0
+aiohttp>=3.9.0
+
+# Async utilities
+asyncio>=3.4.3
+
+# Progress bars
+tqdm>=4.66.0
+
+# Configuration
+python-dotenv>=1.0.0
+
+# ============================================================================
+# Development & Training
+# ============================================================================
+
+# Weights & Biases (optional)
+wandb>=0.16.0
+
+# Jupyter (optional)
+jupyter>=1.0.0
+ipywidgets>=8.1.0
+
+# ============================================================================
+# NOTES FOR ARM MACS
+# ============================================================================
+#
+# 1. MPS Backend:
+#    - PyTorch uses Metal Performance Shaders (MPS) for GPU acceleration
+#    - Not all operations supported - some fall back to CPU
+#    - BFloat16 NOT supported - use Float16 instead
+#
+# 2. Memory:
+#    - Unified memory architecture (shared CPU/GPU)
+#    - Can load larger models than discrete GPUs
+#    - Monitor with: Activity Monitor > GPU History
+#
+# 3. Performance:
+#    - M4 Max: ~40GB unified memory, 40-core GPU
+#    - Expect 2-3 tokens/sec for Llama-3-8B
+#    - Vision models: 50-100 images/sec
+#
+# 4. Known Issues:
+#    - Some torch-geometric ops slower on MPS
+#    - Quantization (4-bit/8-bit) not supported on MPS
+#    - Use CPU for quantized models
+#
+# 5. Troubleshooting:
+#    - If imports fail, verify ARM Python:
+#      $ file $(which python)
+#      # Should show: arm64
+#
+#    - If JAX fails, reinstall jax-metal:
+#      $ pip uninstall jax jaxlib
+#      $ pip install jax-metal
+#
+#    - If TensorFlow fails, reinstall:
+#      $ pip uninstall tensorflow tensorflow-macos tensorflow-metal
+#      $ pip install tensorflow-macos tensorflow-metal
+
