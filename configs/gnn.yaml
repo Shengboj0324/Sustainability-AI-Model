@@ -151,3 +151,19 @@ inference:
   top_k: 20
   score_threshold: 0.6
   batch_size: 1024
+
+neo4j:
+  # Database connection
+  uri: "bolt://neo4j:7687" # Docker service name
+  user: "neo4j"
+  password: "releaf_password"
+  database: "neo4j"
+
+  # Connection pooling
+  max_connection_pool_size: 100
+  max_connection_lifetime: 3600
+  connection_timeout: 60
+
+  # Query settings
+  query_timeout: 30
+  max_results: 100

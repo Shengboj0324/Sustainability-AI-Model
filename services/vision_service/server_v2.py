@@ -215,8 +215,27 @@ class VisionServiceV2:
         self.classifier_path = os.getenv("CLASSIFIER_CHECKPOINT_PATH")
         self.detector_path = os.getenv("DETECTOR_CHECKPOINT_PATH")
         self.gnn_path = os.getenv("GNN_CHECKPOINT_PATH")
+        # PEAK STANDARD: Explicit config loading
+        self.vision_config_path = os.getenv("VISION_CONFIG_PATH", "configs/vision_cls.yaml")
+        self.gnn_config_path = os.getenv("GNN_CONFIG_PATH", "configs/gnn.yaml")
 
         logger.info("VisionServiceV2 initialized")
+
+    def _load_yaml_config(self, path: str) -> Dict[str, Any]:
+        """Load YAML config with error handling"""
+        try:
+            import yaml
+            if os.path.exists(path):
+                with open(path, 'r') as f:
+                    return yaml.safe_load(f)
+            logger.warning(f"Config path {path} does not exist. Using defaults.")
+            return {}
+        except ImportError:
+            logger.error("PyYAML not installed. Using defaults.")
+            return {}
+        except Exception as e:
+            logger.warning(f"Failed to load config from {path}: {e}. Using defaults.")
+            return {}
 
     async def initialize(self):
         """Initialize vision system"""
@@ -224,8 +243,15 @@ class VisionServiceV2:
             logger.info("Initializing integrated vision system...")
             start_time = time.time()
 
-            # Initialize vision system
-            self.vision_system = IntegratedVisionSystem()
+            # Load peak standard configs
+            vision_config = self._load_yaml_config(self.vision_config_path)
+            gnn_config = self._load_yaml_config(self.gnn_config_path)
+
+            # Initialize vision system with explicit configs
+            self.vision_system = IntegratedVisionSystem(
+                classifier_config=vision_config,
+                gnn_config=gnn_config
+            )
 
             # Load models
             self.vision_system.load_models(
