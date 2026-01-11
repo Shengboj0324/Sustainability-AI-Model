@@ -115,4 +115,4 @@ coverage.xml
 *.pickle
 
 # Exceptions
-!kaggle_training.ipynb
+!Sustainability_AI_Model_Training.ipynb
