@@ -1,28 +1,22 @@
 # LLM Supervised Fine-Tuning Configuration
 # Domain specialization for sustainability, recycling, and upcycling
+# PEAK STANDARD: Expert Persona & Strict Safety
 
 model:
-  base_model_name: "meta-llama/Llama-3-8B-Instruct"  # or "Qwen/Qwen2.5-7B-Instruct"
+  base_model_name: "meta-llama/Llama-3-8B-Instruct"
   model_type: "causal_lm"
   trust_remote_code: true
-  
+
   # LoRA configuration for efficient fine-tuning
   lora:
     enabled: true
-    r: 64                    # LoRA rank
-    alpha: 128               # LoRA alpha (scaling factor)
+    r: 64
+    alpha: 128
     dropout: 0.05
-    target_modules:
-      - "q_proj"
-      - "v_proj"
-      - "k_proj"
-      - "o_proj"
-      - "gate_proj"
-      - "up_proj"
-      - "down_proj"
+    target_modules: "all-linear" # Target all linear layers for maximum expressivity
     bias: "none"
     task_type: "CAUSAL_LM"
-  
+
   # Quantization for memory efficiency
   quantization:
     enabled: true
@@ -37,114 +31,100 @@ data:
     - "data/processed/llm_sft/sustainability_qa_train.jsonl"
     - "data/processed/llm_sft/upcycling_qa_train.jsonl"
     - "data/processed/llm_sft/org_routing_train.jsonl"
+    - "data/processed/llm_sft/expert_thinking_traces.jsonl" # Added Chain-of-Thought data
 
   # Validation data files
   val_files:
     - "data/processed/llm_sft/sustainability_qa_val.jsonl"
-    - "data/processed/llm_sft/upcycling_qa_val.jsonl"
     - "data/processed/llm_sft/org_routing_val.jsonl"
-  
+
   # Data format and processing
-  format: "chat"              # OpenAI-style chat format
-  max_length: 2048            # Maximum sequence length
-  packing: true               # Pack multiple samples per sequence for efficiency
+  format: "chat"
+  max_length: 4096 # Doubled context length
+  packing: true
   num_workers: 8
-  
-  # Data composition weights (for balanced training)
+
+  # Data composition weights
   sampling_weights:
-    sustainability_qa: 0.35
-    upcycling_qa: 0.35
-    org_routing: 0.20
+    sustainability_qa: 0.30
+    upcycling_qa: 0.30
+    org_routing: 0.15
+    expert_thinking_traces: 0.15 # Focus on reasoning
     safety_examples: 0.10
 
 training:
   # Trainer configuration
-  trainer: "hf_trainer"       # HuggingFace Trainer
-  output_dir: "models/llm/adapters/sustainability-v1"
-  
-  # Batch size and accumulation
-  per_device_train_batch_size: 4
-  per_device_eval_batch_size: 4
-  gradient_accumulation_steps: 8
-  # Effective batch size = 4 * 8 * num_gpus
-  
+  trainer: "hf_trainer"
+  output_dir: "models/llm/adapters/sustainability-expert-v1"
+
+  # Batch size
+  per_device_train_batch_size: 2
+  per_device_eval_batch_size: 2
+  gradient_accumulation_steps: 16
+
   # Training duration
   num_train_epochs: 3
-  max_steps: -1               # -1 means use num_train_epochs
-  
+
   # Optimization
-  learning_rate: 1.5e-4
+  learning_rate: 1.0e-4
   lr_scheduler_type: "cosine"
-  warmup_ratio: 0.05
-  weight_decay: 0.01
-  max_grad_norm: 1.0
-  
+  warmup_ratio: 0.03
+  weight_decay: 0.05
+  max_grad_norm: 0.5 # Stricter clipping
+
   # Optimizer settings
-  optim: "adamw_torch"
-  adam_beta1: 0.9
-  adam_beta2: 0.98
-  adam_epsilon: 1.0e-8
-  
+  optim: "paged_adamw_32bit" # Memory efficient
+
   # Mixed precision
-  bf16: true                  # Use bfloat16 if supported, else fp16
+  bf16: true
   fp16: false
-  
-  # Logging and checkpointing
-  logging_steps: 50
-  save_steps: 1000
-  eval_steps: 1000
+
+  # Logging
+  logging_steps: 10
+  save_steps: 200
+  eval_steps: 200
   save_total_limit: 3
   load_best_model_at_end: true
-  metric_for_best_model: "eval_loss"
-  greater_is_better: false
-  
+
   # Evaluation
   evaluation_strategy: "steps"
   save_strategy: "steps"
-  
-  # Regularization
-  label_smoothing_factor: 0.0
-  
+
   # Reproducibility
   seed: 42
-  data_seed: 42
 
 peft:
   use_lora: true
-  lora_inference_merge: false  # Keep adapter separate; merge later if needed
-  
+  lora_inference_merge: false
+
 evaluation:
-  # Metrics to compute
   metrics:
     - "loss"
     - "perplexity"
-    - "exact_match_custom"
-    - "domain_bleu"
-    - "safety_score"
-  
-  # Custom evaluation script
-  custom_eval_script: "training/llm/evaluation.py"
-  
-  # Evaluation dataset size
-  max_eval_samples: 1000
+    - "rouge"
+    - "bertscore"
+
+  max_eval_samples: 500
 
 inference:
-  # Inference settings for testing
-  max_new_tokens: 512
-  temperature: 0.7
+  max_new_tokens: 1024
+  temperature: 0.6 # Lower temperature for precision
   top_p: 0.9
-  top_k: 50
-  repetition_penalty: 1.1
-  do_sample: true
+  repetition_penalty: 1.15
 
 system_prompt: |
-  You are ReleAF AI, an expert sustainability assistant specializing in recycling, upcycling, 
-  and waste management. You provide accurate, safe, and creative guidance on:
-  - Waste identification and proper disposal
-  - Recycling rules and regulations
-  - Upcycling projects and creative reuse
-  - Material properties and chemistry
-  - Environmental organizations and resources
-  
-  Always prioritize safety, environmental responsibility, and practical feasibility in your responses.
+  You are ReleAF AI, a Senior Environmental Scientist and Master Upcycler. 
+  Your mission is to guide users towards zero-waste living with scientific accuracy and creative flair.
 
+  CORE DIRECTIVES:
+  1. ACCURACY: Base all material identification and chemical property claims on verification. If unsure, state limitations.
+  2. SAFETY: Immediately identify hazards (e.g., chemicals in plastics, sharp edges). Prioritize user safety above all.
+  3. CREATIVITY: For upcycling, generate novel, practical, and aesthetically pleasing ideas. Provide step-by-step logic.
+  4. HOLISTIC VIEW: Consider the entire lifecycle of a product. Suggest disposal only as a last resort.
+
+  RESPONSE FORMAT:
+  - Structure answers clearly with headers.
+  - Use markdown for readability.
+  - When suggesting ideas, include a "Difficulty" and "Tools Needed" section.
+
+  You represent the pinnacle of sustainability AI. Be helpful, precise, and inspiring.

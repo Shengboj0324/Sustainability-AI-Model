@@ -1,27 +1,29 @@
 # Graph Neural Network Configuration
 # Knowledge graph reasoning for upcycling recommendations
+# PEAK STANDARD: GATv2 with 512 hidden dims
 
 model:
-  type: "graphsage"         # graphsage, gat, or gcn
-  input_dim: 128            # Input feature dimension
-  num_layers: 3
-  hidden_dim: 256
-  output_dim: 128
-  
+  type: "gatv2" # CRITICAL: Superior attention mechanism
+  input_dim: 128 # Input feature dimension
+  num_layers: 4 # Deeper network
+  hidden_dim: 512 # Wider network for capacity
+  output_dim: 256
+
   # GraphSAGE specific
-  aggregator: "mean"        # mean, pool, or lstm
-  dropout: 0.2
-  
-  # GAT specific (if using GAT)
-  num_heads: 4
-  attention_dropout: 0.1
-  
+  aggregator: "mean"
+  dropout: 0.3 # Increased dropout for regularization
+
+  # GAT specific
+  num_heads: 8 # Multi-head attention
+  attention_dropout: 0.2
+  concat_heads: true # Concatenate head outputs
+
   # Activation
-  activation: "relu"
-  
+  activation: "gelu" # Modern activation
+
   # Normalization
   batch_norm: true
-  layer_norm: false
+  layer_norm: true # LayerNorm crucial for Transformers/GAT
 
 graph:
   # Graph structure
@@ -33,7 +35,8 @@ graph:
     - "Organization"
     - "Location"
     - "Property"
-  
+    - "Process" # Added Process node
+
   edge_types:
     - "MADE_OF"
     - "CAN_BE_UPCYCLED_TO"
@@ -44,7 +47,8 @@ graph:
     - "LOCATED_IN"
     - "REQUIRES_TOOL"
     - "REQUIRES_SKILL"
-  
+    - "IS_TRANSFORMED_BY"
+
   # Node features
   node_features:
     Material:
@@ -66,64 +70,64 @@ data:
   # Graph data files
   graph_file: "data/processed/gnn/graph.parquet"
   node_features_file: "data/processed/gnn/node_features.parquet"
-  node_labels_file: "data/processed/gnn/node_labels.parquet"  # Optional
-  
+  node_labels_file: "data/processed/gnn/node_labels.parquet"
+
   # Train/val/test split
-  train_ratio: 0.7
-  val_ratio: 0.15
-  test_ratio: 0.15
-  
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+
   # Sampling
-  num_neighbors: [10, 10, 5]  # Per layer
-  batch_size: 1024
+  num_neighbors: [20, 15, 10, 5] # Deeper sampling for 4 layers
+  batch_size: 512
   num_workers: 4
 
 task:
   # Task configuration
-  type: "link_prediction"   # link_prediction or node_classification
-  
+  type: "link_prediction"
+
   # Link prediction
   link_prediction:
     predict_edge_types:
       - "CAN_BE_UPCYCLED_TO"
       - "SIMILAR_TO"
-    negative_sampling_ratio: 3
-    
-  # Node classification (alternative)
+    negative_sampling_ratio: 5 # Harder negatives
+
+  # Node classification
   node_classification:
     target_node_type: "Material"
-    num_classes: 10
+    num_classes: 15
 
 training:
   # Output
   output_dir: "models/gnn/ckpts"
-  experiment_name: "upcycling_gnn_v1"
+  experiment_name: "upcycling_gatv2_peak_v1"
 
-  # CRITICAL: Reproducibility
+  # Reproducibility
   seed: 42
 
   # Training duration
-  num_epochs: 50
-  early_stopping_patience: 10
-  
+  num_epochs: 100
+  early_stopping_patience: 15
+
   # Optimization
-  optimizer: "adam"
-  learning_rate: 1.0e-3
+  optimizer: "adamw"
+  learning_rate: 5.0e-4
   weight_decay: 1.0e-4
-  
+
   # Learning rate schedule
-  lr_scheduler: "reduce_on_plateau"
-  lr_patience: 5
-  lr_factor: 0.5
-  
+  lr_scheduler: "cosine_warmup"
+  warmup_epochs: 10
+  min_lr: 1.0e-6
+
   # Regularization
-  dropout: 0.2
-  edge_dropout: 0.1
-  
+  dropout: 0.3
+  edge_dropout: 0.2
+
   # Checkpointing
   save_freq: 5
   save_best_only: true
-  
+
   # Logging
   log_interval: 100
 
@@ -133,17 +137,17 @@ evaluation:
     - "roc_auc"
     - "avg_precision"
     - "hits@1"
-    - "hits@3"
+    - "hits@5"
     - "hits@10"
-    - "mrr"              # Mean reciprocal rank
-  
+    - "mrr"
+    - "ndcg@10" # Added NDCG
+
   # Evaluation settings
-  eval_batch_size: 2048
-  num_negative_samples: 100
+  eval_batch_size: 1024
+  num_negative_samples: 500 # More rigorous evaluation
 
 inference:
   # Inference settings
-  top_k: 10
-  score_threshold: 0.5
-  batch_size: 2048
-
+  top_k: 20
+  score_threshold: 0.6
+  batch_size: 1024

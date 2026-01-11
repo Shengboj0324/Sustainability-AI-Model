@@ -114,3 +114,5 @@ coverage.xml
 *.pkl
 *.pickle
 
+# Exceptions
+!kaggle_training.ipynb
