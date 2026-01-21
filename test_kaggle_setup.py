@@ -13,6 +13,18 @@ print("🔍 KAGGLE API SETUP TEST")
 print("="*80)
 print()
 
+# Test 0: Check Python version
+print("Test 0: Checking Python version...")
+print(f"   Python {sys.version}")
+py_version = sys.version_info
+if py_version.major == 3 and py_version.minor >= 8:
+    print(f"   ✅ Python {py_version.major}.{py_version.minor} is supported")
+else:
+    print(f"   ⚠️  Python {py_version.major}.{py_version.minor} may have compatibility issues")
+    print(f"   Recommended: Python 3.8+")
+
+print()
+
 # Test 1: Check if Kaggle API token is set
 print("Test 1: Checking Kaggle API token...")
 token = os.environ.get('KAGGLE_API_TOKEN')

@@ -1,0 +1,39 @@
+# Python 3.9 Compatible Requirements for Sustainability AI Model
+# MacBook Local Training
+
+# Core dependencies
+numpy>=1.19.0,<2.0
+scipy>=1.7.0,<1.15.0
+pandas>=1.3.0,<2.0
+scikit-learn>=1.0.0
+
+# Image processing
+Pillow>=8.0.0
+opencv-python>=4.5.0
+
+# Deep Learning
+torch>=1.10.0
+torchvision>=0.11.0
+timm>=0.9.0
+
+# Data augmentation
+albumentations>=1.3.0
+einops>=0.6.0
+
+# PyTorch Geometric (optional, may need manual installation)
+torch-geometric>=2.0.0
+
+# Visualization
+matplotlib>=3.4.0
+seaborn>=0.11.0
+tqdm>=4.62.0
+
+# Experiment tracking
+wandb>=0.15.0
+
+# Kaggle API
+kaggle>=1.5.0
+
+# Utilities
+pyyaml>=5.4.0
+
