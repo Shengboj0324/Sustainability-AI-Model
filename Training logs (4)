@@ -1,0 +1,362 @@
+2026-02-10 22:15:00,418 - INFO - ✓ W&B logging enabled
+2026-02-10 22:15:00,418 - INFO - 🔍 Running pre-training sanity check...
+2026-02-10 22:15:00,441 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/glass/glass_1376.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,441 - ERROR - ❌ FAILED TO LOAD IMAGE 77849: data/kaggle/garbage-classification-v2/glass/glass_1376.jpg
+2026-02-10 22:15:00,442 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,444 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_3231.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,444 - ERROR - ❌ FAILED TO LOAD IMAGE 30014: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_3231.jpg
+2026-02-10 22:15:00,445 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,447 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_5231.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,447 - ERROR - ❌ FAILED TO LOAD IMAGE 33734: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_5231.jpg
+2026-02-10 22:15:00,448 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,452 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes3726.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,452 - ERROR - ❌ FAILED TO LOAD IMAGE 1970: data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes3726.jpg
+2026-02-10 22:15:00,453 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,456 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/glass/glass_761.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,456 - ERROR - ❌ FAILED TO LOAD IMAGE 78554: data/kaggle/garbage-classification-v2/glass/glass_761.jpg
+2026-02-10 22:15:00,456 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,459 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_4057.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,459 - ERROR - ❌ FAILED TO LOAD IMAGE 43924: data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_4057.jpg
+2026-02-10 22:15:00,460 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,462 - ERROR - ❌ Transform failed for data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/glass/glass_00588.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,462 - ERROR - ❌ FAILED TO LOAD IMAGE 97415: data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/glass/glass_00588.jpg
+2026-02-10 22:15:00,463 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,470 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes4788.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,470 - ERROR - ❌ FAILED TO LOAD IMAGE 3654: data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes4788.jpg
+2026-02-10 22:15:00,471 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,473 - INFO -   Batch shape: torch.Size([8, 3, 224, 224])
+2026-02-10 22:15:00,474 - INFO -   Expected: [batch_size, 3, 224, 224]
+2026-02-10 22:15:00,733 - INFO -   Model output shape: torch.Size([8, 30])
+2026-02-10 22:15:00,734 - INFO -   Expected: [batch_size, 30]
+2026-02-10 22:15:00,734 - INFO -   ✅ Pre-training sanity check passed!
+2026-02-10 22:15:00,735 - INFO -   ✅ All images are 224x224
+2026-02-10 22:15:00,735 - INFO -   ✅ Model accepts input and produces correct output shape
+2026-02-10 22:15:00,735 - INFO - ================================================================================
+2026-02-10 22:15:00,736 - INFO - 🔬 COMPREHENSIVE DATA QUALITY VALIDATION
+2026-02-10 22:15:00,737 - INFO - ================================================================================
+2026-02-10 22:15:00,737 - INFO - Test 1: Individual Image Loading (100 random samples)...
+2026-02-10 22:15:00,751 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/cardboard/202512-cardboard122.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,752 - ERROR - ❌ FAILED TO LOAD IMAGE 73999: data/kaggle/garbage-classification-v2/cardboard/202512-cardboard122.jpg
+2026-02-10 22:15:00,752 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,757 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_7764.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,757 - ERROR - ❌ FAILED TO LOAD IMAGE 20253: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_7764.jpg
+2026-02-10 22:15:00,758 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,761 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TEST/O/O_12698.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,761 - ERROR - ❌ FAILED TO LOAD IMAGE 16002: data/kaggle/waste-classification-data/DATASET/TEST/O/O_12698.jpg
+2026-02-10 22:15:00,761 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,765 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/cardboard/cardboard_2057.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,765 - ERROR - ❌ FAILED TO LOAD IMAGE 74671: data/kaggle/garbage-classification-v2/cardboard/cardboard_2057.jpg
+2026-02-10 22:15:00,766 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,768 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_6137.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,769 - ERROR - ❌ FAILED TO LOAD IMAGE 36932: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_6137.jpg
+2026-02-10 22:15:00,769 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,787 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/glass/glass_4531.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,788 - ERROR - ❌ FAILED TO LOAD IMAGE 78238: data/kaggle/garbage-classification-v2/glass/glass_4531.jpg
+2026-02-10 22:15:00,788 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,795 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/plastic/plastic_1925.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,799 - ERROR - ❌ FAILED TO LOAD IMAGE 82141: data/kaggle/garbage-classification-v2/plastic/plastic_1925.jpg
+2026-02-10 22:15:00,799 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,802 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_9584.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,803 - ERROR - ❌ FAILED TO LOAD IMAGE 57439: data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_9584.jpg
+2026-02-10 22:15:00,803 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,806 - ERROR - ❌ Transform failed for data/kaggle/multi-class-garbage-classification-dataset/Multi class garbage classification/train/paper/paper381.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,807 - ERROR - ❌ FAILED TO LOAD IMAGE 101786: data/kaggle/multi-class-garbage-classification-dataset/Multi class garbage classification/train/paper/paper381.jpg
+2026-02-10 22:15:00,807 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,810 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/glass/glass_3209.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,811 - ERROR - ❌ FAILED TO LOAD IMAGE 76585: data/kaggle/garbage-classification-v2/glass/glass_3209.jpg
+2026-02-10 22:15:00,811 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,814 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_4143.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,814 - ERROR - ❌ FAILED TO LOAD IMAGE 41572: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_4143.jpg
+2026-02-10 22:15:00,815 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,819 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TEST/O/O_12849.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,819 - ERROR - ❌ FAILED TO LOAD IMAGE 17054: data/kaggle/waste-classification-data/DATASET/TEST/O/O_12849.jpg
+2026-02-10 22:15:00,819 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,822 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_8679.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,823 - ERROR - ❌ FAILED TO LOAD IMAGE 37733: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_8679.jpg
+2026-02-10 22:15:00,823 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,826 - ERROR - ❌ Transform failed for data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/glass/glass_03512.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,828 - ERROR - ❌ FAILED TO LOAD IMAGE 98069: data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/glass/glass_03512.jpg
+2026-02-10 22:15:00,830 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,834 - ERROR - ❌ Transform failed for data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/paper/paper_00025.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,835 - ERROR - ❌ FAILED TO LOAD IMAGE 89113: data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/paper/paper_00025.jpg
+2026-02-10 22:15:00,835 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,838 - ERROR - ❌ Transform failed for data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/paper/paper_00684.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,839 - ERROR - ❌ FAILED TO LOAD IMAGE 89340: data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/paper/paper_00684.jpg
+2026-02-10 22:15:00,839 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,842 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_10942.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,842 - ERROR - ❌ FAILED TO LOAD IMAGE 33024: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_10942.jpg
+2026-02-10 22:15:00,843 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,846 - ERROR - ❌ Transform failed for data/kaggle/multi-class-garbage-classification-dataset/Multi class garbage classification/train/glass/glass55.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,846 - ERROR - ❌ FAILED TO LOAD IMAGE 103333: data/kaggle/multi-class-garbage-classification-dataset/Multi class garbage classification/train/glass/glass55.jpg
+2026-02-10 22:15:00,846 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,850 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_4683.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,851 - ERROR - ❌ FAILED TO LOAD IMAGE 43178: data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_4683.jpg
+2026-02-10 22:15:00,851 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,871 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/plastic/plastic_363.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,872 - ERROR - ❌ FAILED TO LOAD IMAGE 82497: data/kaggle/garbage-classification-v2/plastic/plastic_363.jpg
+2026-02-10 22:15:00,872 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,875 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_2150.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,876 - ERROR - ❌ FAILED TO LOAD IMAGE 20195: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_2150.jpg
+2026-02-10 22:15:00,876 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,882 - ERROR - ❌ Transform failed for data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/cardboard/cardboard_02415.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,883 - ERROR - ❌ FAILED TO LOAD IMAGE 92241: data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/cardboard/cardboard_02415.jpg
+2026-02-10 22:15:00,883 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,886 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_1263.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,886 - ERROR - ❌ FAILED TO LOAD IMAGE 19988: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_1263.jpg
+2026-02-10 22:15:00,887 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,889 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_3744.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,890 - ERROR - ❌ FAILED TO LOAD IMAGE 26573: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_3744.jpg
+2026-02-10 22:15:00,890 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,897 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/metal/metal_2532.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,897 - ERROR - ❌ FAILED TO LOAD IMAGE 72328: data/kaggle/garbage-classification-v2/metal/metal_2532.jpg
+2026-02-10 22:15:00,898 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,901 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes1176.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,902 - ERROR - ❌ FAILED TO LOAD IMAGE 5623: data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes1176.jpg
+2026-02-10 22:15:00,902 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,905 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/biological/biological741.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,905 - ERROR - ❌ FAILED TO LOAD IMAGE 9609: data/kaggle/garbage-classification-mostafa/garbage_classification/biological/biological741.jpg
+2026-02-10 22:15:00,906 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,909 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/clothes/clothes_961.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,910 - ERROR - ❌ FAILED TO LOAD IMAGE 68875: data/kaggle/garbage-classification-v2/clothes/clothes_961.jpg
+2026-02-10 22:15:00,910 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,917 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/paper/paper_3241.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,918 - ERROR - ❌ FAILED TO LOAD IMAGE 65762: data/kaggle/garbage-classification-v2/paper/paper_3241.jpg
+2026-02-10 22:15:00,919 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,922 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_6475.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,923 - ERROR - ❌ FAILED TO LOAD IMAGE 58081: data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_6475.jpg
+2026-02-10 22:15:00,923 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,926 - ERROR - ❌ Transform failed for data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/plastic/plastic_02331.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,926 - ERROR - ❌ FAILED TO LOAD IMAGE 100711: data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/plastic/plastic_02331.jpg
+2026-02-10 22:15:00,926 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,929 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_8662.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,930 - ERROR - ❌ FAILED TO LOAD IMAGE 50199: data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_8662.jpg
+2026-02-10 22:15:00,930 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,935 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/cardboard/cardboard_965.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,935 - ERROR - ❌ FAILED TO LOAD IMAGE 74036: data/kaggle/garbage-classification-v2/cardboard/cardboard_965.jpg
+2026-02-10 22:15:00,935 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,938 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_2524.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,938 - ERROR - ❌ FAILED TO LOAD IMAGE 63750: data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_2524.jpg
+2026-02-10 22:15:00,939 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,941 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_9248.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,942 - ERROR - ❌ FAILED TO LOAD IMAGE 46658: data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_9248.jpg
+2026-02-10 22:15:00,942 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,948 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes2585.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,949 - ERROR - ❌ FAILED TO LOAD IMAGE 6199: data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes2585.jpg
+2026-02-10 22:15:00,949 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,953 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/clothes/clothes_5318.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,954 - ERROR - ❌ FAILED TO LOAD IMAGE 68817: data/kaggle/garbage-classification-v2/clothes/clothes_5318.jpg
+2026-02-10 22:15:00,954 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,957 - ERROR - ❌ Transform failed for data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/paper/paper_01522.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,958 - ERROR - ❌ FAILED TO LOAD IMAGE 88325: data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/paper/paper_01522.jpg
+2026-02-10 22:15:00,958 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,961 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/plastic/plastic561.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,961 - ERROR - ❌ FAILED TO LOAD IMAGE 12397: data/kaggle/garbage-classification-mostafa/garbage_classification/plastic/plastic561.jpg
+2026-02-10 22:15:00,962 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,964 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_7801.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,965 - ERROR - ❌ FAILED TO LOAD IMAGE 27403: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_7801.jpg
+2026-02-10 22:15:00,965 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,968 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes2141.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,969 - ERROR - ❌ FAILED TO LOAD IMAGE 5926: data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes2141.jpg
+2026-02-10 22:15:00,969 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,972 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_218.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,972 - ERROR - ❌ FAILED TO LOAD IMAGE 35766: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_218.jpg
+2026-02-10 22:15:00,972 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,975 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/cardboard/cardboard_1583.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,977 - ERROR - ❌ FAILED TO LOAD IMAGE 73187: data/kaggle/garbage-classification-v2/cardboard/cardboard_1583.jpg
+2026-02-10 22:15:00,978 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,982 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_4194.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,982 - ERROR - ❌ FAILED TO LOAD IMAGE 24380: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_4194.jpg
+2026-02-10 22:15:00,983 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,986 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_5832.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,986 - ERROR - ❌ FAILED TO LOAD IMAGE 20305: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_5832.jpg
+2026-02-10 22:15:00,986 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,989 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/shoes/shoes_247.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,990 - ERROR - ❌ FAILED TO LOAD IMAGE 83814: data/kaggle/garbage-classification-v2/shoes/shoes_247.jpg
+2026-02-10 22:15:00,990 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,993 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_8891.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,993 - ERROR - ❌ FAILED TO LOAD IMAGE 28221: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_8891.jpg
+2026-02-10 22:15:00,993 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,997 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/clothes/clothes_5320.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:00,997 - ERROR - ❌ FAILED TO LOAD IMAGE 68266: data/kaggle/garbage-classification-v2/clothes/clothes_5320.jpg
+2026-02-10 22:15:00,997 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,000 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_3292.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,000 - ERROR - ❌ FAILED TO LOAD IMAGE 56567: data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_3292.jpg
+2026-02-10 22:15:01,000 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,004 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes2285.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,004 - ERROR - ❌ FAILED TO LOAD IMAGE 5185: data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes2285.jpg
+2026-02-10 22:15:01,005 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,010 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_5378.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,010 - ERROR - ❌ FAILED TO LOAD IMAGE 34078: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_5378.jpg
+2026-02-10 22:15:01,011 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,013 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_2575.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,014 - ERROR - ❌ FAILED TO LOAD IMAGE 55477: data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_2575.jpg
+2026-02-10 22:15:01,014 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,017 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_3764.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,017 - ERROR - ❌ FAILED TO LOAD IMAGE 47047: data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_3764.jpg
+2026-02-10 22:15:01,018 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,020 - ERROR - ❌ Transform failed for data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/metal/metal_01889.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,021 - ERROR - ❌ FAILED TO LOAD IMAGE 89858: data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/metal/metal_01889.jpg
+2026-02-10 22:15:01,021 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,023 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_7816.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,024 - ERROR - ❌ FAILED TO LOAD IMAGE 34325: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_7816.jpg
+2026-02-10 22:15:01,024 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,027 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes3814.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,028 - ERROR - ❌ FAILED TO LOAD IMAGE 3443: data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes3814.jpg
+2026-02-10 22:15:01,028 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,031 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_7156.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,031 - ERROR - ❌ FAILED TO LOAD IMAGE 33611: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_7156.jpg
+2026-02-10 22:15:01,032 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,035 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TEST/R/R_10203.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,036 - ERROR - ❌ FAILED TO LOAD IMAGE 17827: data/kaggle/waste-classification-data/DATASET/DATASET/TEST/R/R_10203.jpg
+2026-02-10 22:15:01,037 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,041 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/biological/biological_894.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,041 - ERROR - ❌ FAILED TO LOAD IMAGE 79192: data/kaggle/garbage-classification-v2/biological/biological_894.jpg
+2026-02-10 22:15:01,041 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,044 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/cardboard/cardboard_871.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,045 - ERROR - ❌ FAILED TO LOAD IMAGE 74367: data/kaggle/garbage-classification-v2/cardboard/cardboard_871.jpg
+2026-02-10 22:15:01,045 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,048 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_10074.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,048 - ERROR - ❌ FAILED TO LOAD IMAGE 29807: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_10074.jpg
+2026-02-10 22:15:01,049 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,051 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_9768.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,051 - ERROR - ❌ FAILED TO LOAD IMAGE 56526: data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_9768.jpg
+2026-02-10 22:15:01,052 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,055 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/shoes/shoes_1015.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,055 - ERROR - ❌ FAILED TO LOAD IMAGE 83622: data/kaggle/garbage-classification-v2/shoes/shoes_1015.jpg
+2026-02-10 22:15:01,056 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,059 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_7056.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,059 - ERROR - ❌ FAILED TO LOAD IMAGE 47750: data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_7056.jpg
+2026-02-10 22:15:01,059 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,062 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/biological/biological219.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,063 - ERROR - ❌ FAILED TO LOAD IMAGE 9612: data/kaggle/garbage-classification-mostafa/garbage_classification/biological/biological219.jpg
+2026-02-10 22:15:01,063 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,068 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/brown-glass/brown-glass374.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,068 - ERROR - ❌ FAILED TO LOAD IMAGE 11677: data/kaggle/garbage-classification-mostafa/garbage_classification/brown-glass/brown-glass374.jpg
+2026-02-10 22:15:01,069 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,071 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_1095.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,072 - ERROR - ❌ FAILED TO LOAD IMAGE 50497: data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_1095.jpg
+2026-02-10 22:15:01,072 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,074 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_4831.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,075 - ERROR - ❌ FAILED TO LOAD IMAGE 53082: data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_4831.jpg
+2026-02-10 22:15:01,075 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,078 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_9714.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,078 - ERROR - ❌ FAILED TO LOAD IMAGE 39366: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_9714.jpg
+2026-02-10 22:15:01,079 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,081 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_9961.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,081 - ERROR - ❌ FAILED TO LOAD IMAGE 51594: data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_9961.jpg
+2026-02-10 22:15:01,082 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,084 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_3186.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,085 - ERROR - ❌ FAILED TO LOAD IMAGE 53084: data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_3186.jpg
+2026-02-10 22:15:01,085 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,088 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_222.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,088 - ERROR - ❌ FAILED TO LOAD IMAGE 34209: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_222.jpg
+2026-02-10 22:15:01,088 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,092 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/battery/battery_207.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,093 - ERROR - ❌ FAILED TO LOAD IMAGE 80195: data/kaggle/garbage-classification-v2/battery/battery_207.jpg
+2026-02-10 22:15:01,093 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,097 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_9261.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,098 - ERROR - ❌ FAILED TO LOAD IMAGE 47061: data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_9261.jpg
+2026-02-10 22:15:01,098 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,101 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_6882.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,101 - ERROR - ❌ FAILED TO LOAD IMAGE 55823: data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_6882.jpg
+2026-02-10 22:15:01,102 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,104 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_686.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,105 - ERROR - ❌ FAILED TO LOAD IMAGE 44469: data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_686.jpg
+2026-02-10 22:15:01,105 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,108 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_8633.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,108 - ERROR - ❌ FAILED TO LOAD IMAGE 41127: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_8633.jpg
+2026-02-10 22:15:01,108 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,111 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_9204.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,111 - ERROR - ❌ FAILED TO LOAD IMAGE 36931: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_9204.jpg
+2026-02-10 22:15:01,112 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,115 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification/Garbage classification/Garbage classification/trash/trash5.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,115 - ERROR - ❌ FAILED TO LOAD IMAGE 86407: data/kaggle/garbage-classification/Garbage classification/Garbage classification/trash/trash5.jpg
+2026-02-10 22:15:01,116 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,118 - ERROR - ❌ Transform failed for data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/plastic/plastic_02128.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,119 - ERROR - ❌ FAILED TO LOAD IMAGE 99875: data/kaggle/garbage-dataset-classification/Garbage_Dataset_Classification/images/plastic/plastic_02128.jpg
+2026-02-10 22:15:01,119 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,121 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/glass/glass_1680.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,122 - ERROR - ❌ FAILED TO LOAD IMAGE 75800: data/kaggle/garbage-classification-v2/glass/glass_1680.jpg
+2026-02-10 22:15:01,124 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,130 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_9216.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,130 - ERROR - ❌ FAILED TO LOAD IMAGE 22010: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_9216.jpg
+2026-02-10 22:15:01,130 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,133 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/shoes/shoes1732.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,133 - ERROR - ❌ FAILED TO LOAD IMAGE 13286: data/kaggle/garbage-classification-mostafa/garbage_classification/shoes/shoes1732.jpg
+2026-02-10 22:15:01,134 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,138 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_11822.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,138 - ERROR - ❌ FAILED TO LOAD IMAGE 40223: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_11822.jpg
+2026-02-10 22:15:01,138 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,141 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_10620.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,141 - ERROR - ❌ FAILED TO LOAD IMAGE 61437: data/kaggle/waste-classification-data/DATASET/TRAIN/O/O_10620.jpg
+2026-02-10 22:15:01,142 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,145 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/biological/biological_680.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,145 - ERROR - ❌ FAILED TO LOAD IMAGE 79550: data/kaggle/garbage-classification-v2/biological/biological_680.jpg
+2026-02-10 22:15:01,145 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,148 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TEST/R/R_10700.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,148 - ERROR - ❌ FAILED TO LOAD IMAGE 15529: data/kaggle/waste-classification-data/DATASET/TEST/R/R_10700.jpg
+2026-02-10 22:15:01,148 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,155 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes3616.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,156 - ERROR - ❌ FAILED TO LOAD IMAGE 5178: data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes3616.jpg
+2026-02-10 22:15:01,157 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,163 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes4885.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,163 - ERROR - ❌ FAILED TO LOAD IMAGE 2523: data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes4885.jpg
+2026-02-10 22:15:01,163 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,166 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_9804.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,166 - ERROR - ❌ FAILED TO LOAD IMAGE 49948: data/kaggle/waste-classification-data/DATASET/TRAIN/R/R_9804.jpg
+2026-02-10 22:15:01,167 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,170 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/trash/trash506.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,170 - ERROR - ❌ FAILED TO LOAD IMAGE 9311: data/kaggle/garbage-classification-mostafa/garbage_classification/trash/trash506.jpg
+2026-02-10 22:15:01,171 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,173 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/cardboard/cardboard_1214.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,173 - ERROR - ❌ FAILED TO LOAD IMAGE 74381: data/kaggle/garbage-classification-v2/cardboard/cardboard_1214.jpg
+2026-02-10 22:15:01,174 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,180 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/plastic/plastic_20248.png: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,181 - ERROR - ❌ FAILED TO LOAD IMAGE 81011: data/kaggle/garbage-classification-v2/plastic/plastic_20248.png
+2026-02-10 22:15:01,181 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,181 - ERROR -   ❌ Sample 7331 failed: ❌ TOO MANY IMAGE LOADING FAILURES (101)! This indicates a serious dataset problem. Aborting training.
+2026-02-10 22:15:01,183 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_9201.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,184 - ERROR - ❌ FAILED TO LOAD IMAGE 37735: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_9201.jpg
+2026-02-10 22:15:01,184 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,185 - ERROR -   ❌ Sample 30021 failed: ❌ TOO MANY IMAGE LOADING FAILURES (102)! This indicates a serious dataset problem. Aborting training.
+2026-02-10 22:15:01,186 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_1449.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,187 - ERROR - ❌ FAILED TO LOAD IMAGE 38620: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/O/O_1449.jpg
+2026-02-10 22:15:01,187 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,188 - ERROR -   ❌ Sample 4207 failed: ❌ TOO MANY IMAGE LOADING FAILURES (103)! This indicates a serious dataset problem. Aborting training.
+2026-02-10 22:15:01,190 - ERROR - ❌ Transform failed for data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_8028.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,190 - ERROR - ❌ FAILED TO LOAD IMAGE 26006: data/kaggle/waste-classification-data/DATASET/DATASET/TRAIN/R/R_8028.jpg
+2026-02-10 22:15:01,190 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,191 - ERROR -   ❌ Sample 41347 failed: ❌ TOO MANY IMAGE LOADING FAILURES (104)! This indicates a serious dataset problem. Aborting training.
+2026-02-10 22:15:01,198 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/shoes/shoes_479.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,199 - ERROR - ❌ FAILED TO LOAD IMAGE 83639: data/kaggle/garbage-classification-v2/shoes/shoes_479.jpg
+2026-02-10 22:15:01,199 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,200 - ERROR -   ❌ Sample 52581 failed: ❌ TOO MANY IMAGE LOADING FAILURES (105)! This indicates a serious dataset problem. Aborting training.
+2026-02-10 22:15:01,202 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification/Garbage classification/Garbage classification/glass/glass492.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,203 - ERROR - ❌ FAILED TO LOAD IMAGE 86840: data/kaggle/garbage-classification/Garbage classification/Garbage classification/glass/glass492.jpg
+2026-02-10 22:15:01,203 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,204 - ERROR -   ❌ Sample 35093 failed: ❌ TOO MANY IMAGE LOADING FAILURES (106)! This indicates a serious dataset problem. Aborting training.
+2026-02-10 22:15:01,206 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes268.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,207 - ERROR - ❌ FAILED TO LOAD IMAGE 5083: data/kaggle/garbage-classification-mostafa/garbage_classification/clothes/clothes268.jpg
+2026-02-10 22:15:01,207 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,207 - ERROR -   ❌ Sample 8675 failed: ❌ TOO MANY IMAGE LOADING FAILURES (107)! This indicates a serious dataset problem. Aborting training.
+2026-02-10 22:15:01,209 - ERROR - ❌ Transform failed for data/kaggle/garbage-classification-v2/biological/biological_170.jpg: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,210 - ERROR - ❌ FAILED TO LOAD IMAGE 79135: data/kaggle/garbage-classification-v2/biological/biological_170.jpg
+2026-02-10 22:15:01,210 - ERROR -    Error: TypeError: expected np.ndarray (got numpy.ndarray)
+2026-02-10 22:15:01,211 - ERROR -   ❌ Sample 27653 failed: ❌ TOO MANY IMAGE LOADING FAILURES (108)! This indicates a serious dataset problem. Aborting training.
+2026-02-10 22:15:01,211 - INFO -   ✅ Success rate: 0.0% (0/100)
+2026-02-10 22:15:01,212 - INFO -   ⚠️  Dummy tensors detected: 92
+2026-02-10 22:15:01,212 - INFO -   ⚠️  Failed samples: 100
+2026-02-10 22:15:01,212 - ERROR - ❌ TOO MANY DUMMY TENSORS (92/100)!
+2026-02-10 22:15:01,212 - ERROR -    This means images are NOT loading correctly.
+2026-02-10 22:15:01,213 - ERROR -    Checking first failed sample for details...
+2026-02-10 22:15:01,213 - ERROR -    Failed sample path: data/kaggle/garbage-classification-v2/shoes/shoes_1401.jpg
+2026-02-10 22:15:01,214 - ERROR -    Path exists: True
+2026-02-10 22:15:01,214 - ERROR -    File size: 8828 bytes
+2026-02-10 22:15:01,215 - ERROR - ❌ Data quality validation failed: Dataset loading is BROKEN! 92/100 samples are dummy tensors. This is NOT acceptable for training.
+2026-02-10 22:15:01,215 - ERROR - Training failed with error: Dataset loading is BROKEN! 92/100 samples are dummy tensors. This is NOT acceptable for training.
+Traceback (most recent call last):
+  File "/var/folders/y0/l9ns18ns5472mqrprmhhmsw00000gn/T/ipykernel_12780/2369721574.py", line 11, in <module>
+    vision_model = train_vision_model(VISION_CONFIG, resume_from_checkpoint=None)
+  File "/var/folders/y0/l9ns18ns5472mqrprmhhmsw00000gn/T/ipykernel_12780/2082420154.py", line 342, in train_vision_model
+    raise RuntimeError(
+RuntimeError: Dataset loading is BROKEN! 92/100 samples are dummy tensors. This is NOT acceptable for training.
