@@ -241,7 +241,7 @@ def main():
     print(f"Comprehensive report saved to: {report_path}")
 
     # Create human-readable summary
-    summary_path = Path("VALIDATION_SUMMARY.md")
+    summary_path = Path("Documents/VALIDATION_SUMMARY.md")
     with open(summary_path, 'w') as f:
         f.write("# Comprehensive Validation Summary\n\n")
         f.write(f"**Date**: 2026-01-21\n")
