@@ -1,5 +1,5 @@
 {
-  "model": {
+  "vision_model": {
     "architecture": "resnet50d",
     "framework": "timm (PyTorch)",
     "num_classes": 30,
@@ -218,24 +218,33 @@
     }
   },
   "exported_formats": {
-    "onnx": {
+    "vision_onnx": {
       "file": "waste_classifier_resnet50d.onnx",
       "opset": 17,
       "precision": "FP32"
     },
-    "coreml": {
+    "vision_coreml": {
       "file": "waste_classifier_resnet50d.mlpackage",
       "precision": "FP16",
       "target": "iOS15+"
     },
-    "tflite_fp32": {
+    "vision_tflite_fp32": {
       "file": "waste_classifier_resnet50d.tflite",
       "precision": "FP32"
     },
-    "tflite_int8": {
+    "vision_tflite_int8": {
       "file": "waste_classifier_resnet50d_int8.tflite",
       "precision": "INT8",
       "quantization": "dynamic_range"
+    },
+    "gnn_onnx": {
+      "file": "knowledge_graph_gatv2.onnx",
+      "opset": 17,
+      "note": "Pre-computed embedding lookup (43 nodes \u00d7 64-dim)"
+    },
+    "gnn_graph_data": {
+      "file": "knowledge_graph_data.json",
+      "note": "Full graph structure with node embeddings for client-side reasoning"
     }
   },
   "parity_verification": {
@@ -251,6 +260,21 @@
       "max_diff": 3.5762786865234375e-06,
       "passed": true,
       "top1_match": true
+    },
+    "gnn_onnx": {
+      "max_diff": 0.0,
+      "passed": true
     }
+  },
+  "gnn_model": {
+    "architecture": "GATv2",
+    "graph_schema": "Item\u2192Material\u2192Bin + similarity edges",
+    "graph_nodes": 43,
+    "graph_edges": 118,
+    "embedding_dim": 64,
+    "parameters_total": "232K",
+    "link_prediction_accuracy": 0.8333333134651184,
+    "best_val_loss": 0.9803298711776733,
+    "usage": "Use vision model to classify waste \u2192 look up class index in GNN embeddings \u2192 find nearest material/bin nodes for disposal guidance"
   }
 }
