@@ -1,0 +1,256 @@
+{
+  "model": {
+    "architecture": "resnet50d",
+    "framework": "timm (PyTorch)",
+    "num_classes": 30,
+    "input_size": 224,
+    "input_format": "NCHW (batch, channels, height, width)",
+    "training_epoch": 19,
+    "validation_accuracy": 94.61726851128132,
+    "parameters_total": "23.59M"
+  },
+  "preprocessing": {
+    "resize": [
+      224,
+      224
+    ],
+    "interpolation": "bicubic",
+    "normalize_mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "normalize_std": [
+      0.229,
+      0.224,
+      0.225
+    ],
+    "pixel_range": [
+      0.0,
+      1.0
+    ],
+    "note": "Input = (pixel / 255.0 - mean) / std"
+  },
+  "class_index": {
+    "0": "aerosol_cans",
+    "1": "aluminum_food_cans",
+    "2": "aluminum_soda_cans",
+    "3": "cardboard_boxes",
+    "4": "cardboard_packaging",
+    "5": "clothing",
+    "6": "coffee_grounds",
+    "7": "disposable_plastic_cutlery",
+    "8": "eggshells",
+    "9": "food_waste",
+    "10": "glass_beverage_bottles",
+    "11": "glass_cosmetic_containers",
+    "12": "glass_food_jars",
+    "13": "magazines",
+    "14": "newspaper",
+    "15": "office_paper",
+    "16": "paper_cups",
+    "17": "plastic_cup_lids",
+    "18": "plastic_detergent_bottles",
+    "19": "plastic_food_containers",
+    "20": "plastic_shopping_bags",
+    "21": "plastic_soda_bottles",
+    "22": "plastic_straws",
+    "23": "plastic_trash_bags",
+    "24": "plastic_water_bottles",
+    "25": "shoes",
+    "26": "steel_food_cans",
+    "27": "styrofoam_cups",
+    "28": "styrofoam_food_containers",
+    "29": "tea_bags"
+  },
+  "class_to_index": {
+    "aerosol_cans": 0,
+    "aluminum_food_cans": 1,
+    "aluminum_soda_cans": 2,
+    "cardboard_boxes": 3,
+    "cardboard_packaging": 4,
+    "clothing": 5,
+    "coffee_grounds": 6,
+    "disposable_plastic_cutlery": 7,
+    "eggshells": 8,
+    "food_waste": 9,
+    "glass_beverage_bottles": 10,
+    "glass_cosmetic_containers": 11,
+    "glass_food_jars": 12,
+    "magazines": 13,
+    "newspaper": 14,
+    "office_paper": 15,
+    "paper_cups": 16,
+    "plastic_cup_lids": 17,
+    "plastic_detergent_bottles": 18,
+    "plastic_food_containers": 19,
+    "plastic_shopping_bags": 20,
+    "plastic_soda_bottles": 21,
+    "plastic_straws": 22,
+    "plastic_trash_bags": 23,
+    "plastic_water_bottles": 24,
+    "shoes": 25,
+    "steel_food_cans": 26,
+    "styrofoam_cups": 27,
+    "styrofoam_food_containers": 28,
+    "tea_bags": 29
+  },
+  "recyclability": {
+    "aerosol_cans": {
+      "bin": "recycle",
+      "material": "steel/aluminum"
+    },
+    "aluminum_food_cans": {
+      "bin": "recycle",
+      "material": "aluminum"
+    },
+    "aluminum_soda_cans": {
+      "bin": "recycle",
+      "material": "aluminum"
+    },
+    "cardboard_boxes": {
+      "bin": "recycle",
+      "material": "cardboard"
+    },
+    "cardboard_packaging": {
+      "bin": "recycle",
+      "material": "cardboard"
+    },
+    "clothing": {
+      "bin": "donate/textile",
+      "material": "textile"
+    },
+    "coffee_grounds": {
+      "bin": "compost",
+      "material": "organic"
+    },
+    "disposable_plastic_cutlery": {
+      "bin": "landfill",
+      "material": "PS (#6)"
+    },
+    "eggshells": {
+      "bin": "compost",
+      "material": "organic/calcium"
+    },
+    "food_waste": {
+      "bin": "compost",
+      "material": "organic"
+    },
+    "glass_beverage_bottles": {
+      "bin": "recycle",
+      "material": "glass"
+    },
+    "glass_cosmetic_containers": {
+      "bin": "recycle",
+      "material": "glass"
+    },
+    "glass_food_jars": {
+      "bin": "recycle",
+      "material": "glass"
+    },
+    "magazines": {
+      "bin": "recycle",
+      "material": "coated paper"
+    },
+    "newspaper": {
+      "bin": "recycle",
+      "material": "paper"
+    },
+    "office_paper": {
+      "bin": "recycle",
+      "material": "paper"
+    },
+    "paper_cups": {
+      "bin": "landfill",
+      "material": "paper+PE lining"
+    },
+    "plastic_cup_lids": {
+      "bin": "recycle",
+      "material": "PP (#5)"
+    },
+    "plastic_detergent_bottles": {
+      "bin": "recycle",
+      "material": "HDPE (#2)"
+    },
+    "plastic_food_containers": {
+      "bin": "recycle",
+      "material": "PET (#1)/PP (#5)"
+    },
+    "plastic_shopping_bags": {
+      "bin": "special",
+      "material": "LDPE (#4)"
+    },
+    "plastic_soda_bottles": {
+      "bin": "recycle",
+      "material": "PET (#1)"
+    },
+    "plastic_straws": {
+      "bin": "landfill",
+      "material": "PP (#5)"
+    },
+    "plastic_trash_bags": {
+      "bin": "landfill",
+      "material": "LDPE (#4)"
+    },
+    "plastic_water_bottles": {
+      "bin": "recycle",
+      "material": "PET (#1)"
+    },
+    "shoes": {
+      "bin": "donate/special",
+      "material": "mixed"
+    },
+    "steel_food_cans": {
+      "bin": "recycle",
+      "material": "steel"
+    },
+    "styrofoam_cups": {
+      "bin": "landfill",
+      "material": "EPS (#6)"
+    },
+    "styrofoam_food_containers": {
+      "bin": "landfill",
+      "material": "EPS (#6)"
+    },
+    "tea_bags": {
+      "bin": "compost",
+      "material": "organic+paper"
+    }
+  },
+  "exported_formats": {
+    "onnx": {
+      "file": "waste_classifier_resnet50d.onnx",
+      "opset": 17,
+      "precision": "FP32"
+    },
+    "coreml": {
+      "file": "waste_classifier_resnet50d.mlpackage",
+      "precision": "FP16",
+      "target": "iOS15+"
+    },
+    "tflite_fp32": {
+      "file": "waste_classifier_resnet50d.tflite",
+      "precision": "FP32"
+    },
+    "tflite_int8": {
+      "file": "waste_classifier_resnet50d_int8.tflite",
+      "precision": "INT8",
+      "quantization": "dynamic_range"
+    }
+  },
+  "parity_verification": {
+    "onnx": {
+      "max_diff": 1.6093254089355469e-06,
+      "passed": true
+    },
+    "coreml": {
+      "loaded": true,
+      "note": "ImageType model \u2014 full numeric parity requires raw tensor input"
+    },
+    "tflite_fp32": {
+      "max_diff": 3.5762786865234375e-06,
+      "passed": true,
+      "top1_match": true
+    }
+  }
+}

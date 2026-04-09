@@ -116,3 +116,10 @@ coverage.xml
 
 # Exceptions
 !Sustainability_AI_Model_Training.ipynb
+
+
+# Deployment package — large model binaries
+deployment_package/*.onnx
+deployment_package/*.tflite
+deployment_package/*.mlpackage/
+deployment_package/tf_saved_model/
