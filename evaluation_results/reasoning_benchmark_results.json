@@ -1,0 +1,662 @@
+{
+  "timestamp": "2026-04-14T17:50:08",
+  "total_cases": 32,
+  "intent_accuracy": 0.8438,
+  "intent_by_category": {
+    "intent": 0.875,
+    "safety": 0.875,
+    "factual": 0.75,
+    "domain": 0.875
+  },
+  "entity_recall": 0.9688,
+  "entity_by_type": {
+    "ORGANIZATION": 1.0,
+    "MATERIAL": 1.0,
+    "CHEMICAL": 0.8333,
+    "ENVIRONMENTAL_CONCEPT": 1.0,
+    "ITEM": 1.0,
+    "REGULATION": 1.0
+  },
+  "safety_precision": 0.8889,
+  "safety_recall": 0.8889,
+  "safety_f1": 0.8889,
+  "avg_prompt_quality": 0.8875,
+  "system_prompt_length": 1849,
+  "raw_api_prompt_length": 28,
+  "knowledge_density_ratio": 66.0,
+  "context_integration_score": 1.0,
+  "overall_score": 0.8776,
+  "grade": "B+",
+  "case_results": [
+    {
+      "query": "Can I burn styrofoam to get rid of it?",
+      "category": "safety",
+      "intent_correct": true,
+      "intent_predicted": "safety_check",
+      "intent_confidence": 0.62,
+      "entities_found": [
+        "ITEM",
+        "MATERIAL"
+      ],
+      "entities_expected": [
+        "MATERIAL"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": true,
+      "safety_expected": true,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "How do I dispose of old mercury thermometer?",
+      "category": "safety",
+      "intent_correct": false,
+      "intent_predicted": "safety_check",
+      "intent_confidence": 0.62,
+      "entities_found": [
+        "CHEMICAL",
+        "PROCESS"
+      ],
+      "entities_expected": [
+        "CHEMICAL"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": true,
+      "safety_expected": true,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": [
+        "Intent: expected=disposal_guidance, got=safety_check"
+      ]
+    },
+    {
+      "query": "Is it safe to crush old CFL bulbs into the trash?",
+      "category": "safety",
+      "intent_correct": true,
+      "intent_predicted": "safety_check",
+      "intent_confidence": 0.85,
+      "entities_found": [
+        "ITEM",
+        "PROCESS"
+      ],
+      "entities_expected": [
+        "ITEM"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": true,
+      "safety_expected": true,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "Can I put lithium batteries in my recycling bin?",
+      "category": "safety",
+      "intent_correct": true,
+      "intent_predicted": "disposal_guidance",
+      "intent_confidence": 0.85,
+      "entities_found": [
+        "ITEM",
+        "CHEMICAL",
+        "PROCESS"
+      ],
+      "entities_expected": [
+        "ITEM"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": true,
+      "safety_expected": true,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "I found asbestos tiles in my basement, can I remove them myself?",
+      "category": "safety",
+      "intent_correct": true,
+      "intent_predicted": "safety_check",
+      "intent_confidence": 0.62,
+      "entities_found": [
+        "ITEM",
+        "CHEMICAL"
+      ],
+      "entities_expected": [
+        "CHEMICAL"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": true,
+      "safety_expected": true,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "Can I mix bleach and ammonia to clean recycling bins?",
+      "category": "safety",
+      "intent_correct": true,
+      "intent_predicted": "safety_check",
+      "intent_confidence": 0.85,
+      "entities_found": [
+        "ITEM",
+        "CHEMICAL",
+        "PROCESS"
+      ],
+      "entities_expected": [
+        "CHEMICAL"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": true,
+      "safety_expected": true,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "Is it okay to throw away used motor oil in the trash?",
+      "category": "safety",
+      "intent_correct": true,
+      "intent_predicted": "disposal_guidance",
+      "intent_confidence": 0.95,
+      "entities_found": [
+        "ITEM"
+      ],
+      "entities_expected": [
+        "CHEMICAL"
+      ],
+      "entities_recall": 0.0,
+      "safety_detected": false,
+      "safety_expected": true,
+      "safety_correct": false,
+      "prompt_quality_score": 0.85,
+      "errors": [
+        "Entities: expected=['CHEMICAL'], found=['ITEM']",
+        "Safety: expected=True, detected=False"
+      ]
+    },
+    {
+      "query": "My kid swallowed a button battery, what do I do?",
+      "category": "safety",
+      "intent_correct": true,
+      "intent_predicted": "safety_check",
+      "intent_confidence": 0.62,
+      "entities_found": [
+        "ITEM"
+      ],
+      "entities_expected": [
+        "ITEM"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": true,
+      "safety_expected": true,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "What plastic number is a water bottle?",
+      "category": "factual",
+      "intent_correct": true,
+      "intent_predicted": "material_science",
+      "intent_confidence": 0.7,
+      "entities_found": [
+        "ITEM",
+        "MATERIAL"
+      ],
+      "entities_expected": [
+        "MATERIAL",
+        "ITEM"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 1.0,
+      "errors": []
+    },
+    {
+      "query": "Can I recycle pizza boxes?",
+      "category": "factual",
+      "intent_correct": true,
+      "intent_predicted": "disposal_guidance",
+      "intent_confidence": 0.7,
+      "entities_found": [
+        "ITEM",
+        "PROCESS"
+      ],
+      "entities_expected": [
+        "ITEM"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "What's the recycling rate of aluminum cans in the US?",
+      "category": "factual",
+      "intent_correct": false,
+      "intent_predicted": "disposal_guidance",
+      "intent_confidence": 0.55,
+      "entities_found": [
+        "ITEM",
+        "MATERIAL",
+        "PROCESS"
+      ],
+      "entities_expected": [
+        "MATERIAL"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": [
+        "Intent: expected=sustainability_info, got=disposal_guidance"
+      ]
+    },
+    {
+      "query": "How many times can paper be recycled?",
+      "category": "factual",
+      "intent_correct": false,
+      "intent_predicted": "general_question",
+      "intent_confidence": 0.3,
+      "entities_found": [
+        "ITEM",
+        "MATERIAL"
+      ],
+      "entities_expected": [
+        "MATERIAL"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 1.0,
+      "errors": [
+        "Intent: expected=material_science, got=general_question"
+      ]
+    },
+    {
+      "query": "Can I put plastic bags in curbside recycling?",
+      "category": "factual",
+      "intent_correct": true,
+      "intent_predicted": "disposal_guidance",
+      "intent_confidence": 0.7,
+      "entities_found": [
+        "ITEM",
+        "MATERIAL",
+        "PROCESS"
+      ],
+      "entities_expected": [
+        "MATERIAL"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "What is the difference between #1 and #2 plastic?",
+      "category": "factual",
+      "intent_correct": true,
+      "intent_predicted": "material_science",
+      "intent_confidence": 0.7,
+      "entities_found": [
+        "MATERIAL"
+      ],
+      "entities_expected": [
+        "MATERIAL"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 1.0,
+      "errors": []
+    },
+    {
+      "query": "Are black plastic containers recyclable?",
+      "category": "factual",
+      "intent_correct": true,
+      "intent_predicted": "disposal_guidance",
+      "intent_confidence": 0.55,
+      "entities_found": [
+        "ITEM",
+        "MATERIAL"
+      ],
+      "entities_expected": [
+        "MATERIAL"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "How long does glass take to decompose?",
+      "category": "factual",
+      "intent_correct": true,
+      "intent_predicted": "material_science",
+      "intent_confidence": 0.55,
+      "entities_found": [
+        "MATERIAL"
+      ],
+      "entities_expected": [
+        "MATERIAL"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 1.0,
+      "errors": []
+    },
+    {
+      "query": "What is PLA and can I put it in recycling?",
+      "category": "domain",
+      "intent_correct": false,
+      "intent_predicted": "disposal_guidance",
+      "intent_confidence": 0.55,
+      "entities_found": [
+        "ITEM",
+        "MATERIAL",
+        "PROCESS"
+      ],
+      "entities_expected": [
+        "MATERIAL"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": [
+        "Intent: expected=material_science, got=disposal_guidance"
+      ]
+    },
+    {
+      "query": "What does the chasing arrows symbol on plastic actually mean?",
+      "category": "domain",
+      "intent_correct": true,
+      "intent_predicted": "sustainability_info",
+      "intent_confidence": 0.52,
+      "entities_found": [
+        "MATERIAL"
+      ],
+      "entities_expected": [
+        "MATERIAL"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "What is China's National Sword policy?",
+      "category": "domain",
+      "intent_correct": true,
+      "intent_predicted": "policy_regulation",
+      "intent_confidence": 0.55,
+      "entities_found": [],
+      "entities_expected": [],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "What is extended producer responsibility?",
+      "category": "domain",
+      "intent_correct": true,
+      "intent_predicted": "policy_regulation",
+      "intent_confidence": 0.55,
+      "entities_found": [
+        "REGULATION"
+      ],
+      "entities_expected": [
+        "REGULATION"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "Are compostable cups actually compostable?",
+      "category": "domain",
+      "intent_correct": true,
+      "intent_predicted": "sustainability_info",
+      "intent_confidence": 0.64,
+      "entities_found": [
+        "ITEM",
+        "MATERIAL"
+      ],
+      "entities_expected": [
+        "ITEM"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "What are PFAS and why are they in packaging?",
+      "category": "domain",
+      "intent_correct": true,
+      "intent_predicted": "material_science",
+      "intent_confidence": 0.55,
+      "entities_found": [
+        "ITEM",
+        "CHEMICAL"
+      ],
+      "entities_expected": [
+        "CHEMICAL"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": true,
+      "safety_expected": false,
+      "safety_correct": false,
+      "prompt_quality_score": 1.0,
+      "errors": [
+        "Safety: expected=False, detected=True"
+      ]
+    },
+    {
+      "query": "Is biodegradable the same as compostable?",
+      "category": "domain",
+      "intent_correct": true,
+      "intent_predicted": "sustainability_info",
+      "intent_confidence": 0.52,
+      "entities_found": [
+        "MATERIAL"
+      ],
+      "entities_expected": [],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "What is single-stream recycling?",
+      "category": "domain",
+      "intent_correct": true,
+      "intent_predicted": "sustainability_info",
+      "intent_confidence": 0.64,
+      "entities_found": [
+        "ENVIRONMENTAL_CONCEPT"
+      ],
+      "entities_expected": [],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "Hello!",
+      "category": "intent",
+      "intent_correct": true,
+      "intent_predicted": "chitchat",
+      "intent_confidence": 0.7,
+      "entities_found": [],
+      "entities_expected": [],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 1.0,
+      "errors": []
+    },
+    {
+      "query": "Thank you so much!",
+      "category": "intent",
+      "intent_correct": true,
+      "intent_predicted": "chitchat",
+      "intent_confidence": 0.7,
+      "entities_found": [],
+      "entities_expected": [],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 1.0,
+      "errors": []
+    },
+    {
+      "query": "DIY projects with wine bottles",
+      "category": "intent",
+      "intent_correct": true,
+      "intent_predicted": "upcycling_ideas",
+      "intent_confidence": 0.55,
+      "entities_found": [
+        "ITEM"
+      ],
+      "entities_expected": [
+        "ITEM"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "Where is the nearest Goodwill?",
+      "category": "intent",
+      "intent_correct": true,
+      "intent_predicted": "organization_search",
+      "intent_confidence": 0.55,
+      "entities_found": [
+        "ORGANIZATION"
+      ],
+      "entities_expected": [
+        "ORGANIZATION"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "What is the carbon footprint of a plastic bag?",
+      "category": "intent",
+      "intent_correct": false,
+      "intent_predicted": "material_science",
+      "intent_confidence": 0.55,
+      "entities_found": [
+        "ITEM",
+        "MATERIAL",
+        "ENVIRONMENTAL_CONCEPT"
+      ],
+      "entities_expected": [
+        "ENVIRONMENTAL_CONCEPT"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 1.0,
+      "errors": [
+        "Intent: expected=lifecycle_analysis, got=material_science"
+      ]
+    },
+    {
+      "query": "Which bin does a yogurt cup go in?",
+      "category": "intent",
+      "intent_correct": true,
+      "intent_predicted": "disposal_guidance",
+      "intent_confidence": 0.55,
+      "entities_found": [
+        "ITEM"
+      ],
+      "entities_expected": [
+        "ITEM"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "How toxic is lead paint?",
+      "category": "intent",
+      "intent_correct": true,
+      "intent_predicted": "safety_check",
+      "intent_confidence": 0.62,
+      "entities_found": [
+        "CHEMICAL"
+      ],
+      "entities_expected": [
+        "CHEMICAL"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": true,
+      "safety_expected": true,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    },
+    {
+      "query": "Turn old t-shirts into something useful",
+      "category": "intent",
+      "intent_correct": true,
+      "intent_predicted": "upcycling_ideas",
+      "intent_confidence": 0.55,
+      "entities_found": [
+        "ITEM"
+      ],
+      "entities_expected": [
+        "ITEM"
+      ],
+      "entities_recall": 1.0,
+      "safety_detected": false,
+      "safety_expected": false,
+      "safety_correct": true,
+      "prompt_quality_score": 0.85,
+      "errors": []
+    }
+  ]
+}

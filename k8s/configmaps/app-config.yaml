@@ -17,6 +17,12 @@ data:
   VISION_SERVICE_URL: "http://vision-service.releaf-ai.svc.cluster.local:8001"
   LLM_SERVICE_URL: "http://llm-service.releaf-ai.svc.cluster.local:8002"
   RAG_SERVICE_URL: "http://rag-service.releaf-ai.svc.cluster.local:8003"
+
+  # LLM API Backend Configuration (non-secret settings)
+  LLM_API_BASE_URL: "https://api.openai.com/v1"
+  LLM_MODEL_NAME: "gpt-4o-mini"
+  LLM_API_TIMEOUT: "120"
+  LLM_MAX_RETRIES: "2"
   KG_SERVICE_URL: "http://kg-service.releaf-ai.svc.cluster.local:8004"
   ORG_SEARCH_SERVICE_URL: "http://org-search-service.releaf-ai.svc.cluster.local:8005"
   

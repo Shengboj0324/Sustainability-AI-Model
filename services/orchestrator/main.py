@@ -27,9 +27,30 @@ import json
 import sys
 from pathlib import Path
 
-# Import answer formatter
+# Import answer formatter and NLP modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared.answer_formatter import AnswerFormatter, AnswerType, FormattedAnswer
+from llm_service.intent_classifier import IntentClassifier, IntentCategory
+from llm_service.entity_extractor import EntityExtractor
+
+# Initialize shared NLP modules for request classification
+_intent_classifier = IntentClassifier()
+_entity_extractor = EntityExtractor()
+
+# Mapping from IntentCategory to orchestrator task types
+_INTENT_TO_TASK: Dict[str, str] = {
+    "waste_identification": "BIN_DECISION",
+    "disposal_guidance": "BIN_DECISION",
+    "upcycling_ideas": "UPCYCLING_IDEA",
+    "organization_search": "ORG_SEARCH",
+    "sustainability_info": "THEORY_QA",
+    "material_science": "MATERIAL_INFO",
+    "safety_check": "SAFETY_CHECK",
+    "lifecycle_analysis": "THEORY_QA",
+    "policy_regulation": "THEORY_QA",
+    "general_question": "THEORY_QA",
+    "chitchat": "THEORY_QA",
+}
 
 # Import monitoring components
 from common.structured_logging import get_logger, log_context, set_correlation_id
@@ -285,58 +306,52 @@ class RequestClassifier:
     @staticmethod
     async def classify_task_type(request: OrchestratorRequest) -> Tuple[str, float]:
         """
-        Determine task type from user intent with confidence
+        Determine task type from user intent using semantic classification.
+
+        Uses the enhanced IntentClassifier (heuristic fallback; LLM-based
+        classification happens when the LLM service processes the request).
 
         Returns: (task_type, confidence)
         """
-        # Simple keyword-based classification (can be replaced with LLM)
         if not request.messages:
-            # Image-only request
             if request.image or request.image_url:
                 return "BIN_DECISION", 0.7
             return "THEORY_QA", 0.3
 
-        last_message = request.messages[-1].get("content", "").lower()
+        last_message = request.messages[-1].get("content", "")
+        if not last_message.strip():
+            return "THEORY_QA", 0.3
 
-        # Keyword matching with confidence scoring
-        task_scores = {
-            "BIN_DECISION": 0.0,
-            "UPCYCLING_IDEA": 0.0,
-            "ORG_SEARCH": 0.0,
-            "SAFETY_CHECK": 0.0,
-            "MATERIAL_INFO": 0.0,
-            "THEORY_QA": 0.1  # Base score
+        # Use semantic intent classifier
+        intent, confidence = _intent_classifier.classify(last_message)
+        task_type = _INTENT_TO_TASK.get(intent.value, "THEORY_QA")
+
+        # Extract entities for context enrichment (attached to request metadata)
+        entities = _entity_extractor.extract(last_message)
+        entity_summary = _entity_extractor.get_entity_summary(entities)
+
+        # Get context hints from intent classifier
+        hints = _intent_classifier.get_context_hints(intent)
+
+        # Store NLP metadata on the request for downstream services
+        if not hasattr(request, '_nlp_metadata'):
+            request._nlp_metadata = {}
+        request._nlp_metadata = {
+            "intent": intent.value,
+            "intent_confidence": confidence,
+            "task_type": task_type,
+            "entities": [e.to_dict() for e in entities],
+            "entity_summary": entity_summary,
+            "context_hints": hints,
         }
 
-        # Bin decision keywords
-        bin_keywords = ["bin", "recycle", "dispose", "throw", "trash", "garbage", "waste"]
-        task_scores["BIN_DECISION"] += sum(0.2 for word in bin_keywords if word in last_message)
+        logger.info(
+            f"Semantic classification: intent={intent.value} "
+            f"task={task_type} conf={confidence:.2f} "
+            f"entities={len(entities)}"
+        )
 
-        # Upcycling keywords
-        upcycle_keywords = ["upcycle", "reuse", "make", "create", "diy", "craft", "repurpose"]
-        task_scores["UPCYCLING_IDEA"] += sum(0.2 for word in upcycle_keywords if word in last_message)
-
-        # Organization search keywords
-        org_keywords = ["where", "find", "location", "near", "facility", "center", "place"]
-        task_scores["ORG_SEARCH"] += sum(0.15 for word in org_keywords if word in last_message)
-
-        # Safety keywords
-        safety_keywords = ["safe", "danger", "toxic", "hazard", "harmful", "poison"]
-        task_scores["SAFETY_CHECK"] += sum(0.2 for word in safety_keywords if word in last_message)
-
-        # Material info keywords
-        material_keywords = ["material", "property", "chemistry", "composition", "made of", "type"]
-        task_scores["MATERIAL_INFO"] += sum(0.15 for word in material_keywords if word in last_message)
-
-        # Get best match
-        best_task = max(task_scores, key=task_scores.get)
-        confidence = min(1.0, task_scores[best_task])
-
-        # If confidence is too low, default to THEORY_QA
-        if confidence < 0.3:
-            return "THEORY_QA", 0.5
-
-        return best_task, confidence
+        return task_type, confidence
 
 
 class FallbackStrategy:
@@ -575,14 +590,22 @@ class WorkflowExecutor:
         context: Dict[str, Any]
     ):
         """
-        Call LLM service with circuit breaker protection
+        Call LLM service with NLP metadata and circuit breaker protection.
 
-        CRITICAL FIX: Prevents cascade failures when LLM service is slow/down
+        Injects NLP metadata (intent, entities, context hints) so the LLM
+        service can use prompt templates for deep reasoning.
         """
         endpoint = f"{url}/{action}"
+
+        # Inject NLP metadata into context for prompt template selection
+        nlp_metadata = getattr(request, '_nlp_metadata', {})
+        enriched_context = {**context}
+        if nlp_metadata:
+            enriched_context["nlp_metadata"] = nlp_metadata
+
         payload = {
             "messages": request.messages,
-            "context": context
+            "context": enriched_context,
         }
 
         async def _call():

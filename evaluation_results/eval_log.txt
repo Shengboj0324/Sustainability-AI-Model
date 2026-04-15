@@ -1,0 +1,186 @@
+2026-04-09 01:36:18,509 - INFO - ================================================================================
+2026-04-09 01:36:18,509 - INFO - COMPREHENSIVE MODEL EVALUATION — Industrial Grade
+2026-04-09 01:36:18,509 - INFO - ================================================================================
+2026-04-09 01:36:18,852 - INFO - ✅ Model loaded from best_model_epoch19_acc94.62.pth (epoch 19, val_acc=94.62%)
+2026-04-09 01:36:18,853 - INFO - 
+📂 Loading full evaluation dataset...
+2026-04-09 01:36:19,161 - INFO - EvalWasteDataset: 48491 samples loaded
+2026-04-09 01:36:19,161 - INFO - 
+================================================================================
+2026-04-09 01:36:19,161 - INFO - PILLAR 1: Exhaustive Quantitative Performance Audit
+2026-04-09 01:36:19,161 - INFO - ================================================================================
+2026-04-09 01:37:48,527 - INFO -   [P1] 50/758 batches (3200/48491 images)
+2026-04-09 01:39:16,061 - INFO -   [P1] 100/758 batches (6400/48491 images)
+2026-04-09 01:40:43,785 - INFO -   [P1] 150/758 batches (9600/48491 images)
+2026-04-09 01:42:11,279 - INFO -   [P1] 200/758 batches (12800/48491 images)
+2026-04-09 01:43:36,945 - INFO -   [P1] 250/758 batches (16000/48491 images)
+2026-04-09 01:45:02,428 - INFO -   [P1] 300/758 batches (19200/48491 images)
+2026-04-09 01:46:29,019 - INFO -   [P1] 350/758 batches (22400/48491 images)
+2026-04-09 01:47:54,383 - INFO -   [P1] 400/758 batches (25600/48491 images)
+2026-04-09 01:49:19,305 - INFO -   [P1] 450/758 batches (28800/48491 images)
+2026-04-09 01:50:48,554 - INFO -   [P1] 500/758 batches (32000/48491 images)
+2026-04-09 01:52:16,488 - INFO -   [P1] 550/758 batches (35200/48491 images)
+2026-04-09 01:53:45,588 - INFO -   [P1] 600/758 batches (38400/48491 images)
+2026-04-09 01:55:16,448 - INFO -   [P1] 650/758 batches (41600/48491 images)
+2026-04-09 01:56:53,374 - INFO -   [P1] 700/758 batches (44800/48491 images)
+2026-04-09 01:58:18,482 - INFO -   [P1] 750/758 batches (48000/48491 images)
+2026-04-09 01:58:31,417 - INFO -   [P1] 758/758 batches (48491/48491 images)
+2026-04-09 01:58:31,431 - INFO - 
+📊 Overall Accuracy: 90.17% (43726/48491)
+2026-04-09 01:58:31,431 - INFO - ⏱  Latency: 24.33 ms/image
+2026-04-09 01:58:31,431 - INFO - 🚀 Throughput: 41.1 images/sec (CPU, 14 threads)
+2026-04-09 01:58:33,004 - INFO - NumExpr defaulting to 14 threads.
+2026-04-09 01:58:33,659 - INFO - 
+🔍 TOP 5 FAILURE MODE ANALYSIS:
+2026-04-09 01:58:33,660 - INFO - 
+  #1 plastic_trash_bags (F1=0.3712, Support=2156.0)
+2026-04-09 01:58:33,660 - INFO -      Correct: 493/2156 (22.9%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'food_waste': 1639 (76.0%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'plastic_food_containers': 11 (0.5%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'plastic_shopping_bags': 4 (0.2%)
+2026-04-09 01:58:33,660 - INFO - 
+  #2 glass_beverage_bottles (F1=0.4698, Support=1904.0)
+2026-04-09 01:58:33,660 - INFO -      Correct: 1050/1904 (55.1%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'glass_food_jars': 845 (44.4%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'plastic_soda_bottles': 4 (0.2%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'plastic_food_containers': 2 (0.1%)
+2026-04-09 01:58:33,660 - INFO - 
+  #3 food_waste (F1=0.6410, Support=1485.0)
+2026-04-09 01:58:33,660 - INFO -      Correct: 1481/1485 (99.7%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'clothing': 2 (0.1%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'coffee_grounds': 1 (0.1%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'eggshells': 1 (0.1%)
+2026-04-09 01:58:33,660 - INFO - 
+  #4 glass_food_jars (F1=0.7018, Support=4305.0)
+2026-04-09 01:58:33,660 - INFO -      Correct: 2798/4305 (65.0%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'glass_beverage_bottles': 1497 (34.8%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'plastic_food_containers': 5 (0.1%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'glass_cosmetic_containers': 2 (0.0%)
+2026-04-09 01:58:33,660 - INFO - 
+  #5 cardboard_packaging (F1=0.7970, Support=500.0)
+2026-04-09 01:58:33,660 - INFO -      Correct: 481/500 (96.2%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'cardboard_boxes': 15 (3.0%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'glass_cosmetic_containers': 2 (0.4%)
+2026-04-09 01:58:33,660 - INFO -      → Confused with 'plastic_food_containers': 1 (0.2%)
+2026-04-09 01:58:33,661 - INFO - 
+✅ Pillar 1 complete. CM saved to /Users/jiangshengbo/Desktop/Sustainability-AI-Model/evaluation_results/confusion_matrix_full.npy
+2026-04-09 01:58:33,661 - INFO - 
+================================================================================
+2026-04-09 01:58:33,661 - INFO - PILLAR 2: Robustness & Environmental Stress Testing
+2026-04-09 01:58:33,661 - INFO - ================================================================================
+2026-04-09 01:58:33,662 - INFO - 
+── 2A: Noise Injection Suite ──
+2026-04-09 01:59:27,961 - INFO -   Clean (baseline)    :  88.55% (Δ=+0.00%)
+2026-04-09 02:00:39,271 - INFO -   Gaussian σ=10       :  88.40% (Δ=-0.15%)
+2026-04-09 02:01:50,834 - INFO -   Gaussian σ=25       :  66.75% (Δ=-21.80%)
+2026-04-09 02:03:03,555 - INFO -   Gaussian σ=50       :  24.00% (Δ=-64.55%)
+2026-04-09 02:04:02,134 - INFO -   Blur r=1            :  88.20% (Δ=-0.35%)
+2026-04-09 02:05:00,602 - INFO -   Blur r=3            :  68.90% (Δ=-19.65%)
+2026-04-09 02:05:59,153 - INFO -   Blur r=5            :  51.75% (Δ=-36.80%)
+2026-04-09 02:06:53,789 - INFO -   Dim (0.7x)          :  88.65% (Δ=+0.10%)
+2026-04-09 02:07:48,045 - INFO -   Dim (0.4x)          :  89.05% (Δ=+0.50%)
+2026-04-09 02:08:42,952 - INFO -   Low contrast        :  89.20% (Δ=+0.65%)
+2026-04-09 02:08:42,952 - INFO - 
+── 2B: Out-of-Distribution (Real-World) Test ──
+2026-04-09 02:08:42,994 - INFO - EvalWasteDataset: 7500 samples loaded
+2026-04-09 02:08:42,994 - INFO -   Real-world images: 7500
+2026-04-09 02:12:07,519 - INFO -   Real-world accuracy: 95.19%
+2026-04-09 02:12:07,519 - INFO -   Full-dataset accuracy: ~94.62% (from training)
+2026-04-09 02:12:07,519 - INFO -   Domain gap: -0.57%
+2026-04-09 02:12:07,519 - INFO - 
+✅ Pillar 2 complete.
+2026-04-09 02:12:07,519 - INFO - 
+================================================================================
+2026-04-09 02:12:07,519 - INFO - PILLAR 3: Comparative Benchmark vs. Generalist Models
+2026-04-09 02:12:07,519 - INFO - ================================================================================
+2026-04-09 02:12:07,519 - INFO - 
+── 3A: Specialized Model vs. ImageNet Baseline ──
+2026-04-09 02:12:07,766 - INFO - Loading pretrained weights from Hugging Face hub (timm/resnet50d.ra2_in1k)
+2026-04-09 02:12:08,096 - INFO - [timm/resnet50d.ra2_in1k] Safe alternative available for 'pytorch_model.bin' (as 'model.safetensors'). Loading weights using safetensors.
+2026-04-09 02:12:08,191 - INFO - Missing keys (fc.weight, fc.bias) discovered while loading pretrained weights. This is expected if model is being adapted.
+2026-04-09 02:13:03,109 - INFO -   Fine-tuned ResNet50d          : 90.60%
+2026-04-09 02:13:57,092 - INFO -   ImageNet Baseline             : 2.85%
+2026-04-09 02:13:57,092 - INFO -   Improvement from specialized training: +87.75%
+2026-04-09 02:13:57,092 - INFO - 
+── 3B: Visually-Similar Material Distinction ──
+2026-04-09 02:13:57,092 - INFO -   Running full-dataset inference for material analysis...
+2026-04-09 02:16:50,618 - INFO -   [P3] 100/758 batches
+2026-04-09 02:19:45,027 - INFO -   [P3] 200/758 batches
+2026-04-09 02:22:37,295 - INFO -   [P3] 300/758 batches
+2026-04-09 02:25:28,488 - INFO -   [P3] 400/758 batches
+2026-04-09 02:28:21,422 - INFO -   [P3] 500/758 batches
+2026-04-09 02:31:16,510 - INFO -   [P3] 600/758 batches
+2026-04-09 02:34:22,882 - INFO -   [P3] 700/758 batches
+2026-04-09 02:36:01,159 - INFO -   Glass types              :  64.75% (4344/6709)
+2026-04-09 02:36:01,159 - INFO -     Intra-group confusion: 2346  |  Out-of-group errors: 19
+2026-04-09 02:36:01,160 - INFO -   Cardboard types          :  93.90% (4125/4393)
+2026-04-09 02:36:01,160 - INFO -     Intra-group confusion: 238  |  Out-of-group errors: 30
+2026-04-09 02:36:01,164 - INFO -   Aluminum vs Steel        :  93.84% (3139/3345)
+2026-04-09 02:36:01,164 - INFO -     Intra-group confusion: 190  |  Out-of-group errors: 16
+2026-04-09 02:36:01,165 - INFO -   PET plastics             :  95.47% (1432/1500)
+2026-04-09 02:36:01,165 - INFO -     Intra-group confusion: 32  |  Out-of-group errors: 36
+2026-04-09 02:36:01,166 - INFO -   Plastic containers       :  98.54% (4395/4460)
+2026-04-09 02:36:01,166 - INFO -     Intra-group confusion: 6  |  Out-of-group errors: 59
+2026-04-09 02:36:01,167 - INFO -   Paper types              :  98.94% (4291/4337)
+2026-04-09 02:36:01,167 - INFO -     Intra-group confusion: 21  |  Out-of-group errors: 25
+2026-04-09 02:36:01,167 - INFO -   Styrofoam types          :  99.30% (993/1000)
+2026-04-09 02:36:01,167 - INFO -     Intra-group confusion: 1  |  Out-of-group errors: 6
+2026-04-09 02:36:01,167 - INFO - 
+✅ Pillar 3 complete.
+2026-04-09 02:36:01,167 - INFO - 
+================================================================================
+2026-04-09 02:36:01,168 - INFO - PILLAR 4: Sustainability Feature Validation
+2026-04-09 02:36:01,168 - INFO - ================================================================================
+2026-04-09 02:36:01,168 - INFO - 
+── 4A: Environmental Knowledge — Recyclability Mapping ──
+2026-04-09 02:36:01,168 - INFO -   COMPOST         (4 classes): coffee_grounds, eggshells, food_waste, tea_bags
+2026-04-09 02:36:01,168 - INFO -   DONATE/SPECIAL  (1 classes): shoes
+2026-04-09 02:36:01,168 - INFO -   DONATE/TEXTILE  (1 classes): clothing
+2026-04-09 02:36:01,168 - INFO -   LANDFILL        (6 classes): disposable_plastic_cutlery, paper_cups, plastic_straws, plastic_trash_bags, styrofoam_cups, styrofoam_food_containers
+2026-04-09 02:36:01,168 - INFO -   RECYCLE         (17 classes): aerosol_cans, aluminum_food_cans, aluminum_soda_cans, cardboard_boxes, cardboard_packaging, glass_beverage_bottles, glass_cosmetic_containers, glass_food_jars, magazines, newspaper, office_paper, plastic_cup_lids, plastic_detergent_bottles, plastic_food_containers, plastic_soda_bottles, plastic_water_bottles, steel_food_cans
+2026-04-09 02:36:01,168 - INFO -   SPECIAL         (1 classes): plastic_shopping_bags
+2026-04-09 02:36:01,168 - INFO - 
+  📊 Disposal distribution:
+2026-04-09 02:36:01,168 - INFO -      Recyclable:  17 classes
+2026-04-09 02:36:01,168 - INFO -      Compostable: 4 classes
+2026-04-09 02:36:01,168 - INFO -      Landfill:    6 classes
+2026-04-09 02:36:01,168 - INFO -      Special:     3 classes
+2026-04-09 02:36:01,168 - INFO - 
+── 4B: Bin-Level Accuracy (Sustainability Impact) ──
+2026-04-09 02:58:10,488 - INFO -   🎯 Bin-level accuracy: 96.33%
+2026-04-09 02:58:10,489 - INFO -      (If the model puts waste in the CORRECT bin, even if exact class is wrong)
+2026-04-09 02:58:10,489 - INFO - 
+── 4C: Class Imbalance Analysis ──
+2026-04-09 02:58:10,492 - INFO -   Largest class:  clothing (11152 samples)
+2026-04-09 02:58:10,492 - INFO -   Smallest class: aerosol_cans (500 samples)
+2026-04-09 02:58:10,492 - INFO -   Imbalance ratio: 22.3:1
+2026-04-09 02:58:10,492 - INFO - 
+  Accuracy by sample frequency:
+2026-04-09 02:58:10,493 - INFO -     Top-5 (most samples): 93.26% (25426/27264)
+2026-04-09 02:58:10,493 - INFO -     Bottom-5 (fewest samples): 98.56% (2464/2500)
+2026-04-09 02:58:10,493 - INFO - 
+── 4D: Multi-Source Data Lake Analysis ──
+2026-04-09 02:58:10,494 - INFO -   Sources contributing to evaluation:
+2026-04-09 02:58:10,495 - INFO -     garbage_v2_10            :  18271 images ( 37.7%)
+2026-04-09 02:58:10,495 - INFO -     master_30                :  15000 images ( 30.9%)
+2026-04-09 02:58:10,495 - INFO -     garbage_12               :  14570 images ( 30.0%)
+2026-04-09 02:58:10,495 - INFO -     warp_industrial          :    650 images (  1.3%)
+2026-04-09 02:58:10,495 - INFO - 
+✅ Pillar 4 complete.
+2026-04-09 02:58:10,495 - INFO - 
+================================================================================
+2026-04-09 02:58:10,495 - INFO - SAVING FINAL REPORT
+2026-04-09 02:58:10,495 - INFO - ================================================================================
+2026-04-09 02:58:10,498 - INFO - ✅ Full report saved to /Users/jiangshengbo/Desktop/Sustainability-AI-Model/evaluation_results/comprehensive_evaluation_report.json
+2026-04-09 02:58:10,498 - INFO - 
+================================================================================
+2026-04-09 02:58:10,498 - INFO - EVALUATION SUMMARY
+2026-04-09 02:58:10,498 - INFO - ================================================================================
+2026-04-09 02:58:10,498 - INFO -   P1 Accuracy:         90.17%
+2026-04-09 02:58:10,498 - INFO -   P1 Latency:          24.33 ms/img
+2026-04-09 02:58:10,498 - INFO -   P1 Throughput:        41.1 img/s
+2026-04-09 02:58:10,498 - INFO -   P2 Real-world OOD:   95.18666666666667
+2026-04-09 02:58:10,498 - INFO -   P3 vs Baseline:      +87.75%
+2026-04-09 02:58:10,498 - INFO -   P4 Bin-level Acc:    96.33334020746118
+2026-04-09 02:58:10,498 - INFO - 
+🏁 EVALUATION COMPLETE

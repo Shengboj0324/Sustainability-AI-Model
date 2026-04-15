@@ -85,6 +85,10 @@ except ImportError:
 from .intent_classifier import IntentClassifier, IntentCategory
 from .entity_extractor import EntityExtractor, Entity
 from .language_handler import LanguageHandler, Language
+from .llm_backend import OpenAIBackend
+from .prompt_templates.sustainability_prompts import (
+    build_prompt, TASK_PROMPTS, MASTER_SYSTEM_PROMPT
+)
 
 # Configure structured logging
 logger = get_logger(__name__)
@@ -189,7 +193,7 @@ class LLMServiceV2:
         self.device = None
         self.model = None
         self.tokenizer = None
-        self.system_prompt = self.config.get("system_prompt", "You are a helpful sustainability assistant.")
+        self.system_prompt = MASTER_SYSTEM_PROMPT  # Use expert prompt, not config stub
         self._shutdown = False
 
         # Performance tracking (thread-safe)
@@ -203,7 +207,11 @@ class LLMServiceV2:
         self.entity_extractor = EntityExtractor()
         self.language_handler = LanguageHandler()
 
-        logger.info("LLMServiceV2 initialized with NLP modules")
+        # Initialize OpenAI-compatible API backend (fallback when local model unavailable)
+        self.openai_backend = OpenAIBackend()
+        self._use_api_backend = False  # Set during initialize()
+
+        logger.info("LLMServiceV2 initialized with NLP modules + API backend")
 
     def _load_config(self, config_path: str) -> Dict:
         """Load configuration"""
@@ -244,22 +252,46 @@ class LLMServiceV2:
 
     async def initialize(self):
         """
-        Load model and tokenizer
+        Load model and tokenizer, or fall back to OpenAI-compatible API.
 
-        CRITICAL FIX: Gracefully degrade if transformers not available
+        Priority chain:
+        1. Local model (transformers + LoRA adapter)
+        2. OpenAI-compatible API backend (LLM_API_KEY env var)
+        3. Degraded mode (NLP preprocessing only, no generation)
         """
-        # Check if transformers is available
+        # Try local model first
         if not TRANSFORMERS_AVAILABLE:
-            logger.error(
-                "⚠️  Cannot initialize LLM - transformers not available\n"
-                f"   Error: {TRANSFORMERS_ERROR}\n"
-                "   Service will run in degraded mode (health checks only)\n"
-                "   See ENVIRONMENT_FIX_GUIDE.md for solutions"
+            logger.warning(
+                "Transformers not available — skipping local model.\n"
+                f"   Reason: {TRANSFORMERS_ERROR}"
             )
             self.model = None
             self.tokenizer = None
             self.device = None
-            return
+        else:
+            await self._try_load_local_model()
+
+        # Determine backend
+        if self.model is not None:
+            self._use_api_backend = False
+            logger.info("✅ Using LOCAL model backend")
+        elif self.openai_backend.available:
+            self._use_api_backend = True
+            logger.info(
+                f"✅ Using API backend: {self.openai_backend.model} "
+                f"via {self.openai_backend.base_url}"
+            )
+        else:
+            self._use_api_backend = False
+            logger.error(
+                "⚠️  NO LLM BACKEND AVAILABLE.\n"
+                "   Set LLM_API_KEY and optionally LLM_API_BASE_URL to enable API backend.\n"
+                "   Or install transformers + torch for local inference.\n"
+                "   Service will run in degraded mode (NLP preprocessing only)."
+            )
+
+    async def _try_load_local_model(self):
+        """Attempt to load the local transformers model."""
 
         try:
             logger.info("Loading LLM model...")
@@ -407,92 +439,107 @@ class LLMServiceV2:
                 "query_en": user_query
             }
 
-    def _format_messages(self, messages: List[Dict[str, str]], context: Optional[Dict] = None) -> str:
-        """Format messages for the model"""
-        # Add system prompt if not present
-        if not messages or messages[0].get("role") != "system":
-            messages.insert(0, {"role": "system", "content": self.system_prompt})
+    def _build_enhanced_messages(
+        self,
+        messages: List[Dict[str, str]],
+        context: Optional[Dict] = None,
+    ) -> List[Dict[str, str]]:
+        """
+        Build enhanced messages using prompt templates.
 
-        # Add context if provided
-        if context:
-            context_str = self._format_context(context)
-            if context_str:
-                messages.insert(1, {"role": "system", "content": context_str})
+        Replaces the old _format_messages approach. Instead of injecting a
+        bare system prompt, we use the full prompt template system with
+        chain-of-thought reasoning instructions.
+        """
+        # Extract NLP metadata from context
+        nlp = (context or {}).get("nlp_metadata", {})
+        task_type = nlp.get("context_hints", {}).get("task_type", "general")
+        entities = nlp.get("entities", [])
 
-        # Use chat template if available
-        if hasattr(self.tokenizer, "apply_chat_template"):
+        # Extract service contexts
+        vision_ctx = None
+        if "vision" in (context or {}):
+            v = context["vision"]
+            if isinstance(v, dict):
+                vision_ctx = v
+            else:
+                vision_ctx = {"class_name": str(v), "confidence": 0.0,
+                              "material": "unknown", "bin_type": "unknown"}
+
+        rag_ctx = None
+        if "rag" in (context or {}):
+            r = context["rag"]
+            if isinstance(r, list):
+                rag_ctx = r
+            elif isinstance(r, str) and r:
+                rag_ctx = [{"source": "knowledge_base", "content": r, "score": 0.7}]
+
+        kg_ctx = None
+        if "kg" in (context or {}):
+            k = context["kg"]
+            if isinstance(k, dict):
+                kg_ctx = k
+            elif isinstance(k, str) and k:
+                kg_ctx = {"relationships": k}
+
+        # Get user query from messages
+        user_query = ""
+        conversation_history = []
+        for msg in messages:
+            if msg.get("role") == "user":
+                user_query = msg.get("content", "")
+            elif msg.get("role") != "system":
+                conversation_history.append(msg)
+
+        if not user_query:
+            user_query = messages[-1].get("content", "") if messages else ""
+
+        # Build enhanced prompt using the template system
+        enhanced_msgs = build_prompt(
+            task_type=task_type,
+            user_query=user_query,
+            vision_context=vision_ctx,
+            rag_context=rag_ctx,
+            kg_context=kg_ctx,
+            conversation_history=conversation_history if len(conversation_history) > 1 else None,
+            detected_entities=entities if entities else None,
+        )
+
+        return enhanced_msgs
+
+    def _format_messages_for_local(
+        self, messages: List[Dict[str, str]]
+    ) -> str:
+        """Format messages as a string for local model tokenizer."""
+        if self.tokenizer and hasattr(self.tokenizer, "apply_chat_template"):
             return self.tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True
+                messages, tokenize=False, add_generation_prompt=True
             )
-        else:
-            # Fallback formatting
-            formatted = ""
-            for msg in messages:
-                role = msg["role"]
-                content = msg["content"]
-                formatted += f"<|{role}|>\n{content}\n"
-            formatted += "<|assistant|>\n"
-            return formatted
-
-    def _format_context(self, context: Dict[str, Any]) -> str:
-        """Format context information"""
-        parts = []
-
-        # NLP metadata
-        if "nlp_metadata" in context:
-            nlp = context["nlp_metadata"]
-            intent = nlp.get("intent", "")
-            entities = nlp.get("entities", [])
-
-            if intent:
-                parts.append(f"User intent: {intent}")
-
-            if entities:
-                entity_strs = [f"{e['text']} ({e['type']})" for e in entities[:5]]  # Limit to 5
-                parts.append(f"Key entities: {', '.join(entity_strs)}")
-
-            # Add context hints
-            hints = nlp.get("context_hints", {})
-            if hints.get("response_style"):
-                parts.append(f"Response style: {hints['response_style']}")
-
-        # Vision results
-        if "vision" in context:
-            vision = context["vision"]
-            parts.append(f"Image analysis: {vision}")
-
-        # RAG results
-        if "rag" in context:
-            rag = context["rag"]
-            parts.append(f"Relevant information: {rag}")
-
-        # KG results
-        if "kg" in context:
-            kg = context["kg"]
-            parts.append(f"Related concepts: {kg}")
-
-        return "\n\n".join(parts) if parts else ""
+        # Fallback formatting
+        formatted = ""
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+            formatted += f"<|{role}|>\n{content}\n"
+        formatted += "<|assistant|>\n"
+        return formatted
 
     def _generate_sync(
         self,
-        messages: List[Dict[str, str]],
+        enhanced_messages: List[Dict[str, str]],
         max_tokens: int = 512,
         temperature: float = 0.7,
         top_p: float = 0.9,
-        context: Optional[Dict] = None
     ) -> Tuple[str, int, int]:
         """
-        Synchronous generation (called from async context)
+        Synchronous generation via local model (called from async context).
+        Now receives pre-built enhanced messages.
 
         Returns: (response, prompt_tokens, completion_tokens)
         """
         with torch.inference_mode():
-            # Format input
-            prompt = self._format_messages(messages, context)
+            prompt = self._format_messages_for_local(enhanced_messages)
 
-            # Tokenize
             inputs = self.tokenizer(
                 prompt,
                 return_tensors="pt",
@@ -503,7 +550,6 @@ class LLMServiceV2:
 
             prompt_tokens = inputs["input_ids"].shape[1]
 
-            # Generate
             outputs = self.model.generate(
                 **inputs,
                 max_new_tokens=max_tokens,
@@ -514,45 +560,64 @@ class LLMServiceV2:
                 eos_token_id=self.tokenizer.eos_token_id
             )
 
-            # Decode
             response = self.tokenizer.decode(
                 outputs[0][inputs["input_ids"].shape[1]:],
                 skip_special_tokens=True
             )
 
             completion_tokens = outputs.shape[1] - prompt_tokens
-
             return response.strip(), prompt_tokens, completion_tokens
 
     async def generate(
         self,
         request: LLMRequest,
-        timeout: float = 60.0
+        timeout: float = 120.0,
     ) -> Tuple[str, int, int, float]:
         """
-        Generate response with timeout
+        Generate response using the best available backend.
+
+        Priority: local model > OpenAI API > error
 
         Returns: (response, prompt_tokens, completion_tokens, generation_time_ms)
         """
-        try:
-            start_time = time.time()
+        start_time = time.time()
 
-            # Generate in thread pool to avoid blocking
-            response, prompt_tokens, completion_tokens = await asyncio.wait_for(
-                asyncio.to_thread(
-                    self._generate_sync,
-                    request.messages,
-                    request.max_tokens,
-                    request.temperature,
-                    request.top_p,
-                    request.context
-                ),
-                timeout=timeout
-            )
+        # Build enhanced messages with prompt templates
+        enhanced_messages = self._build_enhanced_messages(
+            request.messages, request.context
+        )
+
+        try:
+            if self.model is not None and not self._use_api_backend:
+                # LOCAL MODEL PATH
+                response, prompt_tokens, completion_tokens = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        self._generate_sync,
+                        enhanced_messages,
+                        request.max_tokens,
+                        request.temperature,
+                        request.top_p,
+                    ),
+                    timeout=timeout,
+                )
+            elif self._use_api_backend and self.openai_backend.available:
+                # API BACKEND PATH
+                response, prompt_tokens, completion_tokens = await asyncio.wait_for(
+                    self.openai_backend.chat_completion(
+                        messages=enhanced_messages,
+                        max_tokens=request.max_tokens,
+                        temperature=request.temperature,
+                        top_p=request.top_p,
+                    ),
+                    timeout=timeout,
+                )
+            else:
+                raise RuntimeError(
+                    "No LLM backend available. Set LLM_API_KEY env var or load a local model."
+                )
 
             generation_time = (time.time() - start_time) * 1000
 
-            # Update stats (thread-safe)
             async with self.stats_lock:
                 self.total_requests += 1
                 self.total_tokens_generated += completion_tokens
@@ -567,6 +632,10 @@ class LLMServiceV2:
             logger.error(f"Generation failed: {e}", exc_info=True)
             raise
 
+    def has_backend(self) -> bool:
+        """Check if any LLM backend is available."""
+        return self.model is not None or (self._use_api_backend and self.openai_backend.available)
+
     async def close(self):
         """Graceful shutdown"""
         self._shutdown = True
@@ -576,8 +645,9 @@ class LLMServiceV2:
         if self.tokenizer is not None:
             del self.tokenizer
             self.tokenizer = None
-        if self.device and self.device.type == "cuda":
+        if TRANSFORMERS_AVAILABLE and self.device and self.device.type == "cuda":
             torch.cuda.empty_cache()
+        await self.openai_backend.close()
         logger.info("LLM service shutdown complete")
 
     def get_stats(self) -> Dict[str, Any]:
@@ -585,14 +655,21 @@ class LLMServiceV2:
         avg_time = self.total_generation_time / self.total_requests if self.total_requests > 0 else 0
         avg_tokens = self.total_tokens_generated / self.total_requests if self.total_requests > 0 else 0
 
+        backend = "none"
+        if self.model is not None:
+            backend = f"local ({self.device})"
+        elif self._use_api_backend:
+            backend = f"api ({self.openai_backend.model})"
+
         return {
             "total_requests": self.total_requests,
             "total_tokens_generated": self.total_tokens_generated,
             "total_generation_time_ms": self.total_generation_time,
             "average_generation_time_ms": avg_time,
             "average_tokens_per_request": avg_tokens,
-            "device": str(self.device) if self.device else "none",
-            "model_loaded": self.model is not None
+            "backend": backend,
+            "model_loaded": self.model is not None,
+            "api_backend_available": self.openai_backend.available,
         }
 
 
@@ -763,17 +840,16 @@ async def generate_text(request: LLMRequest, http_request: Request):
 
     CRITICAL: LLM inference is expensive - use rate limiting and caching
     """
-    # CRITICAL FIX: Check if model is available
-    if not TRANSFORMERS_AVAILABLE or llm_service.model is None:
+    # Check if ANY backend is available (local model OR API)
+    if not llm_service.has_backend():
         raise HTTPException(
             status_code=503,
             detail={
                 "error": "LLM service unavailable",
-                "message": "Transformers library not available or model not loaded. "
-                          "This is likely due to x86 Python on ARM Mac. "
-                          "See ENVIRONMENT_FIX_GUIDE.md for solutions.",
-                "transformers_available": TRANSFORMERS_AVAILABLE,
-                "model_loaded": llm_service.model is not None
+                "message": "No LLM backend available. Set LLM_API_KEY env var for API backend, "
+                          "or install transformers + torch for local inference.",
+                "model_loaded": llm_service.model is not None,
+                "api_backend_available": llm_service.openai_backend.available,
             }
         )
 

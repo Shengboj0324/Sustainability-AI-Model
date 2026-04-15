@@ -64,6 +64,11 @@ spec:
               value: "8002"
             - name: DEVICE
               value: "cpu"  # Change to "cuda" if GPU nodes available
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: releaf-app-secrets
+                  key: LLM_API_KEY
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -71,11 +76,11 @@ spec:
                   key: REDIS_PASSWORD
           resources:
             requests:
-              cpu: "2"
-              memory: 4Gi
+              cpu: "500m"       # Reduced: no local model inference when using API backend
+              memory: 512Mi
             limits:
-              cpu: "8"
-              memory: 16Gi
+              cpu: "2"
+              memory: 2Gi
           livenessProbe:
             httpGet:
               path: /health/live

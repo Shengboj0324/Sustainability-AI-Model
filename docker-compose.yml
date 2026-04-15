@@ -152,7 +152,7 @@ services:
               capabilities: [gpu]
     command: uvicorn services.vision_service.server:app --host 0.0.0.0 --port 8001
 
-  # LLM Service (requires GPU)
+  # LLM Service (GPU optional — falls back to OpenAI-compatible API backend)
   llm-service:
     build:
       context: .
@@ -160,17 +160,24 @@ services:
     container_name: releaf-llm-service
     ports:
       - "8002:8002"
+    environment:
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_API_BASE_URL=${LLM_API_BASE_URL:-https://api.openai.com/v1}
+      - LLM_MODEL_NAME=${LLM_MODEL_NAME:-gpt-4o-mini}
+      - LLM_API_TIMEOUT=${LLM_API_TIMEOUT:-120}
+      - LLM_MAX_RETRIES=${LLM_MAX_RETRIES:-2}
     volumes:
       - ./services/llm_service:/app/services/llm_service
       - ./models:/app/models
       - ./configs:/app/configs
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+    # GPU is optional. Uncomment below if running local model inference:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
     command: uvicorn services.llm_service.server:app --host 0.0.0.0 --port 8002
 
   # RAG Service
