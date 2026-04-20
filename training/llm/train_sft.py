@@ -236,10 +236,13 @@ def get_training_arguments(config):
     use_cuda = torch.cuda.is_available()
 
     if use_mps:
-        # M4 Max: Use FP16, not BF16
+        # M4 Max: MPS does not support autocast/GradScaler, so fp16=True
+        # in TrainingArguments would crash. Instead, we load the model
+        # in torch.float16 dtype (line 93) and train with fp16=False.
+        # The model natively computes in FP16 without autocast overhead.
         bf16 = False
-        fp16 = True
-        logger.info("🍎 M4 Max: Using FP16 precision")
+        fp16 = False
+        logger.info("🍎 M4 Max: Mixed precision disabled (model loaded in FP16 dtype natively)")
     elif use_cuda:
         # CUDA: Use config settings
         bf16 = config["training"]["bf16"]
@@ -269,7 +272,8 @@ def get_training_arguments(config):
         load_best_model_at_end=config["training"]["load_best_model_at_end"],
         metric_for_best_model=config["training"]["metric_for_best_model"],
         greater_is_better=config["training"]["greater_is_better"],
-        evaluation_strategy=config["training"]["evaluation_strategy"],
+        eval_strategy=config["training"].get("eval_strategy",
+                      config["training"].get("evaluation_strategy", "steps")),
         save_strategy=config["training"]["save_strategy"],
         seed=config["training"]["seed"],
         data_seed=config["training"]["data_seed"],

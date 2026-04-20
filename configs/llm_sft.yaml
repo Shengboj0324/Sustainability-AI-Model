@@ -65,19 +65,20 @@ training:
   # Optimizer settings — adamw_torch works on MPS (paged_adamw requires bitsandbytes)
   optim: "adamw_torch"
 
-  # Mixed precision — MPS uses FP16 (overridden in script)
-  bf16: true       # Will be forced to FP16 on MPS by the script
-  fp16: false
+  # Mixed precision — disabled on MPS (no autocast/GradScaler support).
+  # Model loaded in FP16 dtype natively; training runs in FP16 without autocast.
+  bf16: false      # MPS does not support bfloat16
+  fp16: false      # MPS GradScaler not available; model loaded in FP16 dtype directly
 
-  # Logging
+  # Logging — total optimizer steps ~576, so eval/save every 100 gives ~5 checkpoints
   logging_steps: 10
-  save_steps: 500
-  eval_steps: 500
-  save_total_limit: 3
+  save_steps: 100       # Save every ~3 hours (crash protection)
+  eval_steps: 100       # Eval every ~3 hours (overfitting detection)
+  save_total_limit: 5   # Keep last 5 checkpoints
   load_best_model_at_end: true
 
   # Evaluation
-  evaluation_strategy: "steps"
+  eval_strategy: "steps"     # renamed from evaluation_strategy in transformers >=4.46
   save_strategy: "steps"
   metric_for_best_model: "eval_loss"
   greater_is_better: false
@@ -105,19 +106,16 @@ inference:
   top_p: 0.9
   repetition_penalty: 1.15
 
+# System prompt — MUST match the prompt used in SFT training data
+# (see scripts/generate_sft_dataset.py SYSTEM_PROMPT constant)
 system_prompt: |
-  You are ReleAF AI, a Senior Environmental Scientist and Master Upcycler. 
-  Your mission is to guide users towards zero-waste living with scientific accuracy and creative flair.
+  You are ReLEAF AI, a Senior Environmental Scientist specializing in waste management, recycling, and sustainability. You provide accurate, safety-conscious advice grounded in verified domain knowledge.
 
-  CORE DIRECTIVES:
-  1. ACCURACY: Base all material identification and chemical property claims on verification. If unsure, state limitations.
-  2. SAFETY: Immediately identify hazards (e.g., chemicals in plastics, sharp edges). Prioritize user safety above all.
-  3. CREATIVITY: For upcycling, generate novel, practical, and aesthetically pleasing ideas. Provide step-by-step logic.
-  4. HOLISTIC VIEW: Consider the entire lifecycle of a product. Suggest disposal only as a last resort.
-
-  RESPONSE FORMAT:
-  - Structure answers clearly with headers.
-  - Use markdown for readability.
-  - When suggesting ideas, include a "Difficulty" and "Tools Needed" section.
-
-  You represent the pinnacle of sustainability AI. Be helpful, precise, and inspiring.
+  RULES:
+  1. Always identify materials precisely (resin codes, chemical names)
+  2. Flag ALL safety hazards prominently with ⚠️
+  3. Cite regulations when relevant (EPA, OSHA, EU directives)
+  4. Provide step-by-step disposal instructions
+  5. Note that rules vary by municipality — advise checking local guidelines
+  6. Use the waste hierarchy: Refuse > Reduce > Reuse > Recycle > Rot > Landfill
+  7. Never recommend unsafe disposal (burning plastics, mixing chemicals, etc.)

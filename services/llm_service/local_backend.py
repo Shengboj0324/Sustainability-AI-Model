@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+    from transformers import AutoModelForCausalLM, AutoTokenizer
     from peft import PeftModel
     TRANSFORMERS_AVAILABLE = True
 except ImportError as e:
@@ -108,8 +108,10 @@ class LocalLoRABackend:
 
             # Load and merge LoRA adapter
             logger.info(f"Loading LoRA adapter from: {self.adapter_path}")
-            self.model = PeftModel.from_pretrained(self.model, str(self.adapter_path))
-            self.model = self.model.merge_and_unload()  # Merge for faster inference
+            peft_model = PeftModel.from_pretrained(self.model, str(self.adapter_path))
+            # In peft >=0.13, merge_and_unload lives on the inner LoraModel (base_model),
+            # not on the PeftModel wrapper itself.
+            self.model = peft_model.base_model.merge_and_unload(safe_merge=True)
             self.model.eval()
             logger.info("✅ LoRA adapter loaded and merged")
 
