@@ -536,7 +536,7 @@ def verify_parity(ref_input, ref_logits, onnx_path, coreml_path, tflite_path, to
 # ══════════════════════════════════════════════════════════════════════════════
 # METADATA BUNDLING
 # ══════════════════════════════════════════════════════════════════════════════
-def generate_metadata(ckpt, parity_results, out_path, gnn_ckpt=None, gnn_parity=None):
+def generate_metadata(ckpt, parity_results, out_path, gnn_ckpt=None, gnn_parity=None, llm_info=None):
     """Generate model_metadata.json with all deployment information."""
     logger.info("\n── Generating model_metadata.json ──")
     metadata = {
@@ -589,6 +589,12 @@ def generate_metadata(ckpt, parity_results, out_path, gnn_ckpt=None, gnn_parity=
             "usage": "Use vision model to classify waste → look up class index in GNN embeddings → "
                      "find nearest material/bin nodes for disposal guidance",
         }
+
+    # LLM adapter info (if available)
+    if llm_info:
+        metadata["llm_adapter"] = llm_info
+        logger.info(f"  📝 LLM adapter info included: {llm_info.get('adapter_type')} r={llm_info.get('lora_rank')}")
+
     class _NumpyEncoder(json.JSONEncoder):
         def default(self, obj):
             if isinstance(obj, (np.integer,)): return int(obj)
@@ -671,19 +677,73 @@ def main():
         traceback.print_exc()
 
     # ══════════════════════════════════════════════════════════════════════
-    # STEP 3: METADATA BUNDLING
+    # STEP 3: LLM LoRA ADAPTER EXPORT
     # ══════════════════════════════════════════════════════════════════════
     logger.info("\n" + "="*80)
-    logger.info("STEP 3: UNIFIED METADATA BUNDLE")
+    logger.info("STEP 3: LLM LoRA ADAPTER EXPORT")
     logger.info("="*80)
-    generate_metadata(ckpt, vision_parity, meta_path,
-                      gnn_ckpt=gnn_ckpt, gnn_parity=gnn_parity)
+
+    llm_adapter_src = ROOT / "models" / "llm" / "adapters" / "sustainability-expert-v1"
+    llm_adapter_dst = DEPLOY_DIR / "llm_adapter"
+    llm_ok = False
+    llm_info = {}
+
+    if llm_adapter_src.exists() and (llm_adapter_src / "adapter_config.json").exists():
+        try:
+            llm_adapter_dst.mkdir(parents=True, exist_ok=True)
+            # Copy adapter files (config, weights, tokenizer config)
+            adapter_files = [
+                "adapter_config.json",
+                "adapter_model.safetensors",
+                "adapter_model.bin",
+                "README.md",
+            ]
+            copied = []
+            for fname in adapter_files:
+                src_file = llm_adapter_src / fname
+                if src_file.exists():
+                    shutil.copy2(str(src_file), str(llm_adapter_dst / fname))
+                    copied.append(fname)
+
+            if copied:
+                adapter_size = sum(
+                    (llm_adapter_dst / f).stat().st_size
+                    for f in copied if (llm_adapter_dst / f).exists()
+                )
+                llm_info = {
+                    "base_model": "meta-llama/Llama-3-8B-Instruct",
+                    "adapter_type": "LoRA",
+                    "lora_rank": 64,
+                    "lora_alpha": 128,
+                    "files": copied,
+                    "size_bytes": adapter_size,
+                }
+                llm_ok = True
+                logger.info(f"  ✅ LoRA adapter exported ({adapter_size/1e6:.1f} MB)")
+                logger.info(f"     Files: {', '.join(copied)}")
+            else:
+                logger.warning("  ⚠ Adapter config found but no weight files — skipping")
+        except Exception as e:
+            logger.error(f"  ❌ LLM adapter export failed: {e}")
+    else:
+        logger.warning("  ⚠ No LoRA adapter found at models/llm/adapters/sustainability-expert-v1")
+        logger.warning("    Run training first: python training/llm/train_sft.py")
 
     # ══════════════════════════════════════════════════════════════════════
-    # STEP 4: ARTIFACT CONSOLIDATION
+    # STEP 4: METADATA BUNDLING
     # ══════════════════════════════════════════════════════════════════════
     logger.info("\n" + "="*80)
-    logger.info("STEP 4: ARTIFACT CONSOLIDATION")
+    logger.info("STEP 4: UNIFIED METADATA BUNDLE")
+    logger.info("="*80)
+    generate_metadata(ckpt, vision_parity, meta_path,
+                      gnn_ckpt=gnn_ckpt, gnn_parity=gnn_parity,
+                      llm_info=llm_info if llm_ok else None)
+
+    # ══════════════════════════════════════════════════════════════════════
+    # STEP 5: ARTIFACT CONSOLIDATION
+    # ══════════════════════════════════════════════════════════════════════
+    logger.info("\n" + "="*80)
+    logger.info("STEP 5: ARTIFACT CONSOLIDATION")
     logger.info("="*80)
 
     for src_name in ['classification_report.json', 'confusion_matrix.npy']:
@@ -722,6 +782,7 @@ def main():
     logger.info(f"   Vision CoreML: {'✅' if coreml_ok else '❌'}")
     logger.info(f"   Vision TFLite: {'✅' if tflite_ok else '❌'}")
     logger.info(f"   GNN ONNX:      {'✅' if gnn_ok else '❌'}")
+    logger.info(f"   LLM LoRA:      {'✅' if llm_ok else '⚠️ Not trained yet'}")
     logger.info(f"   Package: {DEPLOY_DIR}")
 
 

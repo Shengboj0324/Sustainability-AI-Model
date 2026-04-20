@@ -274,9 +274,8 @@ def get_training_arguments(config):
         seed=config["training"]["seed"],
         data_seed=config["training"]["data_seed"],
         optim=config["training"]["optim"],
-        report_to=["wandb"],  # Enable W&B logging
+        report_to=["tensorboard"],  # Use tensorboard (no extra install needed)
         run_name="releaf-llm-sft",
-        use_mps_device=use_mps  # Enable MPS if available
     )
 
 

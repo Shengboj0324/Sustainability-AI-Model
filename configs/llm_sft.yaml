@@ -17,81 +17,74 @@ model:
     bias: "none"
     task_type: "CAUSAL_LM"
 
-  # Quantization for memory efficiency
+  # Quantization — disabled on MPS (bitsandbytes not supported on Apple Silicon)
+  # Enable on CUDA for memory efficiency
   quantization:
-    enabled: true
+    enabled: false        # Set to true on CUDA machines with bitsandbytes
     load_in_4bit: true
     bnb_4bit_compute_dtype: "bfloat16"
     bnb_4bit_quant_type: "nf4"
     bnb_4bit_use_double_quant: true
 
 data:
-  # Training data files
+  # Training data files — generated SFT dataset (6,836 examples)
   train_files:
-    - "data/processed/llm_sft/sustainability_qa_train.jsonl"
-    - "data/processed/llm_sft/upcycling_qa_train.jsonl"
-    - "data/processed/llm_sft/org_routing_train.jsonl"
-    - "data/processed/llm_sft/expert_thinking_traces.jsonl" # Added Chain-of-Thought data
+    - "data/processed/llm_sft/generated_sft_train.jsonl"
+    - "data/processed/llm_sft/expert_sft_train.jsonl"
 
   # Validation data files
   val_files:
-    - "data/processed/llm_sft/sustainability_qa_val.jsonl"
-    - "data/processed/llm_sft/org_routing_val.jsonl"
+    - "data/processed/llm_sft/generated_sft_val.jsonl"
 
   # Data format and processing
   format: "chat"
-  max_length: 4096 # Doubled context length
-  packing: true
-  num_workers: 8
-
-  # Data composition weights
-  sampling_weights:
-    sustainability_qa: 0.30
-    upcycling_qa: 0.30
-    org_routing: 0.15
-    expert_thinking_traces: 0.15 # Focus on reasoning
-    safety_examples: 0.10
+  max_length: 2048  # Reduced for M4 Max memory — 90%+ examples fit in 2048
+  packing: false    # Disable packing for MPS stability
+  num_workers: 4    # Reduced for MPS
 
 training:
   # Trainer configuration
   trainer: "hf_trainer"
   output_dir: "models/llm/adapters/sustainability-expert-v1"
 
-  # Batch size
-  per_device_train_batch_size: 2
-  per_device_eval_batch_size: 2
-  gradient_accumulation_steps: 16
+  # Batch size — M4 Max optimized (38.7GB unified, ~20GB for model)
+  per_device_train_batch_size: 1      # Memory-safe for FP16 8B model on MPS
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 32     # Effective batch size = 32
 
   # Training duration
   num_train_epochs: 3
 
   # Optimization
-  learning_rate: 1.0e-4
+  learning_rate: 2.0e-4               # Slightly higher for LoRA efficiency
   lr_scheduler_type: "cosine"
-  warmup_ratio: 0.03
+  warmup_ratio: 0.05
   weight_decay: 0.05
-  max_grad_norm: 0.5 # Stricter clipping
+  max_grad_norm: 0.5
 
-  # Optimizer settings
-  optim: "paged_adamw_32bit" # Memory efficient
+  # Optimizer settings — adamw_torch works on MPS (paged_adamw requires bitsandbytes)
+  optim: "adamw_torch"
 
-  # Mixed precision
-  bf16: true
+  # Mixed precision — MPS uses FP16 (overridden in script)
+  bf16: true       # Will be forced to FP16 on MPS by the script
   fp16: false
 
   # Logging
   logging_steps: 10
-  save_steps: 200
-  eval_steps: 200
+  save_steps: 500
+  eval_steps: 500
   save_total_limit: 3
   load_best_model_at_end: true
 
   # Evaluation
   evaluation_strategy: "steps"
   save_strategy: "steps"
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
 
   # Reproducibility
   seed: 42
+  data_seed: 42
 
 peft:
   use_lora: true
