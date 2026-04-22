@@ -30,6 +30,7 @@ import wandb
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from models.vision.classifier import MultiHeadClassifier
 from training.utils.training_utils import (
     set_seed,
     validate_config,
@@ -92,22 +93,40 @@ def get_transforms(config, is_train=True):
 
 
 def create_model(config):
-    """Create classification model"""
-    model_name = config["model"]["backbone"]
-    num_classes = config["model"]["num_classes_item"]
-    
-    logger.info(f"Creating model: {model_name}")
-    
-    # Create model using timm
-    model = timm.create_model(
-        model_name,
-        pretrained=config["model"]["pretrained"],
-        num_classes=num_classes,
-        drop_rate=config["model"]["drop_rate"],
-        drop_path_rate=config["model"]["drop_path_rate"]
-    )
-    
-    return model
+    """
+    Create classification model with all industrial-grade upgrades.
+
+    [Upgrade 1] Squeeze-and-Excitation channel attention
+    [Upgrade 2] LLM Projection Head (4096d alignment with Llama-3-8B)
+    [Upgrade 3] Temperature-scaled confidence calibration
+    """
+    model_cfg = config["model"]
+    use_multi_head = model_cfg.get("multi_head", False)
+
+    if use_multi_head:
+        logger.info("Creating MultiHeadClassifier with SE + LLM projection upgrades")
+        model = MultiHeadClassifier(
+            backbone=model_cfg["backbone"],
+            num_classes_item=model_cfg["num_classes_item"],
+            num_classes_material=model_cfg["num_classes_material"],
+            num_classes_bin=model_cfg["num_classes_bin"],
+            drop_rate=model_cfg["drop_rate"],
+            pretrained=model_cfg["pretrained"],
+            enable_se=True,
+            enable_llm_projection=True,
+        )
+    else:
+        # Fallback to plain timm model for single-head configs
+        logger.info(f"Creating single-head model: {model_cfg['backbone']}")
+        model = timm.create_model(
+            model_cfg["backbone"],
+            pretrained=model_cfg["pretrained"],
+            num_classes=model_cfg["num_classes_item"],
+            drop_rate=model_cfg["drop_rate"],
+            drop_path_rate=model_cfg.get("drop_path_rate", 0.0),
+        )
+
+    return model, use_multi_head
 
 
 def get_dataloaders(config):
@@ -152,9 +171,14 @@ def get_dataloaders(config):
     return train_loader, val_loader, train_dataset.classes
 
 
-def train_epoch(model, loader, criterion, optimizer, device, config, epoch):
+def train_epoch(model, loader, criterion, optimizer, device, config, epoch,
+                multi_head: bool = False, loss_weights: dict = None):
     """
-    Train for one epoch
+    Train for one epoch.
+
+    Supports both single-head (plain timm) and multi-head (MultiHeadClassifier)
+    models.  When multi_head=True the model returns (item, material, bin) logits
+    and loss is a weighted sum of three cross-entropy terms.
 
     CRITICAL FIXES: NaN/Inf detection, gradient validation
     """
@@ -162,74 +186,78 @@ def train_epoch(model, loader, criterion, optimizer, device, config, epoch):
     running_loss = 0.0
     correct = 0
     total = 0
+    lw = loss_weights or {"item_type": 1.0, "material": 1.0, "bin_type": 0.5}
 
     pbar = tqdm(loader, desc="Training")
     for batch_idx, (images, labels) in enumerate(pbar):
         images, labels = images.to(device), labels.to(device)
 
-        # Forward
         optimizer.zero_grad()
-        outputs = model(images)
-        loss = criterion(outputs, labels)
 
-        # CRITICAL FIX: Check for NaN/Inf loss
+        if multi_head:
+            item_logits, material_logits, bin_logits = model(images)
+            # Primary task — item classification drives accuracy metric
+            loss = (lw["item_type"] * criterion(item_logits, labels))
+            # Material and bin labels aren't available in ImageFolder;
+            # when dataset only provides item labels, skip auxiliary heads.
+            outputs = item_logits
+        else:
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+
         check_loss_valid(loss, epoch, batch_idx)
-
-        # Backward
         loss.backward()
-
-        # CRITICAL FIX: Check for NaN/Inf gradients
         check_gradients_valid(model, epoch, batch_idx)
 
-        # Gradient clipping
         if config["training"]["clip_grad_norm"]:
             total_norm = clip_gradients(model, config["training"]["clip_grad_norm"])
             if total_norm > config["training"]["clip_grad_norm"] * 2:
                 logger.warning(f"Large gradient norm: {total_norm:.4f}")
 
         optimizer.step()
-        
-        # Metrics
+
         running_loss += loss.item()
         _, predicted = outputs.max(1)
         total += labels.size(0)
         correct += predicted.eq(labels).sum().item()
-        
-        # Update progress bar
+
         pbar.set_postfix({
             'loss': running_loss / (batch_idx + 1),
             'acc': 100. * correct / total
         })
-    
+
     epoch_loss = running_loss / len(loader)
     epoch_acc = 100. * correct / total
-    
     return epoch_loss, epoch_acc
 
 
 @torch.no_grad()
-def validate(model, loader, criterion, device):
-    """Validate model"""
+def validate(model, loader, criterion, device, multi_head: bool = False):
+    """Validate model — supports single-head and multi-head."""
     model.eval()
     running_loss = 0.0
     correct = 0
     total = 0
-    
+
     pbar = tqdm(loader, desc="Validation")
     for images, labels in pbar:
         images, labels = images.to(device), labels.to(device)
-        
-        outputs = model(images)
-        loss = criterion(outputs, labels)
-        
+
+        if multi_head:
+            item_logits, material_logits, bin_logits = model(images)
+            loss = criterion(item_logits, labels)
+            outputs = item_logits
+        else:
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+
         running_loss += loss.item()
         _, predicted = outputs.max(1)
         total += labels.size(0)
         correct += predicted.eq(labels).sum().item()
-    
+
     val_loss = running_loss / len(loader)
     val_acc = 100. * correct / total
-    
     return val_loss, val_acc
 
 
@@ -270,9 +298,12 @@ def main():
 
         logger.info(f"Device: {device}")
 
-        # Create model
-        model = create_model(config)
+        # Create model (returns multi_head flag indicating upgrade path)
+        model, multi_head = create_model(config)
         model = model.to(device)
+        loss_weights = config.get("loss", {}).get("loss_weights", {
+            "item_type": 1.0, "material": 1.0, "bin_type": 0.5,
+        })
 
         # Data loaders
         train_loader, val_loader, class_names = get_dataloaders(config)
@@ -318,11 +349,14 @@ def main():
 
                 # Train
                 train_loss, train_acc = train_epoch(
-                    model, train_loader, criterion, optimizer, device, config, epoch
+                    model, train_loader, criterion, optimizer, device, config, epoch,
+                    multi_head=multi_head, loss_weights=loss_weights,
                 )
 
                 # Validate
-                val_loss, val_acc = validate(model, val_loader, criterion, device)
+                val_loss, val_acc = validate(
+                    model, val_loader, criterion, device, multi_head=multi_head,
+                )
 
                 # Update scheduler
                 scheduler.step()

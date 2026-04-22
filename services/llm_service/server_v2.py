@@ -309,24 +309,36 @@ class LLMServiceV2:
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
 
+            # [Upgrade 14] Determine dtype based on device capabilities
+            if self.device.type == "cuda" and self.config["training"].get("bf16", False):
+                model_dtype = torch.bfloat16
+            elif self.device.type == "mps":
+                model_dtype = torch.float16  # MPS: no bfloat16 support
+            else:
+                model_dtype = torch.float16
+
             # Load base model with timeout
-            logger.info(f"Loading base model: {base_model_name}")
+            logger.info(f"Loading base model: {base_model_name} (dtype={model_dtype})")
             self.model = await asyncio.wait_for(
                 asyncio.to_thread(
                     AutoModelForCausalLM.from_pretrained,
                     base_model_name,
-                    torch_dtype=torch.bfloat16 if self.config["training"]["bf16"] else torch.float16,
-                    device_map="auto",
+                    torch_dtype=model_dtype,
+                    device_map="auto" if self.device.type == "cuda" else None,
                     trust_remote_code=True
                 ),
-                timeout=300.0  # 5 min timeout for model loading
+                timeout=600.0  # [Upgrade 14] 10 min timeout (first download can be slow)
             )
+
+            if self.device.type != "cuda":
+                self.model = self.model.to(self.device)
 
             # Load LoRA adapter if available
             try:
                 logger.info(f"Loading LoRA adapter from: {adapter_path}")
-                self.model = PeftModel.from_pretrained(self.model, adapter_path)
-                self.model = self.model.merge_and_unload()  # Merge for faster inference
+                peft_model = PeftModel.from_pretrained(self.model, adapter_path)
+                # [Fix] peft >=0.13: merge_and_unload on base_model, not PeftModel
+                self.model = peft_model.base_model.merge_and_unload(safe_merge=True)
                 logger.info("LoRA adapter loaded and merged")
             except Exception as e:
                 logger.warning(f"Could not load adapter: {e}. Using base model only.")
@@ -588,18 +600,40 @@ class LLMServiceV2:
         )
 
         try:
+            response = prompt_tokens = completion_tokens = None
+
+            # [Upgrade 12] Try local model first, then fail over to API
             if self.model is not None and not self._use_api_backend:
-                # LOCAL MODEL PATH
-                response, prompt_tokens, completion_tokens = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        self._generate_sync,
-                        enhanced_messages,
-                        request.max_tokens,
-                        request.temperature,
-                        request.top_p,
-                    ),
-                    timeout=timeout,
-                )
+                try:
+                    response, prompt_tokens, completion_tokens = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            self._generate_sync,
+                            enhanced_messages,
+                            request.max_tokens,
+                            request.temperature,
+                            request.top_p,
+                        ),
+                        timeout=timeout,
+                    )
+                except Exception as local_err:
+                    # [Upgrade 12] Graceful failover to API backend
+                    if self.openai_backend.available:
+                        logger.warning(
+                            f"Local model failed ({local_err}), "
+                            f"failing over to API backend"
+                        )
+                        response, prompt_tokens, completion_tokens = await asyncio.wait_for(
+                            self.openai_backend.chat_completion(
+                                messages=enhanced_messages,
+                                max_tokens=request.max_tokens,
+                                temperature=request.temperature,
+                                top_p=request.top_p,
+                            ),
+                            timeout=timeout,
+                        )
+                    else:
+                        raise  # No fallback available
+
             elif self._use_api_backend and self.openai_backend.available:
                 # API BACKEND PATH
                 response, prompt_tokens, completion_tokens = await asyncio.wait_for(
@@ -637,7 +671,7 @@ class LLMServiceV2:
         return self.model is not None or (self._use_api_backend and self.openai_backend.available)
 
     async def close(self):
-        """Graceful shutdown"""
+        """Graceful shutdown with full memory cleanup."""
         self._shutdown = True
         if self.model is not None:
             del self.model
@@ -645,8 +679,12 @@ class LLMServiceV2:
         if self.tokenizer is not None:
             del self.tokenizer
             self.tokenizer = None
-        if TRANSFORMERS_AVAILABLE and self.device and self.device.type == "cuda":
-            torch.cuda.empty_cache()
+        # [Upgrade 13] Clean up both CUDA and MPS memory
+        if TRANSFORMERS_AVAILABLE and self.device:
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
+            elif self.device.type == "mps":
+                torch.mps.empty_cache()
         await self.openai_backend.close()
         logger.info("LLM service shutdown complete")
 

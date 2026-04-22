@@ -121,30 +121,40 @@ def get_reference_output(model):
 # GNN MODEL — GATv2 Knowledge Graph
 # ══════════════════════════════════════════════════════════════════════════════
 class GATv2Model(nn.Module):
-    """GATv2 model — must match the training architecture exactly."""
-    def __init__(self, in_channels, hidden_channels, out_channels,
-                 num_layers=3, heads=4, dropout=0.2):
-        super().__init__()
-        self.convs = nn.ModuleList()
-        self.convs.append(GATv2Conv(in_channels, hidden_channels,
-                                    heads=heads, concat=True, dropout=dropout))
-        for _ in range(num_layers - 2):
-            self.convs.append(GATv2Conv(hidden_channels * heads, hidden_channels,
-                                        heads=heads, concat=True, dropout=dropout))
-        self.convs.append(GATv2Conv(hidden_channels * heads, out_channels,
-                                    heads=1, concat=False, dropout=dropout))
-        self.dropout = dropout
-        self.norm = nn.ModuleList([
-            nn.LayerNorm(hidden_channels * heads) for _ in range(num_layers - 1)
-        ])
+    """
+    GATv2 model — MUST match models/gnn/inference.py GATv2Model exactly.
 
-    def forward(self, x, edge_index):
-        for i, conv in enumerate(self.convs[:-1]):
-            x = conv(x, edge_index)
-            x = self.norm[i](x)
-            x = F.gelu(x)
+    Uses ELU activation (no LayerNorm) and supports edge_dim + residual
+    connections, consistent with the upgraded training architecture.
+    """
+    def __init__(self, in_channels, hidden_channels, out_channels,
+                 num_layers=3, heads=4, dropout=0.2,
+                 attention_dropout=0.1, edge_dim=None):
+        super().__init__()
+        self.num_layers = num_layers
+        self.dropout = dropout
+
+        self.convs = nn.ModuleList()
+        self.convs.append(GATv2Conv(
+            in_channels, hidden_channels, heads=heads,
+            dropout=attention_dropout, edge_dim=edge_dim, residual=True,
+        ))
+        for _ in range(num_layers - 2):
+            self.convs.append(GATv2Conv(
+                hidden_channels * heads, hidden_channels, heads=heads,
+                dropout=attention_dropout, edge_dim=edge_dim, residual=True,
+            ))
+        self.convs.append(GATv2Conv(
+            hidden_channels * heads, out_channels, heads=1, concat=False,
+            dropout=attention_dropout, edge_dim=edge_dim, residual=False,
+        ))
+
+    def forward(self, x, edge_index, edge_attr=None):
+        for conv in self.convs[:-1]:
+            x = conv(x, edge_index, edge_attr=edge_attr)
+            x = F.elu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
-        return self.convs[-1](x, edge_index)
+        return self.convs[-1](x, edge_index, edge_attr=edge_attr)
 
 
 class GATv2Wrapper(nn.Module):
@@ -184,6 +194,8 @@ def load_gnn_model():
         in_channels=cfg['in_dim'], hidden_channels=cfg['hidden_dim'],
         out_channels=cfg['out_dim'], num_layers=cfg['num_layers'],
         heads=cfg['heads'], dropout=cfg['dropout'],
+        attention_dropout=cfg.get('attention_dropout', 0.1),
+        edge_dim=cfg.get('edge_dim'),
     )
     model.load_state_dict(ckpt['model_state_dict'], strict=True)
     model.eval()

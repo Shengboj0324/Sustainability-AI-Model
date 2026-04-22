@@ -35,7 +35,7 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from models.gnn.inference import UpcyclingGNN
+from models.gnn.inference import GATv2Model, GraphSAGEModel
 from training.utils.training_utils import (
     set_seed,
     validate_config,
@@ -141,19 +141,43 @@ def create_train_val_test_split(data: Data, config: dict) -> Tuple[Data, Data, D
     return data
 
 
-def create_model(config: dict, device: torch.device) -> UpcyclingGNN:
-    """Create GNN model"""
-    model = UpcyclingGNN(
-        in_channels=config["model"]["input_dim"],
-        hidden_channels=config["model"]["hidden_dim"],
-        out_channels=config["model"]["output_dim"],
-        num_layers=config["model"]["num_layers"],
-        model_type=config["model"]["type"],
-        dropout=config["model"]["dropout"]
-    )
+def create_model(config: dict, device: torch.device) -> nn.Module:
+    """
+    Create GNN model using the upgraded architectures from models/gnn/inference.py.
+
+    [Upgrade 7] Uses GATv2Model with dynamic attention when type='gatv2'
+    [Upgrade 8] Supports edge_dim for edge-attribute-aware message passing
+    """
+    model_type = config["model"]["type"]
+    model_cfg = config["model"]
+
+    if model_type in ("gat", "gatv2"):
+        model = GATv2Model(
+            in_channels=model_cfg["input_dim"],
+            hidden_channels=model_cfg["hidden_dim"],
+            out_channels=model_cfg["output_dim"],
+            num_layers=model_cfg["num_layers"],
+            num_heads=model_cfg.get("num_heads", 4),
+            dropout=model_cfg["dropout"],
+            attention_dropout=model_cfg.get("attention_dropout", 0.1),
+            edge_dim=model_cfg.get("edge_dim"),
+        )
+    elif model_type == "graphsage":
+        model = GraphSAGEModel(
+            in_channels=model_cfg["input_dim"],
+            hidden_channels=model_cfg["hidden_dim"],
+            out_channels=model_cfg["output_dim"],
+            num_layers=model_cfg["num_layers"],
+            dropout=model_cfg["dropout"],
+            aggregator=model_cfg.get("aggregator", "mean"),
+        )
+    else:
+        raise ValueError(f"Unknown model type: {model_type}")
 
     model = model.to(device)
-    logger.info(f"Created {config['model']['type']} model with {sum(p.numel() for p in model.parameters())} parameters")
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    logger.info(f"Created {model_type} model: {total_params:,} params ({trainable:,} trainable)")
 
     return model
 
