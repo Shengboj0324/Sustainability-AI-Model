@@ -9,7 +9,7 @@ model:
 
   # Multi-head classification
   multi_head: true
-  num_classes_item: 20 # Bottle, can, box, bag, cup, textile, e-waste, etc.
+  num_classes_item: 30 # 30 fine-grained waste categories (matches dataset + export_pipeline)
   num_classes_material: 15 # PET, HDPE, PP, PVC, glass, aluminum, paper, etc.
   num_classes_bin: 4 # Recycle, compost, landfill, hazardous
 
@@ -17,28 +17,38 @@ model:
   drop_rate: 0.2 # Increased for larger model
   drop_path_rate: 0.2 # Stochastic depth
 
-  # Class definitions
+  # Class definitions — 30 classes matching dataset and deployment/export_pipeline.py
   item_classes:
-    - "plastic_bottle"
-    - "glass_bottle"
-    - "aluminum_can"
-    - "steel_can"
-    - "cardboard_box"
-    - "paper"
-    - "plastic_bag"
-    - "food_container"
-    - "cup"
-    - "textile"
-    - "e_waste"
-    - "battery"
-    - "light_bulb"
-    - "organic_waste"
-    - "styrofoam"
-    - "tetra_pak"
-    - "mixed_plastic"
-    - "metal_scrap"
-    - "wood"
-    - "other"
+    - "aerosol_cans"
+    - "aluminum_food_cans"
+    - "aluminum_soda_cans"
+    - "cardboard_boxes"
+    - "cardboard_packaging"
+    - "clothing"
+    - "coffee_grounds"
+    - "disposable_plastic_cutlery"
+    - "eggshells"
+    - "food_waste"
+    - "glass_beverage_bottles"
+    - "glass_cosmetic_containers"
+    - "glass_food_jars"
+    - "magazines"
+    - "newspaper"
+    - "office_paper"
+    - "paper_cups"
+    - "plastic_cup_lids"
+    - "plastic_detergent_bottles"
+    - "plastic_food_containers"
+    - "plastic_shopping_bags"
+    - "plastic_soda_bottles"
+    - "plastic_straws"
+    - "plastic_trash_bags"
+    - "plastic_water_bottles"
+    - "shoes"
+    - "steel_food_cans"
+    - "styrofoam_cups"
+    - "styrofoam_food_containers"
+    - "tea_bags"
 
   material_classes:
     - "PET"
