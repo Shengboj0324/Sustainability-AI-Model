@@ -131,18 +131,34 @@ def create_model(config):
 
 def get_dataloaders(config):
     """Create data loaders"""
+    # CRITICAL: Validate data directories exist before ImageFolder
+    train_dir = Path(config["data"]["train_dir"])
+    val_dir = Path(config["data"]["val_dir"])
+    for d, label in [(train_dir, "train"), (val_dir, "val")]:
+        if not d.exists():
+            raise FileNotFoundError(
+                f"{label} directory not found: {d}\n"
+                f"Run the data preparation pipeline first to populate {d}"
+            )
+        subdirs = [p for p in d.iterdir() if p.is_dir()]
+        if not subdirs:
+            raise FileNotFoundError(
+                f"{label} directory has no class subdirectories: {d}\n"
+                f"ImageFolder requires at least one subdirectory per class."
+            )
+
     # Transforms
     train_transform = get_transforms(config, is_train=True)
     val_transform = get_transforms(config, is_train=False)
-    
+
     # Datasets
     train_dataset = ImageFolder(
-        root=config["data"]["train_dir"],
+        root=str(train_dir),
         transform=train_transform
     )
-    
+
     val_dataset = ImageFolder(
-        root=config["data"]["val_dir"],
+        root=str(val_dir),
         transform=val_transform
     )
     

@@ -82,61 +82,59 @@ def load_graph_data(config: dict) -> Data:
     return data
 
 
-def create_train_val_test_split(data: Data, config: dict) -> Tuple[Data, Data, Data]:
+def create_train_val_test_split(data: Data, config: dict) -> Data:
     """
-    Split graph into train/val/test
+    Split graph EDGES into train/val/test for link prediction.
 
-    CRITICAL FIX: Validate split ratios and sizes
+    CRITICAL FIX: Previous code created node-level masks but used them to
+    index edges (data.edge_index[:, data.train_mask]) — this crashes when
+    num_nodes != num_edges.  Now creates edge-level masks.
+
+    Also creates node-level masks for optional node classification.
     """
-    num_nodes = data.num_nodes
-
-    # Random permutation
-    perm = torch.randperm(num_nodes)
-
-    # Calculate split indices
+    # ── Validate split ratios ──
     train_ratio = config["data"]["train_ratio"]
     val_ratio = config["data"]["val_ratio"]
     test_ratio = config["data"]["test_ratio"]
 
-    # CRITICAL FIX: Validate split ratios
     total_ratio = train_ratio + val_ratio + test_ratio
     if not np.isclose(total_ratio, 1.0, atol=1e-6):
         raise ValueError(
             f"Split ratios must sum to 1.0, got {total_ratio} "
             f"(train={train_ratio}, val={val_ratio}, test={test_ratio})"
         )
-
     if train_ratio <= 0 or val_ratio <= 0 or test_ratio <= 0:
         raise ValueError("All split ratios must be positive")
 
-    train_end = int(num_nodes * train_ratio)
-    val_end = train_end + int(num_nodes * val_ratio)
+    # ── Edge-level split (for link prediction) ──
+    num_edges = data.edge_index.size(1)
+    edge_perm = torch.randperm(num_edges)
 
-    # CRITICAL FIX: Validate split sizes
-    train_size = train_end
-    val_size = val_end - train_end
-    test_size = num_nodes - val_end
+    train_edge_end = int(num_edges * train_ratio)
+    val_edge_end = train_edge_end + int(num_edges * val_ratio)
 
-    if train_size == 0 or val_size == 0 or test_size == 0:
+    if train_edge_end == 0 or (val_edge_end - train_edge_end) == 0 or (num_edges - val_edge_end) == 0:
         raise ValueError(
-            f"Invalid split sizes: train={train_size}, val={val_size}, test={test_size}. "
-            f"Total nodes={num_nodes}. Adjust split ratios."
+            f"Invalid edge split sizes with {num_edges} edges. Adjust split ratios."
         )
 
-    # Create masks
-    train_mask = torch.zeros(num_nodes, dtype=torch.bool)
-    val_mask = torch.zeros(num_nodes, dtype=torch.bool)
-    test_mask = torch.zeros(num_nodes, dtype=torch.bool)
+    edge_train_mask = torch.zeros(num_edges, dtype=torch.bool)
+    edge_val_mask = torch.zeros(num_edges, dtype=torch.bool)
+    edge_test_mask = torch.zeros(num_edges, dtype=torch.bool)
 
-    train_mask[perm[:train_end]] = True
-    val_mask[perm[train_end:val_end]] = True
-    test_mask[perm[val_end:]] = True
+    edge_train_mask[edge_perm[:train_edge_end]] = True
+    edge_val_mask[edge_perm[train_edge_end:val_edge_end]] = True
+    edge_test_mask[edge_perm[val_edge_end:]] = True
 
-    data.train_mask = train_mask
-    data.val_mask = val_mask
-    data.test_mask = test_mask
+    data.train_mask = edge_train_mask
+    data.val_mask = edge_val_mask
+    data.test_mask = edge_test_mask
 
-    logger.info(f"Split: Train={train_mask.sum()}, Val={val_mask.sum()}, Test={test_mask.sum()}")
+    logger.info(
+        f"Edge split: Train={edge_train_mask.sum().item()}, "
+        f"Val={edge_val_mask.sum().item()}, Test={edge_test_mask.sum().item()} "
+        f"(total edges={num_edges})"
+    )
 
     return data
 
@@ -183,18 +181,18 @@ def create_model(config: dict, device: torch.device) -> nn.Module:
 
 
 def train_epoch_link_prediction(model, data, optimizer, device, config):
-    """Train one epoch for link prediction"""
+    """Train one epoch for link prediction."""
     model.train()
 
-    # Positive edges (existing edges)
-    pos_edge_index = data.edge_index[:, data.train_mask]
+    # Positive edges — edge-level mask (train_mask now has shape [num_edges])
+    pos_edge_index = data.edge_index[:, data.train_mask].to(device)
 
-    # Negative sampling
+    # Negative sampling (returns CPU tensor)
     neg_edge_index = negative_sampling(
         edge_index=data.edge_index,
         num_nodes=data.num_nodes,
         num_neg_samples=pos_edge_index.size(1) * config["task"]["link_prediction"]["negative_sampling_ratio"]
-    )
+    ).to(device)  # CRITICAL FIX: move to same device as embeddings
 
     # Forward
     optimizer.zero_grad()
@@ -248,16 +246,18 @@ def main():
             name=config["training"]["experiment_name"]
         )
 
-        # CRITICAL: Device selection with M4 Max support
+        # CRITICAL: Device selection — GNN MUST use CPU on Apple Silicon
+        # because PyG's scatter_reduce is NOT implemented on MPS.
         if torch.cuda.is_available():
             device = torch.device("cuda")
             logger.info(f"🔥 Using CUDA GPU: {torch.cuda.get_device_name(0)}")
-        elif torch.backends.mps.is_available():
-            device = torch.device("mps")
-            logger.info("🍎 Using Apple M4 Max GPU (MPS)")
         else:
+            # Always CPU for GNN — MPS lacks scatter_reduce for PyG ops
             device = torch.device("cpu")
-            logger.info("💻 Using CPU")
+            if torch.backends.mps.is_available():
+                logger.info("🍎 MPS available but PyG scatter_reduce unsupported — using CPU")
+            else:
+                logger.info("💻 Using CPU")
 
         logger.info(f"Device: {device}")
 
@@ -389,29 +389,32 @@ def negative_sampling(edge_index, num_nodes, num_neg_samples):
 
 @torch.no_grad()
 def evaluate_link_prediction(model, data, device, mask):
-    """Evaluate link prediction"""
+    """Evaluate link prediction."""
     model.eval()
 
     # Get embeddings
     z = model(data.x.to(device), data.edge_index.to(device))
 
-    # Positive edges
-    pos_edge_index = data.edge_index[:, mask]
+    # Positive edges — move to device to match z
+    pos_edge_index = data.edge_index[:, mask].to(device)
 
-    # Negative edges
+    # Negative edges — move to device
     neg_edge_index = negative_sampling(
         edge_index=data.edge_index,
         num_nodes=data.num_nodes,
         num_neg_samples=pos_edge_index.size(1)
-    )
+    ).to(device)
 
     # Compute scores
     pos_scores = torch.sigmoid((z[pos_edge_index[0]] * z[pos_edge_index[1]]).sum(dim=1))
     neg_scores = torch.sigmoid((z[neg_edge_index[0]] * z[neg_edge_index[1]]).sum(dim=1))
 
-    # Compute AUC
+    # Compute AUC-like accuracy
     scores = torch.cat([pos_scores, neg_scores])
-    labels = torch.cat([torch.ones(pos_scores.size(0)), torch.zeros(neg_scores.size(0))])
+    labels = torch.cat([
+        torch.ones(pos_scores.size(0), device=device),
+        torch.zeros(neg_scores.size(0), device=device),
+    ])
 
     # Simple accuracy (threshold = 0.5)
     preds = (scores > 0.5).float()
