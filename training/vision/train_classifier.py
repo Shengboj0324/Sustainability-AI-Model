@@ -25,6 +25,7 @@ from tqdm import tqdm
 import logging
 from pathlib import Path
 import wandb
+from PIL import Image
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -46,6 +47,30 @@ from training.utils.training_utils import (
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class SafeImageFolder(ImageFolder):
+    """ImageFolder that silently skips corrupt/unreadable images instead of crashing.
+
+    On first access, any image that PIL cannot open or decode is logged and
+    replaced with a random valid image from the same dataset.  This prevents
+    a single bad file from terminating a multi-hour training run.
+    """
+
+    def __getitem__(self, index):
+        try:
+            return super().__getitem__(index)
+        except Exception as e:
+            path = self.samples[index][0]
+            logger.warning(f"⚠️  Skipping corrupt image [{index}]: {path} — {e}")
+            # Return a random valid neighbour instead
+            for offset in range(1, len(self)):
+                alt = (index + offset) % len(self)
+                try:
+                    return super().__getitem__(alt)
+                except Exception:
+                    continue
+            raise RuntimeError("All images in the dataset are corrupt")
 
 
 def load_config(config_path: str = "configs/vision_cls.yaml"):
@@ -151,13 +176,13 @@ def get_dataloaders(config):
     train_transform = get_transforms(config, is_train=True)
     val_transform = get_transforms(config, is_train=False)
 
-    # Datasets
-    train_dataset = ImageFolder(
+    # Datasets — use SafeImageFolder to survive corrupt images
+    train_dataset = SafeImageFolder(
         root=str(train_dir),
         transform=train_transform
     )
 
-    val_dataset = ImageFolder(
+    val_dataset = SafeImageFolder(
         root=str(val_dir),
         transform=val_transform
     )
@@ -165,23 +190,27 @@ def get_dataloaders(config):
     logger.info(f"Train samples: {len(train_dataset)}, Val samples: {len(val_dataset)}")
     logger.info(f"Number of classes: {len(train_dataset.classes)}")
     
-    # Data loaders
+    # Data loaders — guard against invalid combinations
+    num_workers = config["data"]["num_workers"]
+    persistent = config["data"].get("persistent_workers", False) and num_workers > 0
+    pin_mem = config["data"].get("pin_memory", False)
+
     train_loader = DataLoader(
         train_dataset,
         batch_size=config["training"]["batch_size"],
         shuffle=True,
-        num_workers=config["data"]["num_workers"],
-        pin_memory=config["data"]["pin_memory"],
-        persistent_workers=config["data"]["persistent_workers"]
+        num_workers=num_workers,
+        pin_memory=pin_mem,
+        persistent_workers=persistent,
     )
-    
+
     val_loader = DataLoader(
         val_dataset,
         batch_size=config["training"]["val_batch_size"],
         shuffle=False,
-        num_workers=config["data"]["num_workers"],
-        pin_memory=config["data"]["pin_memory"],
-        persistent_workers=config["data"]["persistent_workers"]
+        num_workers=num_workers,
+        pin_memory=pin_mem,
+        persistent_workers=persistent,
     )
     
     return train_loader, val_loader, train_dataset.classes
@@ -190,50 +219,55 @@ def get_dataloaders(config):
 def train_epoch(model, loader, criterion, optimizer, device, config, epoch,
                 multi_head: bool = False, loss_weights: dict = None):
     """
-    Train for one epoch.
+    Train for one epoch with gradient accumulation and MPS memory management.
 
-    Supports both single-head (plain timm) and multi-head (MultiHeadClassifier)
-    models.  When multi_head=True the model returns (item, material, bin) logits
-    and loss is a weighted sum of three cross-entropy terms.
-
-    CRITICAL FIXES: NaN/Inf detection, gradient validation
+    Supports both single-head (plain timm) and multi-head (MultiHeadClassifier).
     """
     model.train()
     running_loss = 0.0
     correct = 0
     total = 0
     lw = loss_weights or {"item_type": 1.0, "material": 1.0, "bin_type": 0.5}
+    accum_steps = config["training"].get("gradient_accumulation_steps", 1)
+    is_mps = (device.type == "mps")
 
+    optimizer.zero_grad()
     pbar = tqdm(loader, desc="Training")
     for batch_idx, (images, labels) in enumerate(pbar):
         images, labels = images.to(device), labels.to(device)
 
-        optimizer.zero_grad()
-
         if multi_head:
             item_logits, material_logits, bin_logits = model(images)
-            # Primary task — item classification drives accuracy metric
             loss = (lw["item_type"] * criterion(item_logits, labels))
-            # Material and bin labels aren't available in ImageFolder;
-            # when dataset only provides item labels, skip auxiliary heads.
             outputs = item_logits
         else:
             outputs = model(images)
             loss = criterion(outputs, labels)
 
+        # Scale loss for gradient accumulation
+        loss = loss / accum_steps
+
         check_loss_valid(loss, epoch, batch_idx)
         loss.backward()
-        check_gradients_valid(model, epoch, batch_idx)
 
-        if config["training"]["clip_grad_norm"]:
-            total_norm = clip_gradients(model, config["training"]["clip_grad_norm"])
-            if total_norm > config["training"]["clip_grad_norm"] * 2:
-                logger.warning(f"Large gradient norm: {total_norm:.4f}")
+        # Step optimizer every accum_steps micro-batches
+        if (batch_idx + 1) % accum_steps == 0 or (batch_idx + 1) == len(loader):
+            check_gradients_valid(model, epoch, batch_idx)
 
-        optimizer.step()
+            if config["training"]["clip_grad_norm"]:
+                total_norm = clip_gradients(model, config["training"]["clip_grad_norm"])
+                if total_norm > config["training"]["clip_grad_norm"] * 2:
+                    logger.warning(f"Large gradient norm: {total_norm:.4f}")
 
-        running_loss += loss.item()
-        _, predicted = outputs.max(1)
+            optimizer.step()
+            optimizer.zero_grad()
+
+            # MPS memory cleanup every N optimizer steps to prevent OOM
+            if is_mps and (batch_idx + 1) % (accum_steps * 10) == 0:
+                torch.mps.empty_cache()
+
+        running_loss += loss.item() * accum_steps  # undo scaling for logging
+        _, predicted = outputs.detach().max(1)
         total += labels.size(0)
         correct += predicted.eq(labels).sum().item()
 
@@ -244,6 +278,11 @@ def train_epoch(model, loader, criterion, optimizer, device, config, epoch,
 
     epoch_loss = running_loss / len(loader)
     epoch_acc = 100. * correct / total
+
+    # Final MPS cache cleanup between epochs
+    if is_mps:
+        torch.mps.empty_cache()
+
     return epoch_loss, epoch_acc
 
 
@@ -274,6 +313,11 @@ def validate(model, loader, criterion, device, multi_head: bool = False):
 
     val_loss = running_loss / len(loader)
     val_acc = 100. * correct / total
+
+    # MPS memory cleanup after validation
+    if device.type == "mps":
+        torch.mps.empty_cache()
+
     return val_loss, val_acc
 
 
@@ -320,6 +364,14 @@ def main():
         loss_weights = config.get("loss", {}).get("loss_weights", {
             "item_type": 1.0, "material": 1.0, "bin_type": 0.5,
         })
+
+        # ── Memory optimization: gradient checkpointing ──
+        if config["training"].get("gradient_checkpointing", False):
+            if hasattr(model, 'backbone') and hasattr(model.backbone, 'set_grad_checkpointing'):
+                model.backbone.set_grad_checkpointing(True)
+                logger.info("✅ Gradient checkpointing enabled on backbone (saves ~60% activation memory)")
+            else:
+                logger.warning("⚠️  Gradient checkpointing requested but backbone doesn't support it")
 
         # Data loaders
         train_loader, val_loader, class_names = get_dataloaders(config)

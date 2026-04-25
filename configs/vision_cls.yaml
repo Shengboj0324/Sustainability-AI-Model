@@ -80,10 +80,11 @@ data:
   mean: [0.48145466, 0.4578275, 0.40821073] # CLIP/EVA mean
   std: [0.26862954, 0.26130258, 0.27577711] # CLIP/EVA std
 
-  # Data loading
-  num_workers: 8
-  pin_memory: true
-  persistent_workers: true
+  # Data loading — reduced for M4 Max memory constraints
+  # EVA-02 Large at 448px uses ~10GB+ for model + activations
+  num_workers: 2
+  pin_memory: false # MPS does not benefit from pin_memory
+  persistent_workers: false # Save memory from idle worker processes
 
   # Augmentations for training (Peak Standard)
   augmentations:
@@ -116,10 +117,12 @@ training:
   # CRITICAL: Reproducibility
   seed: 42
 
-  # Batch size (Reduced for larger model/res)
-  batch_size: 16
-  val_batch_size: 32
-  gradient_accumulation_steps: 4 # Effective batch size = 64
+  # Batch size — tuned for Apple M4 Max (38GB unified memory)
+  # EVA-02 Large at 448px: ~1.5GB per sample in attention
+  # batch_size=2 × grad_accum=32 = effective batch size 64
+  batch_size: 2
+  val_batch_size: 4
+  gradient_accumulation_steps: 32 # Effective batch size = 64
 
   # Training duration
   num_epochs: 50
@@ -150,7 +153,10 @@ training:
 
   # Mixed precision
   use_amp: true
-  amp_dtype: "bfloat16" # CRITICAL: Better stability than fp16
+  amp_dtype: "float16" # MPS does not support bfloat16; use float16
+
+  # Memory optimization
+  gradient_checkpointing: true # Trade compute for ~60% memory reduction
 
   # Checkpointing
   save_freq: 1
