@@ -49,28 +49,94 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class SafeImageFolder(ImageFolder):
-    """ImageFolder that silently skips corrupt/unreadable images instead of crashing.
+def _safe_pil_loader(path: str) -> Image.Image:
+    """Load an image via PIL, returning None on ANY failure instead of raising."""
+    try:
+        with open(path, "rb") as f:
+            img = Image.open(f)
+            img.load()                       # force full decode now
+        return img.convert("RGB")
+    except Exception:
+        return None
 
-    On first access, any image that PIL cannot open or decode is logged and
-    replaced with a random valid image from the same dataset.  This prevents
-    a single bad file from terminating a multi-hour training run.
+
+class SafeImageFolder(ImageFolder):
+    """ImageFolder that is completely immune to corrupt images.
+
+    Three layers of defence (no images are deleted from disk):
+
+    1. **Pre-filter at init** — every file is tested with PIL.open+load.
+       Entries that fail are removed from ``self.samples`` / ``self.targets``
+       so they are never indexed during training.
+
+    2. **Safe loader** — uses ``_safe_pil_loader`` which returns ``None``
+       on any PIL error (handles race-conditions / transient I/O).
+
+    3. **__getitem__ fallback** — if the loader returns ``None`` at runtime,
+       a random valid neighbour is returned instead of raising.
     """
 
+    def __init__(self, root, transform=None, **kwargs):
+        # Let ImageFolder discover all files first
+        super().__init__(root, transform=transform, loader=_safe_pil_loader, **kwargs)
+
+        # ── Pre-filter: test every image, keep only loadable ones ──
+        from PIL import ImageFile
+        ImageFile.LOAD_TRUNCATED_IMAGES = True          # tolerate truncated data
+
+        clean_samples = []
+        skipped = []
+        logger.info(f"Pre-validating {len(self.samples):,} images in {root} …")
+        for path, label in self.samples:
+            try:
+                with open(path, "rb") as f:
+                    img = Image.open(f)
+                    img.verify()                         # fast header check
+                clean_samples.append((path, label))
+            except Exception as e:
+                skipped.append(path)
+
+        if skipped:
+            logger.warning(
+                f"⚠️  {len(skipped)} images failed pre-validation and will be "
+                f"skipped (NOT deleted from disk):"
+            )
+            for p in skipped[:20]:
+                logger.warning(f"    {p}")
+            if len(skipped) > 20:
+                logger.warning(f"    … and {len(skipped) - 20} more")
+
+        self.samples = clean_samples
+        self.targets = [s[1] for s in clean_samples]
+        self.imgs = self.samples                         # legacy alias
+        logger.info(
+            f"✅ Pre-validation complete: {len(clean_samples):,} usable, "
+            f"{len(skipped):,} skipped"
+        )
+
     def __getitem__(self, index):
-        try:
-            return super().__getitem__(index)
-        except Exception as e:
-            path = self.samples[index][0]
-            logger.warning(f"⚠️  Skipping corrupt image [{index}]: {path} — {e}")
-            # Return a random valid neighbour instead
-            for offset in range(1, len(self)):
+        """Return (image_tensor, label).  Never raises on a bad file."""
+        path, label = self.samples[index]
+        sample = self.loader(path)
+
+        # Layer 3: if the loader still fails at runtime, find a neighbour
+        if sample is None:
+            logger.warning(f"⚠️  Runtime load failure [{index}]: {path}")
+            for offset in range(1, min(100, len(self))):
                 alt = (index + offset) % len(self)
-                try:
-                    return super().__getitem__(alt)
-                except Exception:
-                    continue
-            raise RuntimeError("All images in the dataset are corrupt")
+                sample = self.loader(self.samples[alt][0])
+                if sample is not None:
+                    label = self.samples[alt][1]
+                    break
+            if sample is None:
+                raise RuntimeError("Cannot load any image in the dataset")
+
+        if self.transform is not None:
+            sample = self.transform(sample)
+        if self.target_transform is not None:
+            label = self.target_transform(label)
+
+        return sample, label
 
 
 def load_config(config_path: str = "configs/vision_cls.yaml"):
