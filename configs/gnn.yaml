@@ -4,18 +4,18 @@
 
 model:
   type: "gatv2" # CRITICAL: Superior attention mechanism
-  input_dim: 128 # Input feature dimension
-  num_layers: 4 # Deeper network
-  hidden_dim: 512 # Wider network for capacity
-  output_dim: 256
+  input_dim: 128 # Input feature dimension (matches KG node feature dim)
+  num_layers: 3 # 3 layers for 43-node graph (sufficient message passing depth)
+  hidden_dim: 64 # Right-sized for 43-node KG (avoids 104M param waste)
+  output_dim: 64 # Embedding dimension
 
   # GraphSAGE specific
   aggregator: "mean"
-  dropout: 0.3 # Increased dropout for regularization
+  dropout: 0.2 # Moderate dropout
 
   # GAT specific
-  num_heads: 8 # Multi-head attention
-  attention_dropout: 0.2
+  num_heads: 4 # Multi-head attention
+  attention_dropout: 0.1
   concat_heads: true # Concatenate head outputs
 
   # Activation
@@ -107,12 +107,12 @@ training:
   seed: 42
 
   # Training duration
-  num_epochs: 100
-  early_stopping_patience: 15
+  num_epochs: 200
+  early_stopping_patience: 30
 
   # Optimization
-  optimizer: "adamw"
-  learning_rate: 5.0e-4
+  optimizer: "adam"
+  learning_rate: 5.0e-3
   weight_decay: 1.0e-4
 
   # Learning rate schedule

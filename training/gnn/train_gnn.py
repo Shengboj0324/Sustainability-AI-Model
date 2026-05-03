@@ -55,30 +55,124 @@ def load_config(config_path: str = "configs/gnn.yaml"):
         return yaml.safe_load(f)
 
 
+TARGET_CLASSES = [
+    'aerosol_cans', 'aluminum_food_cans', 'aluminum_soda_cans', 'cardboard_boxes',
+    'cardboard_packaging', 'clothing', 'coffee_grounds', 'disposable_plastic_cutlery',
+    'eggshells', 'food_waste', 'glass_beverage_bottles', 'glass_cosmetic_containers',
+    'glass_food_jars', 'magazines', 'newspaper', 'office_paper', 'paper_cups',
+    'plastic_cup_lids', 'plastic_detergent_bottles', 'plastic_food_containers',
+    'plastic_shopping_bags', 'plastic_soda_bottles', 'plastic_straws',
+    'plastic_trash_bags', 'plastic_water_bottles', 'shoes', 'steel_food_cans',
+    'styrofoam_cups', 'styrofoam_food_containers', 'tea_bags',
+]
+
+
 def load_graph_data(config: dict) -> Data:
-    """Load graph data from files"""
-    logger.info("Loading graph data...")
+    """
+    Build the production 43-node Knowledge Graph.
 
-    # Load edges
-    edges_df = pd.read_parquet(config["data"]["graph_file"])
-    edge_index = torch.tensor(edges_df[['source', 'target']].values.T, dtype=torch.long)
+    Schema: 30 Item nodes + 8 Material nodes + 5 Bin nodes
+    Edges: Item→Material (MADE_OF), Material→Bin (GOES_TO),
+           Item→Bin overrides, Item↔Item similarity (confusable pairs).
+    All edges are bidirectional.
+    """
+    logger.info("Building production Knowledge Graph (43 nodes)...")
 
-    # Load node features
-    features_df = pd.read_parquet(config["data"]["node_features_file"])
-    x = torch.tensor(features_df.drop('node_id', axis=1).values, dtype=torch.float)
+    MATERIALS = ['plastic', 'paper', 'glass', 'metal', 'organic', 'textile', 'styrofoam', 'mixed']
+    BINS = ['recycle', 'compost', 'landfill', 'special', 'donate']
 
-    # Load labels (if doing node classification)
-    if config["task"]["type"] == "node_classification":
-        labels_df = pd.read_parquet(config["data"]["node_labels_file"])
-        y = torch.tensor(labels_df['label'].values, dtype=torch.long)
-    else:
-        y = None
+    num_classes = len(TARGET_CLASSES)      # 30
+    num_materials = len(MATERIALS)          # 8
+    num_bins = len(BINS)                    # 5
+    total_nodes = num_classes + num_materials + num_bins  # 43
 
-    # Create graph data object
-    data = Data(x=x, edge_index=edge_index, y=y)
+    mat_base = num_classes
+    bin_base = mat_base + num_materials
+    mat_idx = {m: mat_base + i for i, m in enumerate(MATERIALS)}
+    bin_idx = {b: bin_base + i for i, b in enumerate(BINS)}
 
-    logger.info(f"Loaded graph: {data.num_nodes} nodes, {data.num_edges} edges")
+    ITEM_MATERIAL = {
+        'aerosol_cans': 'metal', 'aluminum_food_cans': 'metal',
+        'aluminum_soda_cans': 'metal', 'steel_food_cans': 'metal',
+        'cardboard_boxes': 'paper', 'cardboard_packaging': 'paper',
+        'magazines': 'paper', 'newspaper': 'paper', 'office_paper': 'paper',
+        'paper_cups': 'paper',
+        'glass_beverage_bottles': 'glass', 'glass_cosmetic_containers': 'glass',
+        'glass_food_jars': 'glass',
+        'disposable_plastic_cutlery': 'plastic', 'plastic_cup_lids': 'plastic',
+        'plastic_detergent_bottles': 'plastic', 'plastic_food_containers': 'plastic',
+        'plastic_shopping_bags': 'plastic', 'plastic_soda_bottles': 'plastic',
+        'plastic_straws': 'plastic', 'plastic_trash_bags': 'plastic',
+        'plastic_water_bottles': 'plastic',
+        'coffee_grounds': 'organic', 'eggshells': 'organic',
+        'food_waste': 'organic', 'tea_bags': 'organic',
+        'clothing': 'textile', 'shoes': 'mixed',
+        'styrofoam_cups': 'styrofoam', 'styrofoam_food_containers': 'styrofoam',
+    }
+    MATERIAL_BIN = {
+        'plastic': 'recycle', 'paper': 'recycle', 'glass': 'recycle',
+        'metal': 'recycle', 'organic': 'compost', 'textile': 'donate',
+        'styrofoam': 'landfill', 'mixed': 'special',
+    }
+    ITEM_BIN_OVERRIDE = {
+        'disposable_plastic_cutlery': 'landfill', 'plastic_straws': 'landfill',
+        'plastic_trash_bags': 'landfill', 'plastic_shopping_bags': 'special',
+        'paper_cups': 'landfill', 'shoes': 'donate',
+    }
+    CONFUSION_PAIRS = [
+        ('glass_beverage_bottles', 'glass_food_jars'),
+        ('cardboard_boxes', 'cardboard_packaging'),
+        ('aluminum_food_cans', 'steel_food_cans'),
+        ('aluminum_soda_cans', 'steel_food_cans'),
+        ('plastic_soda_bottles', 'plastic_water_bottles'),
+        ('plastic_soda_bottles', 'plastic_detergent_bottles'),
+        ('newspaper', 'office_paper'), ('newspaper', 'magazines'),
+        ('office_paper', 'magazines'),
+        ('styrofoam_cups', 'styrofoam_food_containers'),
+        ('plastic_food_containers', 'plastic_cup_lids'),
+        ('plastic_food_containers', 'disposable_plastic_cutlery'),
+        ('coffee_grounds', 'tea_bags'), ('food_waste', 'coffee_grounds'),
+        ('clothing', 'shoes'),
+    ]
 
+    # Build edges (bidirectional)
+    src, tgt = [], []
+    for i, cls in enumerate(TARGET_CLASSES):
+        mat = ITEM_MATERIAL.get(cls, 'mixed')
+        m = mat_idx[mat]
+        src += [i, m]; tgt += [m, i]
+    for mat, b in MATERIAL_BIN.items():
+        m = mat_idx[mat]; bi = bin_idx[b]
+        src += [m, bi]; tgt += [bi, m]
+    for cls, b in ITEM_BIN_OVERRIDE.items():
+        ii = TARGET_CLASSES.index(cls); bi = bin_idx[b]
+        src += [ii, bi]; tgt += [bi, ii]
+    for a, b in CONFUSION_PAIRS:
+        ia, ib = TARGET_CLASSES.index(a), TARGET_CLASSES.index(b)
+        src += [ia, ib]; tgt += [ib, ia]
+
+    edge_index = torch.tensor([src, tgt], dtype=torch.long)
+
+    # Node features
+    feat_dim = config["model"]["input_dim"]
+    x = torch.randn(total_nodes, feat_dim)
+    for i in range(num_materials):
+        x[mat_base + i] = torch.randn(feat_dim) * 0.5
+        s = i * (feat_dim // num_materials)
+        e = (i + 1) * (feat_dim // num_materials)
+        x[mat_base + i, s:e] += 2.0
+    for i in range(num_bins):
+        x[bin_base + i] = torch.randn(feat_dim) * 0.3
+        s = i * (feat_dim // num_bins)
+        e = (i + 1) * (feat_dim // num_bins)
+        x[bin_base + i, s:e] += 3.0
+
+    data = Data(x=x, edge_index=edge_index, num_nodes=total_nodes)
+    logger.info(
+        f"Knowledge Graph: {total_nodes} nodes "
+        f"({num_classes} items + {num_materials} materials + {num_bins} bins), "
+        f"{edge_index.size(1)} edges"
+    )
     return data
 
 
@@ -180,19 +274,87 @@ def create_model(config: dict, device: torch.device) -> nn.Module:
     return model
 
 
+def negative_sampling(edge_index, num_nodes, num_neg_samples):
+    """
+    Sample negative edges (pairs of nodes NOT connected in the graph).
+
+    CRITICAL FIX: Efficient vectorized negative sampling with timeout protection.
+    Moved BEFORE usage to prevent NameError.
+    """
+    neg_edges = []
+    edge_set = set(map(tuple, edge_index.t().tolist()))
+    num_neg_samples = int(num_neg_samples)
+
+    max_attempts = 100
+    batch_size = num_neg_samples * 2
+
+    for attempt in range(max_attempts):
+        if len(neg_edges) >= num_neg_samples:
+            break
+
+        src = torch.randint(0, num_nodes, (batch_size,))
+        dst = torch.randint(0, num_nodes, (batch_size,))
+
+        mask = (src != dst)
+        candidates = torch.stack([src[mask], dst[mask]], dim=1)
+
+        for edge in candidates:
+            edge_tuple = tuple(edge.tolist())
+            if edge_tuple not in edge_set:
+                neg_edges.append(edge.tolist())
+                if len(neg_edges) >= num_neg_samples:
+                    break
+
+    if len(neg_edges) < num_neg_samples:
+        raise RuntimeError(
+            f"Failed to sample {num_neg_samples} negative edges after {max_attempts} attempts. "
+            f"Only got {len(neg_edges)} samples. Graph may be too dense."
+        )
+
+    return torch.tensor(neg_edges[:num_neg_samples], dtype=torch.long).t()
+
+
+@torch.no_grad()
+def evaluate_link_prediction(model, data, device, mask):
+    """Evaluate link prediction accuracy."""
+    model.eval()
+
+    z = model(data.x.to(device), data.edge_index.to(device))
+
+    pos_edge_index = data.edge_index[:, mask].to(device)
+
+    neg_edge_index = negative_sampling(
+        edge_index=data.edge_index,
+        num_nodes=data.num_nodes,
+        num_neg_samples=pos_edge_index.size(1)
+    ).to(device)
+
+    pos_scores = torch.sigmoid((z[pos_edge_index[0]] * z[pos_edge_index[1]]).sum(dim=1))
+    neg_scores = torch.sigmoid((z[neg_edge_index[0]] * z[neg_edge_index[1]]).sum(dim=1))
+
+    scores = torch.cat([pos_scores, neg_scores])
+    labels = torch.cat([
+        torch.ones(pos_scores.size(0), device=device),
+        torch.zeros(neg_scores.size(0), device=device),
+    ])
+
+    preds = (scores > 0.5).float()
+    acc = (preds == labels).float().mean().item()
+
+    return acc
+
+
 def train_epoch_link_prediction(model, data, optimizer, device, config):
     """Train one epoch for link prediction."""
     model.train()
 
-    # Positive edges — edge-level mask (train_mask now has shape [num_edges])
     pos_edge_index = data.edge_index[:, data.train_mask].to(device)
 
-    # Negative sampling (returns CPU tensor)
     neg_edge_index = negative_sampling(
         edge_index=data.edge_index,
         num_nodes=data.num_nodes,
         num_neg_samples=pos_edge_index.size(1) * config["task"]["link_prediction"]["negative_sampling_ratio"]
-    ).to(device)  # CRITICAL FIX: move to same device as embeddings
+    ).to(device)
 
     # Forward
     optimizer.zero_grad()
@@ -342,83 +504,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-def negative_sampling(edge_index, num_nodes, num_neg_samples):
-    """
-    Sample negative edges
-
-    CRITICAL FIX: Efficient vectorized negative sampling with timeout protection
-    """
-    neg_edges = []
-    edge_set = set(map(tuple, edge_index.t().tolist()))
-
-    # CRITICAL FIX: Vectorized sampling with max attempts to prevent infinite loops
-    max_attempts = 100
-    batch_size = num_neg_samples * 2  # Sample more than needed for efficiency
-
-    for attempt in range(max_attempts):
-        if len(neg_edges) >= num_neg_samples:
-            break
-
-        # Vectorized sampling
-        src = torch.randint(0, num_nodes, (batch_size,))
-        dst = torch.randint(0, num_nodes, (batch_size,))
-
-        # Filter self-loops
-        mask = (src != dst)
-        candidates = torch.stack([src[mask], dst[mask]], dim=1)
-
-        # Filter existing edges
-        for edge in candidates:
-            edge_tuple = tuple(edge.tolist())
-            if edge_tuple not in edge_set:
-                neg_edges.append(edge.tolist())
-                if len(neg_edges) >= num_neg_samples:
-                    break
-
-    # CRITICAL FIX: Validate we got enough samples
-    if len(neg_edges) < num_neg_samples:
-        raise RuntimeError(
-            f"Failed to sample {num_neg_samples} negative edges after {max_attempts} attempts. "
-            f"Only got {len(neg_edges)} samples. Graph may be too dense."
-        )
-
-    return torch.tensor(neg_edges[:num_neg_samples], dtype=torch.long).t()
-
-
-@torch.no_grad()
-def evaluate_link_prediction(model, data, device, mask):
-    """Evaluate link prediction."""
-    model.eval()
-
-    # Get embeddings
-    z = model(data.x.to(device), data.edge_index.to(device))
-
-    # Positive edges — move to device to match z
-    pos_edge_index = data.edge_index[:, mask].to(device)
-
-    # Negative edges — move to device
-    neg_edge_index = negative_sampling(
-        edge_index=data.edge_index,
-        num_nodes=data.num_nodes,
-        num_neg_samples=pos_edge_index.size(1)
-    ).to(device)
-
-    # Compute scores
-    pos_scores = torch.sigmoid((z[pos_edge_index[0]] * z[pos_edge_index[1]]).sum(dim=1))
-    neg_scores = torch.sigmoid((z[neg_edge_index[0]] * z[neg_edge_index[1]]).sum(dim=1))
-
-    # Compute AUC-like accuracy
-    scores = torch.cat([pos_scores, neg_scores])
-    labels = torch.cat([
-        torch.ones(pos_scores.size(0), device=device),
-        torch.zeros(neg_scores.size(0), device=device),
-    ])
-
-    # Simple accuracy (threshold = 0.5)
-    preds = (scores > 0.5).float()
-    acc = (preds == labels).float().mean().item()
-
-    return acc
 
