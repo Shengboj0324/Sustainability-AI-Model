@@ -1,0 +1,70 @@
+# Physics-Informed Waste Classifier — training config
+# Targets the measured failures of the legacy model:
+#   glass group 64.7%, plastic_trash_bags recall 0.23, food_waste precision 0.47,
+#   macro-F1 0.91 propped up by mega-classes. Logit adjustment + consistency +
+#   confusion-group contrastive attack these directly.
+#
+# Designed for a single Kaggle/Colab GPU (T4 16GB or A100). For T4, use
+# backbone eva02_base or convnext_base @ 384 and batch_size 16; for A100, the
+# eva02_large @ 448 settings below.
+
+model:
+  backbone: "eva02_large_patch14_448.mim_m38m_ft_in22k_in1k"
+  pretrained: true
+  drop_rate: 0.2
+  enable_se: true
+  enable_llm_projection: false      # turn on only if fusing visual tokens into the LLM
+  consistency_mode: "soft"          # soft=gated fusion (train); serving can switch to hard
+  prop_dim: 32
+  warm_start_ckpt: null             # e.g. "models/vision/classifier/best_model.pth" to reuse EVA-02 backbone
+
+data:
+  data_dir: "data/processed/vision_cls"
+  input_size: 448
+  mean: [0.48145466, 0.4578275, 0.40821073]
+  std:  [0.26862954, 0.26130258, 0.27577711]
+  num_workers: 4
+  # light, label-preserving aug: fine-grained glass separation needs clean
+  # geometry. NO mixup/cutmix by default (it fights logit-adjusted CE and blurs
+  # the within-group contrastive signal).
+  rand_augment: false
+  color_jitter: 0.2
+  horizontal_flip: true
+  random_erasing: 0.1
+
+train:
+  output_dir: "models/vision/classifier_physics"
+  experiment_name: "waste_physics_v1"
+  seed: 42
+  epochs: 30
+  batch_size: 16                    # A100; drop to 8 + grad_accum 2 on T4
+  grad_accum_steps: 2               # effective batch 32
+  optimizer: "adamw"
+  lr_backbone: 1.0e-4               # layer-wise: backbone gets lower LR
+  lr_heads: 1.0e-3                  # new heads/property scorer learn faster
+  layer_decay: 0.8
+  weight_decay: 0.05
+  betas: [0.9, 0.999]
+  scheduler: "cosine"
+  warmup_epochs: 2
+  min_lr: 1.0e-6
+  clip_grad_norm: 5.0
+  use_amp: true                     # fp16 on CUDA; auto-disabled on CPU/MPS
+  use_balanced_sampler: false       # logit adjustment handles imbalance; sampler would double-correct
+  use_ema: true
+  ema_decay: 0.999
+  early_stopping_patience: 8
+  select_metric: "macro_f1"         # NOT weighted acc — that was the legacy mistake
+  val_interval: 1
+  log_interval: 50
+
+loss:
+  w_item: 1.0
+  w_material: 1.0
+  w_bin: 0.7
+  w_consistency: 0.5
+  w_impossible: 0.5
+  w_contrastive: 0.3                # higher than default to push glass/film separation
+  logit_adjust_tau: 1.0             # imbalance correction strength
+  label_smoothing: 0.05
+  contrastive_temp: 0.1

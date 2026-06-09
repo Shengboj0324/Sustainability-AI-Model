@@ -1,0 +1,63 @@
+{
+  "model": {
+    "backbone": "eva02_large_patch14_448.mim_m38m_ft_in22k_in1k",
+    "num_classes_item": 30,
+    "num_classes_material": 15,
+    "num_classes_bin": 4,
+    "total_params": 325232626,
+    "model_size_mb": 1300.9,
+    "feature_dim": 1024,
+    "temperature": 1.4785,
+    "se_block": true,
+    "llm_projection": true
+  },
+  "accuracy": {
+    "top1": 91.92,
+    "top5": 98.31,
+    "macro_f1": 90.52,
+    "weighted_f1": 91.79
+  },
+  "calibration": {
+    "ece": 5.83,
+    "mce": 69.51
+  },
+  "latency_ms": {
+    "mean": 128.2,
+    "median": 128.2,
+    "p95": 128.6,
+    "p99": 128.9
+  },
+  "throughput_img_per_sec": 7.8,
+  "gradient_sanity": {
+    "dead_params": 8,
+    "nan_in_output": false,
+    "inf_in_output": false
+  },
+  "deterministic": true,
+  "worst_classes": [
+    [
+      "cardboard_packaging",
+      61.1
+    ],
+    [
+      "aluminum_food_cans",
+      63.3
+    ],
+    [
+      "newspaper",
+      83.5
+    ],
+    [
+      "plastic_soda_bottles",
+      84.5
+    ],
+    [
+      "plastic_shopping_bags",
+      85.1
+    ]
+  ],
+  "eval_samples": 2598,
+  "eval_dir": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/data/processed/vision_cls/test",
+  "issues": [],
+  "deployment_ready": true
+}
