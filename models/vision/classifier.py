@@ -24,7 +24,17 @@ import time
 from dataclasses import dataclass
 import numpy as np
 
+from models.vision import taxonomy as tx
+
 logger = logging.getLogger(__name__)
+
+# Material / bin label order of the DEPLOYED legacy checkpoint (material_head=15,
+# bin_head=4). Kept verbatim so indices line up with the trained weights.
+_LEGACY_MATERIAL_CLASSES = [
+    "PET", "HDPE", "PVC", "LDPE", "PP", "PS", "glass", "aluminum",
+    "steel", "paper", "cardboard", "cotton", "polyester", "mixed", "other",
+]
+_LEGACY_BIN_CLASSES = ["recycle", "compost", "landfill", "hazardous"]
 
 # LLM hidden dimension for cross-modal alignment (Llama-3-8B = 4096)
 LLM_HIDDEN_DIM = 4096
@@ -109,8 +119,8 @@ class MultiHeadClassifier(nn.Module):
 
     def __init__(
         self,
-        backbone: str = "vit_base_patch16_224",
-        num_classes_item: int = 20,
+        backbone: str = "eva02_large_patch14_448.mim_m38m_ft_in22k_in1k",
+        num_classes_item: int = 30,
         num_classes_material: int = 15,
         num_classes_bin: int = 4,
         drop_rate: float = 0.1,
@@ -213,7 +223,7 @@ class WasteClassifier:
         config: Optional[Dict[str, Any]] = None,
         device: Optional[str] = None
     ):
-        self.config = config or self._get_default_config()
+        self.config = self._normalize_config(config)
         self.device = self._setup_device(device)
         self.model: Optional[MultiHeadClassifier] = None
         self.transform: Optional[transforms.Compose] = None
@@ -231,20 +241,53 @@ class WasteClassifier:
         logger.info(f"WasteClassifier initialized on device: {self.device}")
 
     def _get_default_config(self) -> Dict[str, Any]:
-        """Get default configuration"""
+        """Default config matching the DEPLOYED checkpoint
+        (deployment_package/best_model.pth): EVA-02 Large @448, 30 items,
+        15 materials, 4 bins, CLIP/EVA normalization. The previous default
+        (vit_base_patch16_224 / 20 items / ImageNet norm) did NOT match any
+        trained checkpoint and silently built the wrong network."""
         return {
-            "backbone": "vit_base_patch16_224",
-            "num_classes_item": 20,
-            "num_classes_material": 15,
-            "num_classes_bin": 4,
-            "drop_rate": 0.1,
-            "input_size": 224,
-            "mean": [0.485, 0.456, 0.406],
-            "std": [0.229, 0.224, 0.225],
-            "item_classes": [],
-            "material_classes": [],
-            "bin_classes": ["recycle", "compost", "landfill", "hazardous"]
+            "backbone": "eva02_large_patch14_448.mim_m38m_ft_in22k_in1k",
+            "num_classes_item": tx.NUM_ITEMS,            # 30
+            "num_classes_material": len(_LEGACY_MATERIAL_CLASSES),  # 15
+            "num_classes_bin": len(_LEGACY_BIN_CLASSES),  # 4
+            "drop_rate": 0.2,
+            "input_size": 448,
+            "mean": [0.48145466, 0.4578275, 0.40821073],
+            "std": [0.26862954, 0.26130258, 0.27577711],
+            "item_classes": list(tx.ITEM_CLASSES),
+            "material_classes": list(_LEGACY_MATERIAL_CLASSES),
+            "bin_classes": list(_LEGACY_BIN_CLASSES),
         }
+
+    def _normalize_config(self, cfg: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Accept EITHER a flat config OR the nested training YAML
+        (configs/vision_cls.yaml with `model:`/`data:` sections) and return the
+        flat shape that load_model()/_setup_transforms() expect. This is what
+        the vision service passes, so without this the service KeyErrors on
+        `config["backbone"]`."""
+        base = self._get_default_config()
+        if not cfg:
+            return base
+        if "model" in cfg or "data" in cfg:
+            model = cfg.get("model", {}) or {}
+            data = cfg.get("data", {}) or {}
+            return {
+                "backbone": model.get("backbone", base["backbone"]),
+                "num_classes_item": model.get("num_classes_item", base["num_classes_item"]),
+                "num_classes_material": model.get("num_classes_material", base["num_classes_material"]),
+                "num_classes_bin": model.get("num_classes_bin", base["num_classes_bin"]),
+                "drop_rate": model.get("drop_rate", base["drop_rate"]),
+                "input_size": data.get("input_size", base["input_size"]),
+                "mean": data.get("mean", base["mean"]),
+                "std": data.get("std", base["std"]),
+                "item_classes": model.get("item_classes", base["item_classes"]),
+                "material_classes": model.get("material_classes", base["material_classes"]),
+                "bin_classes": base["bin_classes"],
+            }
+        merged = dict(base)
+        merged.update(cfg)
+        return merged
 
 
 

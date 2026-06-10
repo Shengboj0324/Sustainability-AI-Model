@@ -264,6 +264,17 @@ def build_mapping_tensors(device=None):
     }
 
 
+def disposal_for_item(item_name: str) -> Dict[str, str]:
+    """Authoritative, physically-consistent disposal facts for a predicted item.
+
+    The recommended SERVING contract: classify the item, then derive material +
+    bin from here rather than trusting weak independent material/bin heads. The
+    result is always a legal (item, material, bin) triple. Raises KeyError on an
+    unknown item so mismatches fail loud instead of silently mis-routing waste."""
+    f = ITEM_FACTS[item_name]
+    return {"item": item_name, "material": f.material, "bin": f.bin, "note": f.note}
+
+
 def validate_taxonomy() -> None:
     """Self-check that every relation is internally consistent. Cheap; call at import time in tests."""
     assert len(ITEM_CLASSES) == NUM_ITEMS == 30, "expected 30 items"
