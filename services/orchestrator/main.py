@@ -138,6 +138,25 @@ org_circuit_breaker = CircuitBreaker(
 config = None
 
 
+_SERVICE_URL_ENV = {
+    "vision_service": "VISION_SERVICE_URL",
+    "llm_service": "LLM_SERVICE_URL",
+    "rag_service": "RAG_SERVICE_URL",
+    "kg_service": "KG_SERVICE_URL",
+    "org_search_service": "ORG_SEARCH_SERVICE_URL",
+}
+
+
+def apply_service_url_overrides(config_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Apply deployment-time service URL overrides from environment variables."""
+    services = config_data.setdefault("services", {})
+    for service_name, env_name in _SERVICE_URL_ENV.items():
+        env_url = os.getenv(env_name)
+        if env_url:
+            services.setdefault(service_name, {})["url"] = env_url.rstrip("/")
+    return config_data
+
+
 class ConfidenceLevel(str, Enum):
     """Confidence levels for responses"""
     HIGH = "high"  # 0.8+
@@ -1101,6 +1120,7 @@ async def startup():
         config_path = os.getenv("ORCHESTRATOR_CONFIG", "configs/orchestrator.yaml")
         with open(config_path, "r") as f:
             config = yaml.safe_load(f)
+        config = apply_service_url_overrides(config)
         logger.info(f"Configuration loaded from {config_path}")
     except Exception as e:
         logger.error(f"Failed to load configuration: {e}")

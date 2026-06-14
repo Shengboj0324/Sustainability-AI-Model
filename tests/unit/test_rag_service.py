@@ -154,6 +154,51 @@ class TestRAGService:
         assert len(result) == 2
         assert result == sample_documents[:2]
 
+    @pytest.mark.asyncio
+    async def test_lexical_retrieval_fallback_returns_provenance(self, rag_service):
+        """Test degraded local-corpus retrieval when vector dependencies are unavailable"""
+        rag_service.embedding_model = None
+        rag_service.qdrant_client = None
+
+        documents = await rag_service.retrieve(
+            query="How should I recycle PET plastic bottles?",
+            top_k=3,
+            mode=RetrievalMode.HYBRID,
+            rerank=True,
+        )
+
+        assert documents
+        assert documents[0].score > 0
+        assert documents[0].metadata["retrieval_backend"] == "local_lexical"
+        assert documents[0].lineage.original_source
+        assert documents[0].trust_indicators.trust_score > 0
+
+    def test_retrieve_endpoint_uses_lexical_fallback_when_models_unloaded(self):
+        """Test API endpoint returns structured degraded results instead of 503"""
+        from fastapi.testclient import TestClient
+        from services.rag_service import server
+
+        server.rag_service.embedding_model = None
+        server.rag_service.qdrant_client = None
+
+        with TestClient(server.app) as client:
+            response = client.post(
+                "/retrieve",
+                json={
+                    "query": "battery hazardous disposal",
+                    "top_k": 2,
+                    "mode": "hybrid",
+                    "include_provenance": True,
+                },
+            )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["num_results"] >= 1
+        assert payload["metadata"]["degraded"] is True
+        assert payload["metadata"]["retrieval_backend"] == "local_lexical_fallback"
+        assert payload["documents"][0]["lineage"]["original_source"]
+
 
 class TestRetrievalRequest:
     """Test request validation"""
@@ -192,4 +237,3 @@ class TestRetrievalRequest:
                 query="test",
                 location={"lat": 37.7749}
             )
-

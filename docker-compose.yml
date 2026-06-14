@@ -91,7 +91,7 @@ services:
   api-gateway:
     build:
       context: .
-      dockerfile: services/api_gateway/Dockerfile
+      dockerfile: Dockerfile
     container_name: releaf-api-gateway
     ports:
       - "8080:8080"
@@ -110,7 +110,7 @@ services:
   orchestrator:
     build:
       context: .
-      dockerfile: services/orchestrator/Dockerfile
+      dockerfile: Dockerfile
     container_name: releaf-orchestrator
     ports:
       - "8000:8000"
@@ -135,7 +135,7 @@ services:
   vision-service:
     build:
       context: .
-      dockerfile: services/vision_service/Dockerfile
+      dockerfile: Dockerfile
     container_name: releaf-vision-service
     ports:
       - "8001:8001"
@@ -150,13 +150,13 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    command: uvicorn services.vision_service.server:app --host 0.0.0.0 --port 8001
+    command: uvicorn services.vision_service.server_v2:app --host 0.0.0.0 --port 8001
 
   # LLM Service (GPU optional — falls back to OpenAI-compatible API backend)
   llm-service:
     build:
       context: .
-      dockerfile: services/llm_service/Dockerfile
+      dockerfile: Dockerfile
     container_name: releaf-llm-service
     ports:
       - "8002:8002"
@@ -178,13 +178,13 @@ services:
     #         - driver: nvidia
     #           count: 1
     #           capabilities: [gpu]
-    command: uvicorn services.llm_service.server:app --host 0.0.0.0 --port 8002
+    command: uvicorn services.llm_service.server_v2:app --host 0.0.0.0 --port 8002
 
   # RAG Service
   rag-service:
     build:
       context: .
-      dockerfile: services/rag_service/Dockerfile
+      dockerfile: Dockerfile
     container_name: releaf-rag-service
     ports:
       - "8003:8003"
@@ -203,7 +203,7 @@ services:
   kg-service:
     build:
       context: .
-      dockerfile: services/kg_service/Dockerfile
+      dockerfile: Dockerfile
     container_name: releaf-kg-service
     ports:
       - "8004:8004"
@@ -222,7 +222,7 @@ services:
   org-search-service:
     build:
       context: .
-      dockerfile: services/org_search_service/Dockerfile
+      dockerfile: Dockerfile
     container_name: releaf-org-search-service
     ports:
       - "8005:8005"

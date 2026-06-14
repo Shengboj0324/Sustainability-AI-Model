@@ -23,6 +23,9 @@ import asyncio
 from datetime import datetime, timedelta
 import os
 import hashlib
+import json
+import math
+import re
 from functools import lru_cache
 import time
 import uuid
@@ -457,11 +460,216 @@ class RAGService:
             flush_interval_seconds=float(os.getenv("AUDIT_FLUSH_INTERVAL", "5.0"))
         )
 
+        # Production fallback: local lexical corpus retrieval for degraded mode.
+        # This is not a mock. It uses checked-in curated sustainability corpora
+        # with provenance metadata when vector retrieval is unavailable.
+        self.lexical_corpus_paths = self._get_lexical_corpus_paths()
+        self._lexical_documents: Optional[List[RetrievedDocument]] = None
+        self._lexical_doc_tokens: Optional[List[set[str]]] = None
+
     def _get_qdrant_config(self) -> Dict[str, Any]:
         """Return Qdrant config from either legacy or current config schema."""
         if "qdrant" in self.config:
             return self.config.get("qdrant", {})
         return self.config.get("vector_store", {}).get("qdrant", {})
+
+    def _get_lexical_corpus_paths(self) -> List[Path]:
+        configured = os.getenv("RAG_LEXICAL_CORPUS_PATHS")
+        if configured:
+            return [Path(p.strip()) for p in configured.split(",") if p.strip()]
+        return [
+            Path("data/knowledge_corpus/sustainability_knowledge.jsonl"),
+            Path("data/sustainability_knowledge_base.json"),
+        ]
+
+    def _tokenize_for_lexical(self, text: str) -> List[str]:
+        stopwords = {
+            "a", "an", "and", "are", "as", "at", "be", "by", "can", "do",
+            "for", "from", "how", "i", "in", "is", "it", "of", "on", "or",
+            "the", "this", "to", "what", "where", "with", "you",
+        }
+        return [
+            token
+            for token in re.findall(r"[a-zA-Z0-9#]+", (text or "").lower())
+            if len(token) > 1 and token not in stopwords
+        ]
+
+    def _flatten_knowledge_json(
+        self,
+        node: Any,
+        path: List[str],
+        source_path: Path,
+    ) -> List[RetrievedDocument]:
+        documents: List[RetrievedDocument] = []
+        if isinstance(node, dict) and "content" in node:
+            title = str(node.get("title") or path[-1] if path else "Knowledge document")
+            content = str(node.get("content") or "")
+            doc_id_seed = f"{source_path}:{'/'.join(path)}:{title}"
+            doc_type = str(node.get("category") or path[0] if path else "general_knowledge")
+            lineage = DataLineage(
+                original_source=str(source_path),
+                source_id="/".join(path),
+                collection_method="local_curated_corpus",
+                processing_pipeline=["json_flatten", "lexical_index"],
+            )
+            trust = TrustIndicators(
+                source_reliability=0.75,
+                content_quality=0.78,
+                freshness_score=0.6,
+                human_verified=False,
+            )
+            trust.calculate_trust_score()
+            documents.append(
+                RetrievedDocument(
+                    content=content,
+                    score=0.0,
+                    doc_id=hashlib.sha256(doc_id_seed.encode()).hexdigest()[:16],
+                    doc_type=doc_type,
+                    metadata={
+                        "title": title,
+                        "keywords": node.get("keywords", []),
+                        "path": path,
+                        "retrieval_backend": "local_lexical",
+                    },
+                    source=str(source_path),
+                    lineage=lineage,
+                    trust_indicators=trust,
+                )
+            )
+            return documents
+
+        if isinstance(node, dict):
+            for key, value in node.items():
+                documents.extend(self._flatten_knowledge_json(value, path + [str(key)], source_path))
+        elif isinstance(node, list):
+            for idx, value in enumerate(node):
+                documents.extend(self._flatten_knowledge_json(value, path + [str(idx)], source_path))
+        return documents
+
+    def _load_lexical_documents(self) -> List[RetrievedDocument]:
+        if self._lexical_documents is not None:
+            return self._lexical_documents
+
+        documents: List[RetrievedDocument] = []
+        for path in self.lexical_corpus_paths:
+            if not path.exists():
+                continue
+            try:
+                if path.suffix == ".jsonl":
+                    with open(path, "r", encoding="utf-8") as f:
+                        for line_no, line in enumerate(f, start=1):
+                            if not line.strip():
+                                continue
+                            payload = json.loads(line)
+                            content = str(payload.get("content", ""))
+                            title = str(payload.get("title") or payload.get("id") or f"Document {line_no}")
+                            doc_id = str(payload.get("id") or hashlib.sha256(f"{path}:{line_no}".encode()).hexdigest()[:16])
+                            lineage = DataLineage(
+                                original_source=str(path),
+                                source_id=doc_id,
+                                collection_method="local_jsonl_corpus",
+                                processing_pipeline=["jsonl_parse", "lexical_index"],
+                            )
+                            trust = TrustIndicators(
+                                source_reliability=0.78,
+                                content_quality=0.8,
+                                freshness_score=0.65,
+                                human_verified=False,
+                            )
+                            trust.calculate_trust_score()
+                            documents.append(
+                                RetrievedDocument(
+                                    content=content,
+                                    score=0.0,
+                                    doc_id=doc_id,
+                                    doc_type=str(payload.get("category", "general_knowledge")),
+                                    metadata={
+                                        "title": title,
+                                        "tags": payload.get("tags", []),
+                                        "subcategory": payload.get("subcategory"),
+                                        "retrieval_backend": "local_lexical",
+                                    },
+                                    source=str(path),
+                                    lineage=lineage,
+                                    trust_indicators=trust,
+                                )
+                            )
+                elif path.suffix == ".json":
+                    payload = json.loads(path.read_text(encoding="utf-8"))
+                    documents.extend(self._flatten_knowledge_json(payload, [], path))
+            except Exception as exc:
+                logger.warning(f"Failed to load lexical corpus {path}: {exc}")
+
+        self._lexical_documents = documents
+        self._lexical_doc_tokens = [
+            set(self._tokenize_for_lexical(f"{doc.metadata.get('title', '')} {doc.content} {' '.join(map(str, doc.metadata.get('tags', [])))}"))
+            for doc in documents
+        ]
+        logger.info(f"Loaded {len(documents)} local lexical RAG documents")
+        return documents
+
+    async def lexical_retrieval(
+        self,
+        query: str,
+        top_k: int = 5,
+        doc_types: Optional[List[str]] = None,
+    ) -> List[RetrievedDocument]:
+        """Retrieve documents from local corpora with BM25-like lexical scoring."""
+        documents = self._load_lexical_documents()
+        if not documents:
+            return []
+
+        query_tokens = self._tokenize_for_lexical(query)
+        if not query_tokens:
+            return []
+
+        token_sets = self._lexical_doc_tokens or []
+        doc_count = max(len(documents), 1)
+        doc_freq: Dict[str, int] = {}
+        for token in set(query_tokens):
+            doc_freq[token] = sum(1 for tokens in token_sets if token in tokens)
+
+        scored: List[RetrievedDocument] = []
+        for doc, tokens in zip(documents, token_sets):
+            if doc_types and doc.doc_type not in doc_types:
+                continue
+            if not tokens:
+                continue
+            overlap = set(query_tokens) & tokens
+            if not overlap:
+                continue
+            score = 0.0
+            for token in overlap:
+                idf = math.log((doc_count + 1) / (doc_freq.get(token, 0) + 1)) + 1.0
+                score += idf
+            score = min(1.0, score / (len(set(query_tokens)) + 2.0))
+            scored.append(
+                RetrievedDocument(
+                    content=doc.content,
+                    score=round(score, 4),
+                    doc_id=doc.doc_id,
+                    doc_type=doc.doc_type,
+                    metadata={
+                        **doc.metadata,
+                        "retrieval_backend": "local_lexical",
+                        "matched_terms": sorted(overlap),
+                    },
+                    source=doc.source,
+                    embedding_metadata=EmbeddingMetadata(
+                        model_name="local-lexical-bm25-fallback",
+                        model_version="1.0.0",
+                        embedding_dim=0,
+                        normalization=False,
+                        pooling_strategy="none",
+                        content_checksum=generate_checksum(doc.content),
+                    ),
+                    lineage=doc.lineage,
+                    trust_indicators=doc.trust_indicators,
+                )
+            )
+
+        scored.sort(key=lambda doc: doc.score, reverse=True)
+        return scored[:top_k]
         
     def _load_config(self, config_path: str) -> Dict[str, Any]:
         """Load configuration with validation"""
@@ -1191,12 +1399,34 @@ class RAGService:
         try:
             start_time = datetime.now()
 
+            # Production-grade degraded path: if the vector stack is unavailable,
+            # still return grounded local-corpus evidence with explicit metadata.
+            if not SENTENCE_TRANSFORMERS_AVAILABLE or self.embedding_model is None or self.qdrant_client is None:
+                documents = await self.lexical_retrieval(query=query, top_k=top_k, doc_types=doc_types)
+                retrieval_time = (datetime.now() - start_time).total_seconds() * 1000
+                logger.warning(
+                    "Vector RAG unavailable; returned local lexical retrieval results",
+                    extra={
+                        "documents": len(documents),
+                        "retrieval_time_ms": round(retrieval_time, 2),
+                        "sentence_transformers_available": SENTENCE_TRANSFORMERS_AVAILABLE,
+                        "embedding_model_loaded": self.embedding_model is not None,
+                        "qdrant_loaded": self.qdrant_client is not None,
+                    },
+                )
+                return documents
+
             # Generate query embedding
             query_embedding = await self.embed_query(query)
 
             # Retrieve based on mode
             if mode == RetrievalMode.DENSE or mode == RetrievalMode.HYBRID:
-                dense_top_k = self.config["retrieval"]["dense_top_k"]
+                retrieval_config = self.config.get("retrieval", {})
+                dense_top_k = (
+                    retrieval_config.get("dense_top_k")
+                    or retrieval_config.get("dense", {}).get("top_k")
+                    or top_k
+                )
                 documents = await self.dense_retrieval(
                     query_embedding,
                     dense_top_k,
@@ -1217,7 +1447,10 @@ class RAGService:
             return documents
 
         except Exception as e:
-            logger.error(f"Retrieval failed: {e}", exc_info=True)
+            logger.error(f"Vector retrieval failed, attempting lexical fallback: {e}", exc_info=True)
+            documents = await self.lexical_retrieval(query=query, top_k=top_k, doc_types=doc_types)
+            if documents:
+                return documents
             raise
 
 
@@ -1410,19 +1643,11 @@ async def retrieve_knowledge(request: RetrievalRequest, http_request: Request):
     correlation_id = http_request.headers.get("X-Correlation-ID") or http_request.headers.get("X-Request-ID") or str(uuid.uuid4())
     set_correlation_id(correlation_id)
 
-    # CRITICAL FIX: Check if models are available
-    if not SENTENCE_TRANSFORMERS_AVAILABLE or rag_service.embedding_model is None:
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "error": "RAG service unavailable",
-                "message": "Sentence-transformers library not available or models not loaded. "
-                          "This is likely due to x86 Python on ARM Mac. "
-                          "See ENVIRONMENT_FIX_GUIDE.md for solutions.",
-                "sentence_transformers_available": SENTENCE_TRANSFORMERS_AVAILABLE,
-                "models_loaded": rag_service.embedding_model is not None
-            }
-        )
+    vector_available = (
+        SENTENCE_TRANSFORMERS_AVAILABLE
+        and rag_service.embedding_model is not None
+        and rag_service.qdrant_client is not None
+    )
 
     ACTIVE_REQUESTS.inc()
     endpoint = "retrieve"
@@ -1485,7 +1710,7 @@ async def retrieve_knowledge(request: RetrievalRequest, http_request: Request):
 
         # Convert to response format with provenance
         # Check if client wants full provenance (default: True for transparency)
-        include_provenance = request.dict().get("include_provenance", True)
+        include_provenance = request.model_dump().get("include_provenance", True)
 
         doc_dicts = [doc.to_dict(include_provenance=include_provenance) for doc in documents]
 
@@ -1500,7 +1725,16 @@ async def retrieve_knowledge(request: RetrievalRequest, http_request: Request):
                 "mode": request.mode.value,
                 "rerank": request.rerank,
                 "doc_types": doc_types,
-                "cached": False
+                "cached": False,
+                "retrieval_backend": (
+                    "vector_qdrant"
+                    if vector_available
+                    else "local_lexical_fallback"
+                ),
+                "degraded": not vector_available,
+                "sentence_transformers_available": SENTENCE_TRANSFORMERS_AVAILABLE,
+                "embedding_model_loaded": rag_service.embedding_model is not None,
+                "qdrant_loaded": rag_service.qdrant_client is not None,
             }
         )
 

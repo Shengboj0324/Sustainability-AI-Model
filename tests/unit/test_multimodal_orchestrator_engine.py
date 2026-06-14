@@ -166,3 +166,22 @@ def test_fastapi_orchestrate_endpoint_uses_deterministic_contract(monkeypatch):
     assert payload["metadata"]["service_modes"] == ["deterministic_test"]
     assert payload["citations"]
     assert any("DETERMINISTIC_TEST_MODE" in warning for warning in payload["warnings"])
+
+
+def test_orchestrator_applies_service_url_env_overrides(monkeypatch):
+    from services.orchestrator.main import apply_service_url_overrides
+
+    monkeypatch.setenv("VISION_SERVICE_URL", "http://vision-service:8001/")
+    monkeypatch.setenv("RAG_SERVICE_URL", "http://rag-service:8003")
+
+    config = {
+        "services": {
+            "vision_service": {"url": "http://localhost:8001"},
+            "rag_service": {"url": "http://localhost:8003"},
+        }
+    }
+
+    updated = apply_service_url_overrides(config)
+
+    assert updated["services"]["vision_service"]["url"] == "http://vision-service:8001"
+    assert updated["services"]["rag_service"]["url"] == "http://rag-service:8003"
