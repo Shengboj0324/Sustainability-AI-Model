@@ -26,12 +26,17 @@ import hashlib
 import json
 import sys
 from pathlib import Path
+import os
 
 # Import answer formatter and NLP modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared.answer_formatter import AnswerFormatter, AnswerType, FormattedAnswer
 from llm_service.intent_classifier import IntentClassifier, IntentCategory
 from llm_service.entity_extractor import EntityExtractor
+from services.orchestrator.engine import MultimodalOrchestratorEngine, response_id as deterministic_response_id
+from services.shared.schemas import ChatMessage as SharedChatMessage
+from services.shared.schemas import Location as SharedLocation
+from services.shared.schemas import MultimodalRequest as SharedMultimodalRequest
 
 # Initialize shared NLP modules for request classification
 _intent_classifier = IntentClassifier()
@@ -463,9 +468,12 @@ class WorkflowExecutor:
     CRITICAL: Handles failures gracefully, tracks confidence, enables fallbacks
     """
 
-    def __init__(self):
-        self.services = config["services"]
-        self.workflows = config["workflows"]
+    def __init__(self, config_data: Optional[Dict[str, Any]] = None):
+        active_config = config_data or config
+        if not active_config:
+            raise RuntimeError("Orchestrator configuration is not loaded")
+        self.services = active_config["services"]
+        self.workflows = active_config["workflows"]
         self.client = httpx.AsyncClient(timeout=60.0)
         self.fallback_strategy = FallbackStrategy()
         self.confidence_calculator = ConfidenceCalculator()
@@ -569,10 +577,13 @@ class WorkflowExecutor:
 
         CRITICAL FIX: Prevents cascade failures when vision service is slow/down
         """
-        endpoint = f"{url}/{action}"
+        endpoint = f"{url}/analyze"
         payload = {
-            "image": request.image,
-            "image_url": request.image_url
+            "image_b64": request.image,
+            "image_url": request.image_url,
+            "enable_detection": action in {"detect", "detect_and_classify"},
+            "enable_classification": action in {"classify", "detect_and_classify"},
+            "enable_recommendations": action == "detect_and_classify",
         }
 
         async def _call():
@@ -621,11 +632,14 @@ class WorkflowExecutor:
 
         CRITICAL FIX: Prevents cascade failures when RAG service is slow/down
         """
-        endpoint = f"{url}/{action}"
+        endpoint = f"{url}/retrieve"
         query = request.messages[-1].get("content", "") if request.messages else ""
         payload = {
             "query": query,
-            "location": request.location
+            "location": request.location,
+            "top_k": 5,
+            "mode": "hybrid",
+            "include_provenance": True,
         }
 
         async def _call():
@@ -647,9 +661,24 @@ class WorkflowExecutor:
 
         CRITICAL FIX: Prevents cascade failures when KG service is slow/down
         """
-        endpoint = f"{url}/{action}"
-        # Extract relevant info from context
-        payload = {"context": context}
+        query = request.messages[-1].get("content", "") if request.messages else ""
+        nlp_metadata = getattr(request, '_nlp_metadata', {})
+        entity_summary = nlp_metadata.get("entity_summary", {}) if isinstance(nlp_metadata, dict) else {}
+        material = (
+            (entity_summary.get("MATERIAL") or entity_summary.get("ITEM") or [None])[0]
+            if isinstance(entity_summary, dict)
+            else None
+        ) or query or "unknown"
+
+        if action == "query_upcycling_paths":
+            endpoint = f"{url}/upcycling/paths"
+            payload = {"source_material": material, "max_depth": 3}
+        elif action == "query_relationships":
+            endpoint = f"{url}/relationships"
+            payload = {"entity": material, "max_hops": 2}
+        else:
+            endpoint = f"{url}/material/properties"
+            payload = {"material_name": material}
 
         async def _call():
             response = await self.client.post(endpoint, json=payload)
@@ -664,10 +693,12 @@ class WorkflowExecutor:
 
         CRITICAL FIX: Prevents cascade failures when org search service is slow/down
         """
-        endpoint = f"{url}/{action}"
+        endpoint = f"{url}/search"
         payload = {
             "query": request.messages[-1].get("content", "") if request.messages else "",
-            "location": request.location
+            "location": request.location,
+            "radius_km": 10,
+            "limit": 10,
         }
 
         async def _call():
@@ -678,8 +709,9 @@ class WorkflowExecutor:
         return await org_circuit_breaker.call(_call)
 
 
-# Initialize workflow executor
-executor = WorkflowExecutor()
+# Initialize workflow executor lazily after startup config is loaded.
+executor: Optional[WorkflowExecutor] = None
+deterministic_engine = MultimodalOrchestratorEngine()
 
 # Initialize answer formatter
 answer_formatter = AnswerFormatter()
@@ -754,6 +786,78 @@ def format_response_with_rich_content(
     )
 
 
+def _should_use_deterministic_engine() -> bool:
+    """Return true when the explicit non-production deterministic mode is enabled."""
+    return os.getenv("ORCHESTRATOR_EXECUTION_MODE", "").lower() in {
+        "deterministic",
+        "deterministic_test",
+        "test",
+    }
+
+
+def _to_shared_request(request: OrchestratorRequest) -> SharedMultimodalRequest:
+    """Convert the legacy orchestrator request into the shared stable schema."""
+    shared_messages = [
+        SharedChatMessage(role=msg.get("role", "user"), content=msg.get("content"))
+        for msg in request.messages
+    ]
+    shared_location = None
+    if request.location:
+        shared_location = SharedLocation(lat=request.location["lat"], lon=request.location["lon"])
+    return SharedMultimodalRequest(
+        messages=shared_messages,
+        image=request.image,
+        image_url=request.image_url,
+        location=shared_location,
+        context=request.context or {},
+        enable_fallback=request.enable_fallback,
+        require_high_confidence=request.require_high_confidence,
+    )
+
+
+async def _orchestrate_deterministic(request: OrchestratorRequest) -> OrchestratorResponse:
+    """Execute import-safe deterministic orchestration for development/test mode."""
+    final_answer = await deterministic_engine.handle(_to_shared_request(request))
+    sources = [
+        {
+            "doc_id": doc.doc_id,
+            "title": doc.title,
+            "source": doc.source,
+            "snippet": doc.snippet,
+        }
+        for doc in final_answer.sources
+    ]
+    warnings = [f"{warning.code}: {warning.message}" for warning in final_answer.warnings]
+    metadata = {
+        **final_answer.metadata,
+        "errors": [error.model_dump() for error in final_answer.errors],
+        "service_modes": ["deterministic_test"],
+    }
+    return OrchestratorResponse(
+        response=final_answer.answer_text,
+        confidence_score=final_answer.confidence.score,
+        confidence_level=ConfidenceLevel(final_answer.confidence.level),
+        sources=sources,
+        suggestions=final_answer.suggestions,
+        warnings=warnings,
+        fallback_used=True,
+        partial_answer=final_answer.confidence.score < 0.55,
+        metadata=metadata,
+        processing_time_ms=final_answer.processing_time_ms,
+        image_quality_score=None,
+        text_quality_score=RequestClassifier.assess_text_quality(request.messages),
+        reasoning_steps=[
+            "Classified request with deterministic router",
+            "Collected deterministic Vision/RAG/KG/Org evidence as applicable",
+            "Synthesized grounded final response without external LLM calls",
+        ],
+        formatted_answer=None,
+        answer_type=final_answer.metadata.get("task_type"),
+        citations=[citation.model_dump() for citation in final_answer.citations],
+        response_id=deterministic_response_id(final_answer),
+    )
+
+
 @app.post("/orchestrate", response_model=OrchestratorResponse)
 async def orchestrate(request: OrchestratorRequest):
     """
@@ -767,6 +871,9 @@ async def orchestrate(request: OrchestratorRequest):
     partial_answer = False
 
     try:
+        if _should_use_deterministic_engine() or executor is None:
+            return await _orchestrate_deterministic(request)
+
         # Classify request
         request_type = RequestClassifier.classify_request_type(request)
         task_type, task_confidence = await RequestClassifier.classify_task_type(request)
@@ -1043,7 +1150,7 @@ async def startup():
 
     # CRITICAL FIX: Initialize executor with error handling
     try:
-        # Executor is initialized globally, but we need to handle failures
+        executor = WorkflowExecutor(config)
         logger.info("Workflow executor initialized")
     except Exception as e:
         logger.error("Failed to initialize executor", exc_info=True)
@@ -1063,7 +1170,8 @@ async def shutdown():
     """Graceful shutdown"""
     logger.info("Shutting down Orchestrator Service")
     health_checker.mark_not_ready()
-    await executor.close()
+    if executor:
+        await executor.close()
     logger.info("Orchestrator Service shutdown complete")
 
 
@@ -1108,4 +1216,3 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-

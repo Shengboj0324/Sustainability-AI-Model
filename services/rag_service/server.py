@@ -59,22 +59,33 @@ except ImportError:
     def add_breadcrumb(msg, **kwargs):
         pass
 
-# Import provenance system - NEW: Enhanced embedding provenance
-# CRITICAL FIX: Use relative imports for local modules
-from .provenance import (
-    EmbeddingMetadata,
-    DataLineage,
-    TrustIndicators,
-    ProvenanceValidator,
-    generate_checksum,
-    get_utc_timestamp,
-    PROVENANCE_SCHEMA_VERSION
-)
-from .version_tracker import EmbeddingVersionTracker
-
-# Import audit trail and transparency API - Phase 2 integration
-from .audit_trail import AuditTrailManager, EventType, EntityType, ActorType, Action
-from .transparency_api import create_transparency_router
+# Import provenance system - supports package and direct module imports.
+try:
+    from .provenance import (
+        EmbeddingMetadata,
+        DataLineage,
+        TrustIndicators,
+        ProvenanceValidator,
+        generate_checksum,
+        get_utc_timestamp,
+        PROVENANCE_SCHEMA_VERSION,
+    )
+    from .version_tracker import EmbeddingVersionTracker
+    from .audit_trail import AuditTrailManager, EventType, EntityType, ActorType, Action
+    from .transparency_api import create_transparency_router
+except ImportError:
+    from provenance import (
+        EmbeddingMetadata,
+        DataLineage,
+        TrustIndicators,
+        ProvenanceValidator,
+        generate_checksum,
+        get_utc_timestamp,
+        PROVENANCE_SCHEMA_VERSION,
+    )
+    from version_tracker import EmbeddingVersionTracker
+    from audit_trail import AuditTrailManager, EventType, EntityType, ActorType, Action
+    from transparency_api import create_transparency_router
 
 # Third-party imports
 # CRITICAL FIX: Make sentence-transformers optional (depends on transformers)
@@ -83,7 +94,7 @@ SENTENCE_TRANSFORMERS_ERROR = None
 try:
     from qdrant_client import AsyncQdrantClient
     from qdrant_client.models import Distance, VectorParams, Filter, FieldCondition, MatchValue
-    from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import Counter, Histogram, Gauge, REGISTRY, generate_latest, CONTENT_TYPE_LATEST
     from starlette.responses import Response
 except ImportError as e:
     logging.error(f"Missing dependencies: {e}. Install with: pip install qdrant-client prometheus-client")
@@ -114,14 +125,21 @@ if not SENTENCE_TRANSFORMERS_AVAILABLE:
     )
 
 # Prometheus metrics
-REQUESTS_TOTAL = Counter('rag_requests_total', 'Total RAG requests', ['endpoint', 'status'])
-REQUEST_DURATION = Histogram('rag_request_duration_seconds', 'Request duration', ['endpoint'])
-EMBEDDING_DURATION = Histogram('rag_embedding_duration_seconds', 'Embedding generation duration')
-RETRIEVAL_DURATION = Histogram('rag_retrieval_duration_seconds', 'Retrieval duration')
-RERANK_DURATION = Histogram('rag_rerank_duration_seconds', 'Re-ranking duration')
-CACHE_HITS = Counter('rag_cache_hits_total', 'Cache hits')
-CACHE_MISSES = Counter('rag_cache_misses_total', 'Cache misses')
-ACTIVE_REQUESTS = Gauge('rag_active_requests', 'Active requests')
+def _metric(factory, name: str, documentation: str, labels: Optional[List[str]] = None):
+    existing = getattr(REGISTRY, "_names_to_collectors", {}).get(name)
+    if existing is not None:
+        return existing
+    return factory(name, documentation, labels or [])
+
+
+REQUESTS_TOTAL = _metric(Counter, 'rag_requests_total', 'Total RAG requests', ['endpoint', 'status'])
+REQUEST_DURATION = _metric(Histogram, 'rag_request_duration_seconds', 'Request duration', ['endpoint'])
+EMBEDDING_DURATION = _metric(Histogram, 'rag_embedding_duration_seconds', 'Embedding generation duration')
+RETRIEVAL_DURATION = _metric(Histogram, 'rag_retrieval_duration_seconds', 'Retrieval duration')
+RERANK_DURATION = _metric(Histogram, 'rag_rerank_duration_seconds', 'Re-ranking duration')
+CACHE_HITS = _metric(Counter, 'rag_cache_hits_total', 'Cache hits')
+CACHE_MISSES = _metric(Counter, 'rag_cache_misses_total', 'Cache misses')
+ACTIVE_REQUESTS = _metric(Gauge, 'rag_active_requests', 'Active requests')
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -406,8 +424,10 @@ class RAGService:
         self.embedding_model: Optional[SentenceTransformer] = None
         self.reranker: Optional[CrossEncoder] = None
         self.qdrant_client: Optional[AsyncQdrantClient] = None
-        self.collection_name = self.config.get("qdrant", {}).get("collection_name", "sustainability_docs")
-        self.embedding_dim = self.config.get("embedding", {}).get("dimension", 1024)
+        qdrant_config = self._get_qdrant_config()
+        embedding_config = self.config.get("embedding", {})
+        self.collection_name = qdrant_config.get("collection_name", "sustainability_docs")
+        self.embedding_dim = embedding_config.get("dimension", embedding_config.get("embedding_dim", 1024))
         self._shutdown = False
 
         # CRITICAL FIX: Add semaphore to limit concurrent model access
@@ -436,6 +456,12 @@ class RAGService:
             batch_size=int(os.getenv("AUDIT_BATCH_SIZE", "100")),
             flush_interval_seconds=float(os.getenv("AUDIT_FLUSH_INTERVAL", "5.0"))
         )
+
+    def _get_qdrant_config(self) -> Dict[str, Any]:
+        """Return Qdrant config from either legacy or current config schema."""
+        if "qdrant" in self.config:
+            return self.config.get("qdrant", {})
+        return self.config.get("vector_store", {}).get("qdrant", {})
         
     def _load_config(self, config_path: str) -> Dict[str, Any]:
         """Load configuration with validation"""
@@ -691,7 +717,7 @@ class RAGService:
     async def _connect_qdrant(self):
         """Connect to Qdrant vector database with async client"""
         try:
-            qdrant_config = self.config["qdrant"]
+            qdrant_config = self._get_qdrant_config()
             host = qdrant_config.get("host", "localhost")
             port = qdrant_config.get("port", 6333)
             timeout = qdrant_config.get("timeout", 30)
@@ -786,11 +812,13 @@ class RAGService:
 
             # CRITICAL FIX: Use semaphore to limit concurrent model access
             async with self._embedding_semaphore:
-                # Run embedding in thread pool with timeout
-                # FIX: Use asyncio.to_thread() instead of deprecated get_event_loop()
+                # Run embedding in an executor with timeout. This keeps
+                # compatibility with tests and older event-loop instrumentation.
+                loop = asyncio.get_event_loop()
                 embedding = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        lambda: self.embedding_model.encode(query, normalize_embeddings=True)
+                    loop.run_in_executor(
+                        None,
+                        lambda: self.embedding_model.encode(query, normalize_embeddings=True),
                     ),
                     timeout=5.0  # 5 second timeout for embedding
                 )
@@ -1637,4 +1665,3 @@ if __name__ == "__main__":
         limit_concurrency=int(os.getenv("MAX_CONCURRENT", "100")),
         timeout_keep_alive=30,
     )
-

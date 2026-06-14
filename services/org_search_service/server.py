@@ -257,7 +257,7 @@ class OrgSearchService:
                 "port": int(os.getenv("POSTGRES_PORT", "5432")),
                 "database": os.getenv("POSTGRES_DB", "releaf"),
                 "user": os.getenv("POSTGRES_USER", "releaf_user"),
-                "password": os.getenv("POSTGRES_PASSWORD", "releaf_password"),
+                "password": os.getenv("POSTGRES_PASSWORD", ""),
                 "min_pool_size": int(os.getenv("POSTGRES_MIN_POOL", "10")),
                 "max_pool_size": int(os.getenv("POSTGRES_MAX_POOL", "20")),
                 "command_timeout": int(os.getenv("POSTGRES_TIMEOUT", "30"))
@@ -275,6 +275,9 @@ class OrgSearchService:
             logger.info("Initializing Organization Search service...")
 
             pg_config = self.config["postgres"]
+            password = os.path.expandvars(str(pg_config.get("password") or os.getenv("POSTGRES_PASSWORD", "")))
+            if not password or password.startswith("${"):
+                raise RuntimeError("POSTGRES_PASSWORD must be supplied externally")
 
             # Create connection pool
             self.pool = await asyncpg.create_pool(
@@ -282,7 +285,7 @@ class OrgSearchService:
                 port=pg_config["port"],
                 database=pg_config["database"],
                 user=pg_config["user"],
-                password=pg_config["password"],
+                password=password,
                 min_size=pg_config["min_pool_size"],
                 max_size=pg_config["max_pool_size"],
                 command_timeout=pg_config["command_timeout"],
@@ -728,4 +731,3 @@ if __name__ == "__main__":
         limit_concurrency=int(os.getenv("MAX_CONCURRENT", "100")),
         timeout_keep_alive=30,
     )
-

@@ -286,7 +286,7 @@ class KnowledgeGraphService:
             "neo4j": {
                 "uri": os.getenv("NEO4J_URI", "bolt://localhost:7687"),
                 "user": os.getenv("NEO4J_USER", "neo4j"),
-                "password": os.getenv("NEO4J_PASSWORD", "releaf_password"),
+                "password": os.getenv("NEO4J_PASSWORD", ""),
                 "database": os.getenv("NEO4J_DATABASE", "neo4j"),
                 "max_connection_pool_size": int(os.getenv("NEO4J_POOL_SIZE", "50")),
                 "max_connection_lifetime": int(os.getenv("NEO4J_CONN_LIFETIME", "3600")),
@@ -306,7 +306,9 @@ class KnowledgeGraphService:
             neo4j_config = self.config["neo4j"]
             uri = neo4j_config.get("uri", "bolt://localhost:7687")
             user = neo4j_config.get("user", "neo4j")
-            password = neo4j_config.get("password", "releaf_password")
+            password = os.path.expandvars(str(neo4j_config.get("password") or os.getenv("NEO4J_PASSWORD", "")))
+            if not password or password.startswith("${"):
+                raise RuntimeError("NEO4J_PASSWORD must be supplied externally")
             max_pool_size = neo4j_config.get("max_connection_pool_size", 50)
             max_lifetime = neo4j_config.get("max_connection_lifetime", 3600)
             conn_timeout = neo4j_config.get("connection_timeout", 60)
@@ -1657,4 +1659,3 @@ if __name__ == "__main__":
         limit_concurrency=int(os.getenv("MAX_CONCURRENT", "100")),
         timeout_keep_alive=30,
     )
-

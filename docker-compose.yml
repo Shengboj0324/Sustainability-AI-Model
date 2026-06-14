@@ -215,7 +215,7 @@ services:
     environment:
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_USER=${NEO4J_USER:-neo4j}
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-releaf_password}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set in .env file}
     command: uvicorn services.kg_service.server:app --host 0.0.0.0 --port 8004 --reload
 
   # Organization Search Service
@@ -236,7 +236,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_DB=${POSTGRES_DB:-releaf}
       - POSTGRES_USER=${POSTGRES_USER:-releaf_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-releaf_password}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env file}
     command: uvicorn services.org_search_service.server:app --host 0.0.0.0 --port 8005 --reload
 
 volumes:
@@ -252,4 +252,3 @@ networks:
     ipam:
       config:
         - subnet: 172.28.0.0/16
-

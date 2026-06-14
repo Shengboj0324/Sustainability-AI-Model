@@ -60,15 +60,22 @@ except ImportError:
     aioredis = None
     ConnectionPool = None
 
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Histogram, Gauge, REGISTRY
 
 logger = logging.getLogger(__name__)
 
 # Prometheus metrics
-REDIS_OPERATIONS = Counter('redis_operations_total', 'Redis operations', ['operation', 'status'])
-REDIS_LATENCY = Histogram('redis_operation_latency_seconds', 'Redis operation latency', ['operation'])
-REDIS_CACHE_SIZE = Gauge('redis_cache_size_bytes', 'Estimated Redis cache size')
-REDIS_CONNECTIONS = Gauge('redis_active_connections', 'Active Redis connections')
+def _metric(factory, name: str, documentation: str, labels: Optional[List[str]] = None):
+    existing = getattr(REGISTRY, "_names_to_collectors", {}).get(name)
+    if existing is not None:
+        return existing
+    return factory(name, documentation, labels or [])
+
+
+REDIS_OPERATIONS = _metric(Counter, 'redis_operations_total', 'Redis operations', ['operation', 'status'])
+REDIS_LATENCY = _metric(Histogram, 'redis_operation_latency_seconds', 'Redis operation latency', ['operation'])
+REDIS_CACHE_SIZE = _metric(Gauge, 'redis_cache_size_bytes', 'Estimated Redis cache size')
+REDIS_CONNECTIONS = _metric(Gauge, 'redis_active_connections', 'Active Redis connections')
 
 
 class RedisCache:
@@ -588,5 +595,4 @@ class RedisCache:
         async with self.fallback_lock:
             self.fallback_cache.clear()
             return True
-
 

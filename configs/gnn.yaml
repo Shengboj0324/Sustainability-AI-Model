@@ -156,7 +156,7 @@ neo4j:
   # Database connection
   uri: "bolt://neo4j:7687" # Docker service name
   user: "neo4j"
-  password: "releaf_password"
+  password: "${NEO4J_PASSWORD}"
   database: "neo4j"
 
   # Connection pooling

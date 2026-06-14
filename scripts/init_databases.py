@@ -30,7 +30,7 @@ async def init_postgres():
             host=os.getenv("POSTGRES_HOST", "localhost"),
             port=int(os.getenv("POSTGRES_PORT", "5432")),
             user=os.getenv("POSTGRES_USER", "releaf_user"),
-            password=os.getenv("POSTGRES_PASSWORD", "releaf_password"),
+            password=os.environ["POSTGRES_PASSWORD"],
             database=os.getenv("POSTGRES_DB", "releaf")
         )
         
@@ -113,7 +113,7 @@ async def init_neo4j():
     try:
         uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
         user = os.getenv("NEO4J_USER", "neo4j")
-        password = os.getenv("NEO4J_PASSWORD", "releaf_password")
+        password = os.environ["NEO4J_PASSWORD"]
         
         driver = AsyncGraphDatabase.driver(uri, auth=(user, password))
         
@@ -192,4 +192,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

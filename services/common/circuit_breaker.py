@@ -36,17 +36,25 @@ from enum import Enum
 from typing import Any, Callable, Optional, Type
 from datetime import datetime, timedelta
 
-from prometheus_client import Counter, Gauge, Histogram
+from prometheus_client import Counter, Gauge, Histogram, REGISTRY
 
 logger = logging.getLogger(__name__)
 
+def _metric(factory, name: str, documentation: str, labels: list[str]):
+    """Reuse an existing collector when this module is imported via aliases."""
+    existing = getattr(REGISTRY, "_names_to_collectors", {}).get(name)
+    if existing is not None:
+        return existing
+    return factory(name, documentation, labels)
+
+
 # Prometheus metrics
-CIRCUIT_BREAKER_STATE = Gauge('circuit_breaker_state', 'Circuit breaker state (0=closed, 1=open, 2=half_open)', ['name'])
-CIRCUIT_BREAKER_FAILURES = Counter('circuit_breaker_failures_total', 'Circuit breaker failures', ['name'])
-CIRCUIT_BREAKER_SUCCESSES = Counter('circuit_breaker_successes_total', 'Circuit breaker successes', ['name'])
-CIRCUIT_BREAKER_OPENS = Counter('circuit_breaker_opens_total', 'Circuit breaker opens', ['name'])
-CIRCUIT_BREAKER_CLOSES = Counter('circuit_breaker_closes_total', 'Circuit breaker closes', ['name'])
-CIRCUIT_BREAKER_CALL_DURATION = Histogram('circuit_breaker_call_duration_seconds', 'Circuit breaker call duration', ['name', 'status'])
+CIRCUIT_BREAKER_STATE = _metric(Gauge, 'circuit_breaker_state', 'Circuit breaker state (0=closed, 1=open, 2=half_open)', ['name'])
+CIRCUIT_BREAKER_FAILURES = _metric(Counter, 'circuit_breaker_failures_total', 'Circuit breaker failures', ['name'])
+CIRCUIT_BREAKER_SUCCESSES = _metric(Counter, 'circuit_breaker_successes_total', 'Circuit breaker successes', ['name'])
+CIRCUIT_BREAKER_OPENS = _metric(Counter, 'circuit_breaker_opens_total', 'Circuit breaker opens', ['name'])
+CIRCUIT_BREAKER_CLOSES = _metric(Counter, 'circuit_breaker_closes_total', 'Circuit breaker closes', ['name'])
+CIRCUIT_BREAKER_CALL_DURATION = _metric(Histogram, 'circuit_breaker_call_duration_seconds', 'Circuit breaker call duration', ['name', 'status'])
 
 
 class CircuitState(Enum):
@@ -285,4 +293,3 @@ class CircuitBreaker:
         async with self._lock:
             self._transition_to_open()
             logger.warning(f"Circuit breaker '{self.name}' manually forced OPEN")
-
