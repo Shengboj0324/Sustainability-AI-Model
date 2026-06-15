@@ -1563,6 +1563,7 @@ async def startup():
                 logger.error("Max retries exceeded - starting in degraded mode")
                 # Don't raise - allow service to start in degraded mode
                 health_checker.mark_not_ready()
+                health_checker.mark_startup_complete()
 
         except Exception as e:
             logger.error(f"Failed to initialize RAG service (attempt {attempt + 1}/{max_retries})", exc_info=True)
@@ -1588,6 +1589,7 @@ async def startup():
                 # Don't raise - allow service to start in degraded mode
                 # Health checks will show service as not ready
                 health_checker.mark_not_ready()
+                health_checker.mark_startup_complete()
 
 
 @app.on_event("shutdown")

@@ -76,6 +76,33 @@ class HealthCheckResult:
     timestamp: datetime = field(default_factory=datetime.utcnow)
     duration_ms: float = 0.0
 
+    def model_dump(self) -> Dict[str, Any]:
+        """Pydantic-compatible JSON-safe representation used by service health endpoints."""
+        def serialize(value: Any) -> Any:
+            if isinstance(value, Enum):
+                return value.value
+            if isinstance(value, datetime):
+                return value.isoformat()
+            if isinstance(value, dict):
+                return {key: serialize(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [serialize(item) for item in value]
+            return value
+
+        return {
+            "status": serialize(self.status),
+            "message": self.message,
+            "details": serialize(self.details),
+            "timestamp": serialize(self.timestamp),
+            "duration_ms": self.duration_ms,
+        }
+
+    def model_dump_json(self) -> str:
+        """Pydantic-compatible JSON serialization used by existing FastAPI handlers."""
+        import json
+
+        return json.dumps(self.model_dump())
+
 
 class HealthChecker:
     """
@@ -233,6 +260,16 @@ class HealthChecker:
 
         if not self.checks:
             # No checks configured
+            if not self.is_ready:
+                return HealthCheckResult(
+                    status=HealthStatus.UNHEALTHY,
+                    message="Service not ready",
+                    details={
+                        "ready": False,
+                        "startup_complete": self.startup_complete,
+                    },
+                    duration_ms=(time.time() - start_time) * 1000,
+                )
             return HealthCheckResult(
                 status=HealthStatus.HEALTHY,
                 message="No health checks configured",
@@ -285,6 +322,17 @@ class HealthChecker:
             }
             for name, result in check_results.items()
         }
+        if not self.is_ready:
+            details["readiness"] = {
+                "status": HealthStatus.UNHEALTHY,
+                "message": "Service not ready",
+                "duration_ms": 0.0,
+                "ready": False,
+                "startup_complete": self.startup_complete,
+            }
+            if overall_status == HealthStatus.HEALTHY:
+                overall_status = HealthStatus.UNHEALTHY
+                message = "Service not ready"
 
         return HealthCheckResult(
             status=overall_status,

@@ -11,12 +11,12 @@ The GNN training path was also hardened. The active GNN config now consumes proc
 The latest full repository test run passed:
 
 ```text
-114 passed, 22 warnings
+120 passed, 26 warnings
 ```
 
 Deployment readiness verdict: STAGING READY
 
-This is not marked PRODUCTION READY because Linux container execution could not be completed: Docker Desktop's daemon was unavailable on this machine. Live Qdrant, Neo4j, Postgres, Redis, Vision checkpoint inference under Linux, and LLM backend validation still need a running container or cluster environment.
+This is not marked PRODUCTION READY because Docker validation found real remaining production gaps: the service image is still monolithic and large, full vector RAG startup still depends on an external embedding checkpoint/cache, the LLM service needs a real local or OpenAI-compatible backend, and full compose startup with Postgres/Redis plus all application services was not completed because host Postgres/Redis ports were already occupied.
 
 ## Current Architecture Before Changes
 
@@ -60,7 +60,9 @@ This is not marked PRODUCTION READY because Linux container execution could not 
 
 ## Files Modified
 
+- `.dockerignore`
 - `.gitignore`
+- `Dockerfile`
 - `configs/gnn.yaml`
 - `configs/vision_cls.yaml`
 - `docker-compose.yml`
@@ -70,14 +72,18 @@ This is not marked PRODUCTION READY because Linux container execution could not 
 - `scripts/init_databases.py`
 - `scripts/train_unified_pipeline.py`
 - `services/common/circuit_breaker.py`
+- `services/common/health_checks.py`
 - `services/common/redis_cache.py`
 - `services/kg_service/server.py`
+- `services/llm_service/server_v2.py`
 - `services/orchestrator/main.py`
+- `services/orchestrator/engine.py`
 - `services/org_search_service/server.py`
 - `services/rag_service/server.py`
 - `tests/integration/test_rag_production.py`
 - `tests/test_reasoning_system.py`
 - `tests/unit/test_training_notebook_contract.py`
+- `tests/unit/test_llm_service_backend_modes.py`
 - `tests/unit/test_multimodal_orchestrator_engine.py`
 - `tests/unit/test_rag_service.py`
 - `training/gnn/train_gnn.py`
@@ -95,6 +101,7 @@ This is not marked PRODUCTION READY because Linux container execution could not 
 - `tests/unit/test_data_pipeline_stress_validator.py`
 - `tests/unit/test_training_notebook_contract.py`
 - `kaggle.json.template`
+- `.dockerignore`
 - `PRODUCTION_MULTIMODAL_AI_UPGRADE_REPORT.md`
 - `outputs/stress/new_multimodal_paths_stress_report.json`
 - `outputs/stress/new_multimodal_paths_stress_stdout.txt`
@@ -127,12 +134,28 @@ The original `data/processed/vision_cls` tree was not deleted. It is retained as
 - First repaired Vision split exposed 3 corrupt image files during full decode; the repair harness was tightened to skip undecodable source files and rebuild.
 - Original GNN parquet files had only 20 nodes, 12 edges, and 2 feature columns, missing the configured `node_type`/`name`/128-feature contract.
 - RAG Qdrant startup used a raw dict for `limits`, causing `'dict' object has no attribute 'max_connections'` after dependency repair allowed deeper startup execution.
+- Docker build initially sent an enormous context because no `.dockerignore` excluded `data/`, `deployment_package/`, checkpoints, `.git`, and generated artifacts.
+- Docker packaging failed because `pyproject.toml` listed namespace directories as regular packages.
+- Docker dependency resolution initially selected future/large incompatible dependency sets, including CUDA-oriented Torch packages on Linux/arm64 risk paths.
+- Docker container imports initially failed on OpenCV because the runtime image lacked `libGL.so.1`.
+- Docker container imports initially failed for Vision because model source was accidentally excluded along with model checkpoints/artifacts.
+- Qdrant Compose healthcheck was invalid for `qdrant/qdrant:v1.8.0`: `/health` returns 404 and the image does not include `curl`.
+- Deterministic orchestrator overclaimed medium confidence and citations for meaningless input such as `???`.
+- LLM service startup tried local model loading before explicit API/degraded operation and could trigger heavy/gated model behavior during container startup.
+- LLM and KG detailed health endpoints serialized dataclass health results as Python repr strings instead of JSON.
+- RAG degraded startup did not mark startup complete, leaving startup probes in `starting` even when fallback retrieval was being served.
+- Shared health aggregation could report healthy for a service that was explicitly not ready and had no dependency checks.
 - The root training notebook had become a divergent training system: embedded package uninstall/install cells, Kaggle credential-writing logic, hard-coded legacy data ingestion paths, copied Vision/GNN training loops, April historical outputs, and stale readiness claims.
 - `scripts/train_unified_pipeline.py --dry-run` still required Hugging Face authentication for LLM, which made local data/config validation depend on external credentials.
 
 ## Fixes Implemented
 
 - Added stable shared schemas for API/frontend service contracts.
+- Added `.dockerignore` to reduce Docker build context from gigabytes to megabytes by excluding datasets, generated deployment packages, checkpoints, `.git`, and local secrets while preserving importable model source.
+- Fixed Dockerfile packaging by copying importable source before editable install and adding required OpenCV runtime libraries.
+- Converted setuptools config to namespace package discovery for `services*` and `training*`.
+- Bounded major dependency versions in `pyproject.toml` and added `pycocotools` for Linux data/vision validation.
+- Fixed Qdrant Compose healthcheck to use a real `/collections` probe via Bash TCP instead of missing `curl` and nonexistent `/health`.
 - Added deterministic multimodal orchestration for:
   - Text-only QA.
   - Image-only item/bin classification.
@@ -142,6 +165,12 @@ The original `data/processed/vision_cls` tree was not deleted. It is retained as
   - Organization search.
   - Corrupted image handling.
 - Added explicit `deterministic_test` metadata so fallback execution never pretends to be production model inference.
+- Tightened deterministic orchestrator low-evidence handling so nonsensical text-only input returns very low confidence, no citations, and a `LOW_TEXT_QUALITY` warning.
+- Added explicit LLM backend controls: `LLM_BACKEND=api/openai/openai_compatible` and `LLM_DISABLE_LOCAL=true`.
+- Fixed LLM readiness so a service with no local/API backend is alive but not ready, and generation returns `503`.
+- Added JSON-safe serialization helpers to the shared `HealthCheckResult` dataclass.
+- Fixed shared health aggregation so not-ready/no-check services cannot report healthy while dependency-specific failures still surface.
+- Fixed RAG degraded startup so startup probes reach a completed state while readiness remains not-ready.
 - Implemented RAG local lexical fallback over checked-in corpora, including:
   - JSONL and nested JSON corpus loading.
   - BM25-like scoring.
@@ -187,6 +216,7 @@ The original `data/processed/vision_cls` tree was not deleted. It is retained as
 - `test_multimodal_safety_flow_avoids_unsafe_disposal_claim`
 - `test_upcycling_flow_uses_kg_relationships`
 - `test_org_search_discloses_missing_location`
+- `test_low_quality_text_only_request_does_not_invent_evidence`
 - `test_corrupted_image_is_honest_low_confidence_warning`
 - `test_fastapi_orchestrate_endpoint_uses_deterministic_contract`
 - `test_orchestrator_applies_service_url_env_overrides`
@@ -198,6 +228,10 @@ The original `data/processed/vision_cls` tree was not deleted. It is retained as
 - `test_gnn_training_loader_reads_processed_parquet`
 - `test_image_decode_rejects_corrupt_file`
 - `test_training_notebook_contract_is_current`
+- `test_llm_disable_local_starts_degraded_without_backend`
+- `test_llm_explicit_api_backend_skips_local_model`
+- `test_health_check_result_serializes_json_safe_enums`
+- `test_not_ready_health_checker_does_not_report_healthy_without_checks`
 
 ## Commands Run
 
@@ -233,13 +267,25 @@ The original `data/processed/vision_cls` tree was not deleted. It is retained as
 - `python -m json.tool Sustainability_AI_Model_Training.ipynb`
 - `docker context show`
 - `docker info`
+- `docker compose build`
+- `docker compose build orchestrator`
+- `docker compose build llm-service orchestrator`
+- `docker compose up -d qdrant neo4j`
+- `docker run --rm sustainability-ai-model-orchestrator:latest python -m compileall -q services scripts training models`
+- `docker run --rm -i sustainability-ai-model-orchestrator:latest python - <<'PY' ... core import smoke ... PY`
 - `docker run --rm -v "$PWD":/app -w /app python:3.11-slim python scripts/industrial_e2e_validate.py`
+- Dockerized `scripts/data_pipeline_stress_validate.py --full-image-scan`
+- Dockerized deterministic orchestrator `/orchestrate` text/image/multimodal/low-evidence runtime checks.
+- Dockerized deterministic orchestrator stress run: 140 requests, concurrency 16.
+- Dockerized LLM degraded-mode health/readiness/generate checks with updated source bind-mounted.
+- Dockerized KG service readiness and material endpoint check against Docker Neo4j.
+- Dockerized RAG offline degraded startup and local lexical fallback retrieval check with updated source bind-mounted.
 - Secret/default scan with `rg` for cloud keys, private keys, API keys, and reusable password defaults.
 - Checkpoint metadata inspection with `torch.load(..., map_location="cpu")`.
 
 ## Test Results
 
-- Full suite: 115 passed, 22 warnings.
+- Full suite: 120 passed, 26 warnings.
 - Training notebook contract: passed.
   - Notebook JSON is valid.
   - Notebook has 12 cells: 9 code and 3 markdown.
@@ -266,6 +312,7 @@ The original `data/processed/vision_cls` tree was not deleted. It is retained as
 - LLM SFT handoff check: dummy tokenizer processed 6,164 training and 684 validation examples with `input_ids`, `attention_mask`, and `labels`.
 - RAG integration suite: 11 passed, 4 warnings.
 - RAG unit suite: 10 passed, 4 warnings.
+- LLM backend/health unit suite: 4 passed, 4 warnings.
 - New stress harness: 5 passed, 0 failed, 394 total checks.
   - `rag_lexical_direct_concurrency`: 90 checks, 450 documents validated.
   - `orchestrator_engine_concurrency_and_malformed_inputs`: 161 responses validated.
@@ -274,7 +321,38 @@ The original `data/processed/vision_cls` tree was not deleted. It is retained as
   - `deployment_validation_commands`: compose config plus static/runtime industrial validators passed.
 - Industrial static validator: 8 passed, 0 failed.
 - Industrial runtime validator: 9 passed, 0 failed.
+- Linux container static validator: 8 passed, 0 failed in `python:3.11-slim`.
 - Compose config render: passed with required external password env vars.
+- Docker build: passed for all service images after `.dockerignore`, Dockerfile, packaging, dependency, OpenCV, and model-source fixes.
+- Docker image size: each service image is still about 3.74GB, which is functional but not production-optimized.
+- Docker import smoke: passed for orchestrator, RAG, KG, org search, Vision, LLM, Vision training, LLM SFT training, and GNN training modules.
+- Docker compile-all: passed for `services`, `scripts`, `training`, and `models`.
+- Docker infrastructure:
+  - Qdrant and Neo4j started under Compose.
+  - Qdrant healthcheck fixed and Docker reported `healthy`.
+  - Neo4j healthcheck reported `healthy`.
+- Docker orchestrator runtime:
+  - `/health/ready` returned ready.
+  - Text-only, image-only, multimodal, and low-evidence `/orchestrate` cases returned stable schemas.
+  - Low-evidence `???` case returned `confidence_score: 0.18`, `confidence_level: very_low`, 0 sources, 0 citations, and `LOW_TEXT_QUALITY`.
+  - Stress: 140 requests at concurrency 16, 140 successes, 0 failures, p50 4.46ms, p95 29.34ms, max 32.01ms in deterministic mode.
+- Docker LLM degraded runtime:
+  - `LLM_DISABLE_LOCAL=true` skipped local model loading.
+  - `/health/startup` reached started.
+  - `/health/ready` returned not-ready.
+  - `/health` returned 503 JSON with `No LLM backend available`.
+  - `/generate` returned 503 with explicit backend configuration guidance.
+- Docker KG runtime:
+  - Connected to Docker Neo4j.
+  - `/health/ready` returned ready.
+  - `/health` returned JSON healthy with Neo4j dependency details after shared health serialization fix.
+  - `/material/properties` accepted `material_name` and returned a stable `KGResponse`.
+- Docker RAG degraded runtime:
+  - Offline embedding model startup failed honestly.
+  - `/health/startup` now reaches started in degraded mode.
+  - `/health/ready` remains not-ready.
+  - `/health` returns 503 JSON with `startup_complete: true`.
+  - `/retrieve` returns structured local lexical fallback documents with `doc_id`, `source`, provenance, lineage, trust indicators, and degraded metadata.
 - Py compile check: passed for touched modules.
 - Compile-all check: passed for `services`, `scripts`, `training`, and `tests`.
 - Model artifact gate: passed.
@@ -294,30 +372,39 @@ Warnings remaining:
 - RAG reranker configuration is still incomplete, so reranker loading is skipped.
 - RAG startup can still reload the embedding model on repeated startup attempts, which is inefficient under repeated degraded-mode tests.
 
-## Linux Validation Attempt
+## Docker And Linux Validation
 
-Linux container validation was attempted with:
-
-```bash
-docker run --rm -v "$PWD":/app -w /app python:3.11-slim python scripts/industrial_e2e_validate.py
-```
-
-Result:
+Docker Desktop was available on the final pass:
 
 ```text
-docker: Cannot connect to the Docker daemon at unix:///Users/jiangshengbo/.docker/run/docker.sock. Is the docker daemon running?
+docker context: desktop-linux
+Docker Compose: v2.39.2-desktop.1
+Docker Engine: 28.3.3
+Daemon platform: linux/arm64
 ```
 
-`docker context show` reports the active `desktop-linux` context and `docker info` confirms the Docker client is installed, but the daemon is unavailable at Docker Desktop's socket. `colima` is not installed. This is an external-state blocker, not a repository code failure.
+Docker validation found and fixed concrete container defects:
+
+- Build context reduced from gigabyte-scale to megabyte-scale with `.dockerignore`.
+- Root Dockerfile now builds installable package source.
+- Runtime image now has OpenCV system libraries.
+- Python dependency versions are bounded enough to avoid future CUDA-heavy resolver paths on Linux/arm64.
+- Qdrant healthcheck is now valid for the actual Qdrant image.
+- Core imports and compile checks pass inside Linux containers.
+- Data pipeline full image scan passes inside Docker: 22,702 images scanned, 0 decode failures, 0 exact split leakage.
+
+Important caveat: final LLM/RAG/shared-health fixes were verified in Docker using read-only bind mounts over the rebuilt images. The monolithic image rebuild passed immediately before those last source-level health fixes, but the final health serialization/RAG degraded-startup changes still need one more full image bake in CI or a Linux runner before release tagging.
 
 ## Remaining Blockers
 
-- Linux container execution could not be completed because the Docker daemon is unavailable.
-- Live docker-compose startup with Qdrant, Neo4j, Postgres, Redis, and all services has not been executed.
-- Production RAG vector retrieval has not been validated against live Qdrant in this environment.
-- Neo4j/KG production path has not been validated against a live Neo4j instance.
+- Full live docker-compose startup with Postgres, Redis, and all application services was not completed because host Postgres/Redis ports were already occupied.
+- Production RAG vector retrieval has not been validated against a live embedding model plus populated Qdrant collection in this environment.
+- Neo4j/KG connectivity was validated against Docker Neo4j, but the graph was not seeded with production material/upcycling data during this pass.
 - Vision checkpoint inference has not been benchmarked in a Linux container during this pass.
-- LLM production backend has not been exercised with a live local or OpenAI-compatible model.
+- LLM production backend has not been exercised with a live local or OpenAI-compatible model; degraded/no-backend behavior was validated.
+- Final health/RAG source fixes need to be baked into Docker images after the bind-mounted verification.
+- Service images are still monolithic and about 3.74GB each.
+- Dockerfile layer layout still invalidates dependency installation on service-code edits, causing slow rebuilds.
 - Full real Vision, LLM, and GNN training runs were not launched; the validated scope is strict data handoff, imports, schema, decoding, loader, tokenization, and split construction.
 - Kubernetes manifests have not been applied to a cluster.
 - FastAPI lifespan migration remains outstanding.
@@ -327,14 +414,14 @@ docker: Cannot connect to the Docker daemon at unix:///Users/jiangshengbo/.docke
 
 STAGING READY
 
-The repository now has enough validated structure and capability for industrial staging: contracts are stable, core tests pass, compose config renders, secrets are externalized, model artifacts are present, RAG has a real provenance-aware degraded retrieval path, and the active training data contracts for Vision, LLM SFT, and GNN pass strict validation.
+The repository now has enough validated structure and capability for industrial staging: contracts are stable, the full suite passes, Docker images build, core Linux container import/compile/runtime checks pass, secrets are externalized, model artifacts are present, RAG has a real provenance-aware degraded retrieval path, and the active training data contracts for Vision, LLM SFT, and GNN pass strict validation.
 
-It is not PRODUCTION READY until a Linux/container environment is available and live service startup plus real dependency validation are completed.
+It is not PRODUCTION READY until final source fixes are baked into images, full compose can run without host port conflicts, real RAG vector retrieval is validated with a populated Qdrant collection, LLM is exercised against a real backend, Vision checkpoint inference is benchmarked in Linux, and production KG data is seeded and validated.
 
 ## Next Recommended Engineering Milestones
 
-1. Start Docker Desktop or provide a Linux runner, then run `python scripts/industrial_e2e_validate.py` in `python:3.11-slim`.
-2. Run `POSTGRES_PASSWORD=... NEO4J_PASSWORD=... docker compose up --build` and validate `/health`, `/ready`, `/metrics`, `/orchestrate`, and `/retrieve`.
+1. Rebuild all Docker images after the final health/RAG source fixes and rerun the Docker import/compile/runtime smoke suite.
+2. Resolve host Postgres/Redis port conflicts or run Compose on an isolated Linux runner, then execute `POSTGRES_PASSWORD=... NEO4J_PASSWORD=... docker compose up --build` and validate `/health`, `/ready`, `/metrics`, `/orchestrate`, and `/retrieve`.
 3. Validate Qdrant vector retrieval by ingesting a small corpus and asserting citation provenance.
 4. Validate Neo4j/KG routes against seeded material/upcycling/hazard graph data.
 5. Run real Vision checkpoint inference and latency tests in Linux.

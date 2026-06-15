@@ -180,6 +180,36 @@ _KNOWLEDGE_DOCS: List[RetrievedDocument] = [
     ),
 ]
 
+_RETRIEVAL_SIGNAL_TERMS = {
+    "battery",
+    "bin",
+    "bottle",
+    "cardboard",
+    "chemical",
+    "compost",
+    "contamination",
+    "dispose",
+    "disposal",
+    "donate",
+    "drop",
+    "glass",
+    "hazard",
+    "hazardous",
+    "local",
+    "material",
+    "oil",
+    "paint",
+    "plastic",
+    "recycle",
+    "recycling",
+    "reuse",
+    "safe",
+    "safety",
+    "trash",
+    "upcycle",
+    "waste",
+}
+
 
 def _service_metadata(service: str, reason: str) -> ServiceMetadata:
     return ServiceMetadata(
@@ -194,6 +224,42 @@ def _service_metadata(service: str, reason: str) -> ServiceMetadata:
 
 def _normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", (text or "").strip().lower())
+
+
+def _informative_tokens(text: str) -> List[str]:
+    return re.findall(r"[a-z0-9][a-z0-9+_-]{1,}", _normalize_text(text))
+
+
+def _assess_text_quality(text: str) -> float:
+    normalized = _normalize_text(text)
+    if not normalized:
+        return 0.0
+
+    tokens = _informative_tokens(normalized)
+    if not tokens:
+        return 0.02
+
+    alnum_chars = sum(1 for char in normalized if char.isalnum())
+    signal_ratio = alnum_chars / max(len(normalized), 1)
+    unique_ratio = len(set(normalized)) / max(len(normalized), 1)
+    token_score = min(1.0, len(tokens) / 6.0)
+    length_score = min(1.0, len(normalized) / 48.0)
+    quality = 0.55 * token_score + 0.45 * length_score
+
+    if signal_ratio < 0.5:
+        quality *= 0.35
+    if unique_ratio < 0.15:
+        quality *= 0.4
+    return round(max(0.0, min(1.0, quality)), 3)
+
+
+def _has_retrieval_signal(query: str) -> bool:
+    normalized = _normalize_text(query)
+    if not _informative_tokens(normalized):
+        return False
+    if _match_material(normalized)["material"] != "unknown material":
+        return True
+    return any(term in normalized for term in _RETRIEVAL_SIGNAL_TERMS)
 
 
 def _match_material(text: str) -> Dict[str, object]:
@@ -326,6 +392,8 @@ class DeterministicServiceClients:
 
     async def retrieve(self, query: str, task_type: TaskType) -> List[RetrievedDocument]:
         normalized = _normalize_text(query)
+        if not _has_retrieval_signal(normalized):
+            return []
         docs = []
         for doc in _KNOWLEDGE_DOCS:
             score = doc.score
@@ -446,6 +514,43 @@ class MultimodalOrchestratorEngine:
 
         task_type, task_confidence = classify_task_type(request)
         query = request.text
+        text_quality = _assess_text_quality(query)
+
+        if request_type == RequestType.TEXT_ONLY and text_quality < 0.2:
+            warnings.append(
+                WarningMessage(
+                    code="LOW_TEXT_QUALITY",
+                    message="The text input does not contain enough usable sustainability detail for grounded retrieval.",
+                    service="orchestrator",
+                )
+            )
+            return FinalAnswer(
+                answer_text=(
+                    "I do not have enough usable detail to give a grounded sustainability answer. "
+                    "Please add the item, material, condition, and your local context if disposal rules matter."
+                ),
+                confidence=ConfidenceScore.from_score(0.18, "Text-only request lacked retrievable evidence."),
+                warnings=warnings,
+                suggestions=[
+                    "Describe the item and material, for example: 'clean plastic bottle' or 'swollen lithium battery'.",
+                    "Add your city or ZIP code for location-specific disposal rules.",
+                ],
+                metadata={
+                    "mode": ServiceMode.DETERMINISTIC_TEST.value,
+                    "request_type": request_type.value,
+                    "task_type": task_type.value,
+                    "task_confidence": round(task_confidence, 3),
+                    "text_quality": text_quality,
+                    "services_used": ["orchestrator"],
+                    "evidence_counts": {
+                        "vision_objects": 0,
+                        "retrieved_documents": 0,
+                        "kg_results": 0,
+                        "organizations": 0,
+                    },
+                },
+                processing_time_ms=timer.elapsed_ms,
+            )
 
         vision: Optional[VisionResult] = None
         if request_type in {RequestType.IMAGE_ONLY, RequestType.MULTIMODAL}:
@@ -518,6 +623,7 @@ class MultimodalOrchestratorEngine:
                 "request_type": request_type.value,
                 "task_type": task_type.value,
                 "task_confidence": round(task_confidence, 3),
+                "text_quality": text_quality,
                 "services_used": self._services_used(request_type, task_type),
                 "evidence_counts": {
                     "vision_objects": len(vision.objects) if vision else 0,

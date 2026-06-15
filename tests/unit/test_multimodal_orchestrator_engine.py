@@ -123,6 +123,21 @@ async def test_org_search_discloses_missing_location():
 
 
 @pytest.mark.asyncio
+async def test_low_quality_text_only_request_does_not_invent_evidence():
+    engine = MultimodalOrchestratorEngine()
+    request = MultimodalRequest(messages=[ChatMessage(role="user", content="???")])
+
+    answer = await engine.handle(request)
+
+    assert answer.confidence.score < 0.3
+    assert answer.citations == []
+    assert answer.sources == []
+    assert answer.metadata["evidence_counts"]["retrieved_documents"] == 0
+    assert any(w.code == "LOW_TEXT_QUALITY" for w in answer.warnings)
+    assert "enough usable detail" in answer.answer_text
+
+
+@pytest.mark.asyncio
 async def test_corrupted_image_is_honest_low_confidence_warning():
     engine = MultimodalOrchestratorEngine()
     request = MultimodalRequest(

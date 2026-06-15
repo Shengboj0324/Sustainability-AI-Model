@@ -55,7 +55,7 @@ from shared.utils import RateLimiter, RequestCache
 
 # Import monitoring components
 from common.structured_logging import get_logger, log_context, set_correlation_id
-from common.health_checks import HealthChecker, HealthStatus
+from common.health_checks import HealthChecker, HealthStatus, HealthCheckResult
 from common.alerting import init_alerting, send_alert, AlertSeverity
 from common.circuit_breaker import CircuitBreaker
 from common.environment import check_environment, get_optimal_device
@@ -255,12 +255,37 @@ class LLMServiceV2:
         Load model and tokenizer, or fall back to OpenAI-compatible API.
 
         Priority chain:
-        1. Local model (transformers + LoRA adapter)
-        2. OpenAI-compatible API backend (LLM_API_KEY env var)
-        3. Degraded mode (NLP preprocessing only, no generation)
+        1. Explicit API backend when LLM_BACKEND=api/openai
+        2. Local model (transformers + LoRA adapter), unless LLM_DISABLE_LOCAL=true
+        3. OpenAI-compatible API backend (LLM_API_KEY env var)
+        4. Degraded mode (NLP preprocessing only, no generation)
         """
-        # Try local model first
-        if not TRANSFORMERS_AVAILABLE:
+        requested_backend = os.getenv("LLM_BACKEND", "auto").strip().lower()
+        disable_local = os.getenv("LLM_DISABLE_LOCAL", "false").strip().lower() in {"1", "true", "yes", "on"}
+        prefer_api = requested_backend in {"api", "openai", "openai_compatible"}
+
+        if prefer_api and self.openai_backend.available:
+            self.model = None
+            self.tokenizer = None
+            self.device = None
+            self._use_api_backend = True
+            logger.info(
+                f"✅ Using explicitly requested API backend: {self.openai_backend.model} "
+                f"via {self.openai_backend.base_url}"
+            )
+            return
+
+        if prefer_api and not self.openai_backend.available:
+            logger.error("LLM_BACKEND requested API mode, but LLM_API_KEY is not configured")
+            self.model = None
+            self.tokenizer = None
+            self.device = None
+        elif disable_local:
+            logger.warning("LLM_DISABLE_LOCAL=true — skipping local model load")
+            self.model = None
+            self.tokenizer = None
+            self.device = None
+        elif not TRANSFORMERS_AVAILABLE:
             logger.warning(
                 "Transformers not available — skipping local model.\n"
                 f"   Reason: {TRANSFORMERS_ERROR}"
@@ -772,13 +797,37 @@ async def startup():
         logger.info("LLM service initialized successfully")
 
         # Add health checks
-        async def check_model_health():
-            if llm_service.model is None or llm_service.tokenizer is None:
-                return {"status": "unhealthy", "reason": "Model not loaded"}
-            return {"status": "healthy"}
+        async def check_backend_health():
+            if llm_service.model is not None and llm_service.tokenizer is not None:
+                return HealthCheckResult(
+                    status=HealthStatus.HEALTHY,
+                    message="Local model backend available",
+                    details={"backend": "local_model"},
+                )
+            if llm_service._use_api_backend and llm_service.openai_backend.available:
+                return HealthCheckResult(
+                    status=HealthStatus.HEALTHY,
+                    message="OpenAI-compatible API backend available",
+                    details={
+                        "backend": "openai_compatible_api",
+                        "model": llm_service.openai_backend.model,
+                        "base_url": llm_service.openai_backend.base_url,
+                    },
+                )
+            return HealthCheckResult(
+                status=HealthStatus.UNHEALTHY,
+                message="No LLM backend available",
+                details={
+                    "local_model_loaded": llm_service.model is not None,
+                    "api_backend_available": llm_service.openai_backend.available,
+                },
+            )
 
-        health_checker.add_check("llm_model", check_model_health)
-        health_checker.mark_ready()
+        health_checker.add_check("llm_backend", check_backend_health)
+        if llm_service.has_backend():
+            health_checker.mark_ready()
+        else:
+            health_checker.mark_not_ready()
         health_checker.mark_startup_complete()
 
         logger.info("Health checks configured")
@@ -1099,4 +1148,3 @@ if __name__ == "__main__":
         reload=False,
         log_level="info"
     )
-
