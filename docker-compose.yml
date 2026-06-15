@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   # PostgreSQL Database (UPGRADED to 16)
   # CRITICAL: Set POSTGRES_PASSWORD in .env file - no default password in production!

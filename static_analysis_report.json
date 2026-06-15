@@ -1,0 +1,41 @@
+{
+  "status": "NEEDS REVIEW",
+  "confidence": 60,
+  "info_count": 5,
+  "warnings_count": 22,
+  "errors_count": 0,
+  "details": {
+    "info": [
+      "Critical ML operations: 6/6",
+      "GPU operations: 4 patterns found",
+      "Error handling: 12 try blocks, 13 except blocks",
+      "Data type operations: 2 patterns found",
+      "ML patterns: 13 found"
+    ],
+    "warnings": [
+      "Cell 4, line 9: Undefined variable 'c'",
+      "Cell 4, line 9: Undefined variable 'i'",
+      "Cell 4, line 85: Undefined variable 'files'",
+      "Cell 4, line 290: Undefined variable 'key'",
+      "Cell 4, line 291: Undefined variable 'value'",
+      "Cell 4, line 35: Undefined variable 'label'",
+      "Cell 4, line 35: Undefined variable 'count'",
+      "Cell 4, line 69: Undefined variable 'PermissionError'",
+      "Cell 4, line 79: Undefined variable 'root'",
+      "Cell 4, line 90: Undefined variable 'files'",
+      "Cell 4, line 306: Undefined variable 'e'",
+      "Cell 4, line 34: Undefined variable 'x'",
+      "Cell 4, line 65: Undefined variable 'any'",
+      "Cell 4, line 87: Undefined variable 'root'",
+      "Cell 5, line 33: Undefined variable 'e'",
+      "Cell 7, line 25: Undefined variable 'hasattr'",
+      "Cell 7, line 331: Undefined variable 'e'",
+      "Cell 7, line 30: Undefined variable 'e'",
+      "Cell 7, line 124: Undefined variable 'e'",
+      "Cell 7, line 178: Undefined variable 'i'",
+      "Cell 7: Bare except clause (catches all exceptions)",
+      "Cell 7: Bare except clause (catches all exceptions)"
+    ],
+    "errors": []
+  }
+}

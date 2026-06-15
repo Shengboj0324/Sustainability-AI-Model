@@ -199,6 +199,29 @@ class TestRAGService:
         assert payload["metadata"]["retrieval_backend"] == "local_lexical_fallback"
         assert payload["documents"][0]["lineage"]["original_source"]
 
+    def test_retrieve_endpoint_truncates_long_queries(self):
+        """Test long bounded queries are accepted and sanitized, not rejected before handler."""
+        from fastapi.testclient import TestClient
+        from services.rag_service import server
+
+        server.rag_service.embedding_model = None
+        server.rag_service.qdrant_client = None
+
+        with TestClient(server.app) as client:
+            response = client.post(
+                "/retrieve",
+                json={
+                    "query": "plastic bottle recycle " + ("x" * 1400),
+                    "top_k": 1,
+                    "mode": "hybrid",
+                },
+            )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert len(payload["query"]) == 1000
+        assert payload["metadata"]["degraded"] is True
+
 
 class TestRetrievalRequest:
     """Test request validation"""

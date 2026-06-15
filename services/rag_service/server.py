@@ -312,7 +312,7 @@ class RetrievedDocument:
 
 class RetrievalRequest(BaseModel):
     """RAG retrieval request with optional provenance"""
-    query: str = Field(..., min_length=1, max_length=1000, description="Search query")
+    query: str = Field(..., min_length=1, max_length=4096, description="Search query")
     top_k: int = Field(default=5, ge=1, le=50, description="Number of documents to retrieve")
     mode: RetrievalMode = Field(default=RetrievalMode.HYBRID, description="Retrieval mode")
     doc_types: Optional[List[DocumentType]] = Field(default=None, description="Filter by document types")
@@ -466,6 +466,7 @@ class RAGService:
         self.lexical_corpus_paths = self._get_lexical_corpus_paths()
         self._lexical_documents: Optional[List[RetrievedDocument]] = None
         self._lexical_doc_tokens: Optional[List[set[str]]] = None
+        self._lexical_doc_freq: Dict[str, int] = {}
 
     def _get_qdrant_config(self) -> Dict[str, Any]:
         """Return Qdrant config from either legacy or current config schema."""
@@ -605,6 +606,11 @@ class RAGService:
             set(self._tokenize_for_lexical(f"{doc.metadata.get('title', '')} {doc.content} {' '.join(map(str, doc.metadata.get('tags', [])))}"))
             for doc in documents
         ]
+        doc_freq: Dict[str, int] = {}
+        for tokens in self._lexical_doc_tokens:
+            for token in tokens:
+                doc_freq[token] = doc_freq.get(token, 0) + 1
+        self._lexical_doc_freq = doc_freq
         logger.info(f"Loaded {len(documents)} local lexical RAG documents")
         return documents
 
@@ -625,10 +631,6 @@ class RAGService:
 
         token_sets = self._lexical_doc_tokens or []
         doc_count = max(len(documents), 1)
-        doc_freq: Dict[str, int] = {}
-        for token in set(query_tokens):
-            doc_freq[token] = sum(1 for tokens in token_sets if token in tokens)
-
         scored: List[RetrievedDocument] = []
         for doc, tokens in zip(documents, token_sets):
             if doc_types and doc.doc_type not in doc_types:
@@ -640,7 +642,7 @@ class RAGService:
                 continue
             score = 0.0
             for token in overlap:
-                idf = math.log((doc_count + 1) / (doc_freq.get(token, 0) + 1)) + 1.0
+                idf = math.log((doc_count + 1) / (self._lexical_doc_freq.get(token, 0) + 1)) + 1.0
                 score += idf
             score = min(1.0, score / (len(set(query_tokens)) + 2.0))
             scored.append(
