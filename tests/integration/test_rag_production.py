@@ -12,6 +12,7 @@ Tests:
 import pytest
 import asyncio
 import time
+import httpx
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 import sys
 from pathlib import Path
@@ -108,7 +109,27 @@ class TestRAGServiceProduction:
             mock_client.assert_called_once()
             call_kwargs = mock_client.call_args[1]
             assert 'limits' in call_kwargs
-            assert call_kwargs['limits']['max_connections'] == 100
+            assert isinstance(call_kwargs['limits'], httpx.Limits)
+            assert call_kwargs['limits'].max_connections == 100
+            assert call_kwargs['limits'].max_keepalive_connections == 20
+
+    @pytest.mark.asyncio
+    async def test_failed_qdrant_connection_clears_client(self):
+        """Failed Qdrant startup must force degraded lexical retrieval."""
+        with patch('server.AsyncQdrantClient') as mock_client:
+            mock_instance = AsyncMock()
+            mock_instance.get_collections = AsyncMock(side_effect=ConnectionError("qdrant down"))
+            mock_instance.close = AsyncMock()
+            mock_client.return_value = mock_instance
+
+            service = RAGService()
+            service.config.setdefault("vector_store", {}).setdefault("qdrant", {})["startup_connect_timeout"] = 0.1
+
+            with pytest.raises(ConnectionError):
+                await service._connect_qdrant()
+
+            mock_instance.close.assert_awaited_once()
+            assert service.qdrant_client is None
     
     @pytest.mark.asyncio
     async def test_embedding_timeout(self):
@@ -213,4 +234,3 @@ async def test_concurrent_requests():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

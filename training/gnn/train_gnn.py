@@ -67,6 +67,66 @@ TARGET_CLASSES = [
 ]
 
 
+def load_processed_graph_data(config: dict) -> Data:
+    """Load GNN training graph from configured parquet files.
+
+    The data pipeline validator regenerates these parquet files from the same
+    production taxonomy used by KG/GNN inference. Training should consume them
+    directly so config drift is caught before a model is trained.
+    """
+    data_cfg = config["data"]
+    graph_file = PROJECT_ROOT / data_cfg["graph_file"]
+    features_file = PROJECT_ROOT / data_cfg["node_features_file"]
+
+    if not graph_file.exists():
+        raise FileNotFoundError(f"GNN graph file not found: {graph_file}")
+    if not features_file.exists():
+        raise FileNotFoundError(f"GNN node feature file not found: {features_file}")
+
+    edges_df = pd.read_parquet(graph_file)
+    features_df = pd.read_parquet(features_file)
+    feature_cols = sorted(
+        [c for c in features_df.columns if c.startswith("feature_")],
+        key=lambda c: int(c.split("_", 1)[1]),
+    )
+
+    expected_dim = int(config["model"]["input_dim"])
+    if len(feature_cols) != expected_dim:
+        raise ValueError(
+            f"GNN feature dimension mismatch: parquet has {len(feature_cols)}, "
+            f"config expects {expected_dim}"
+        )
+    if not {"source", "target"}.issubset(edges_df.columns):
+        raise ValueError("GNN graph parquet must contain source and target columns")
+    if "node_id" not in features_df.columns:
+        raise ValueError("GNN node feature parquet must contain node_id column")
+
+    features_df = features_df.sort_values("node_id").reset_index(drop=True)
+    expected_ids = list(range(len(features_df)))
+    actual_ids = features_df["node_id"].astype(int).tolist()
+    if actual_ids != expected_ids:
+        raise ValueError("GNN node_id values must be contiguous and zero-indexed")
+
+    edge_index = torch.tensor(
+        edges_df[["source", "target"]].astype("int64").to_numpy().T,
+        dtype=torch.long,
+    )
+    x = torch.tensor(features_df[feature_cols].astype("float32").to_numpy(), dtype=torch.float32)
+
+    if edge_index.numel() == 0:
+        raise ValueError("GNN graph parquet has no edges")
+    if int(edge_index.max().item()) >= x.size(0):
+        raise ValueError("GNN graph references node ids outside node feature table")
+    if not torch.isfinite(x).all():
+        raise ValueError("GNN node features contain NaN or Inf values")
+
+    logger.info(
+        f"Loaded processed GNN graph: {x.size(0)} nodes, "
+        f"{edge_index.size(1)} edges, feature_dim={x.size(1)}"
+    )
+    return Data(x=x, edge_index=edge_index, num_nodes=x.size(0))
+
+
 def load_graph_data(config: dict) -> Data:
     """
     Build the production 43-node Knowledge Graph.
@@ -76,6 +136,18 @@ def load_graph_data(config: dict) -> Data:
            Item→Bin overrides, Item↔Item similarity (confusable pairs).
     All edges are bidirectional.
     """
+    data_cfg = config.get("data", {})
+    if data_cfg.get("use_processed_files", True):
+        try:
+            return load_processed_graph_data(config)
+        except Exception as exc:
+            if not data_cfg.get("allow_rule_fallback", False):
+                raise
+            logger.warning(
+                "Processed GNN graph unavailable; falling back to built-in rule graph: %s",
+                exc,
+            )
+
     logger.info("Building production Knowledge Graph (43 nodes)...")
 
     MATERIALS = ['plastic', 'paper', 'glass', 'metal', 'organic', 'textile', 'styrofoam', 'mixed']
@@ -504,4 +576,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

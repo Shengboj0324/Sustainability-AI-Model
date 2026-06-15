@@ -6,39 +6,39 @@
     {
       "name": "rag_lexical_direct_concurrency",
       "passed": true,
-      "duration_ms": 5038.35,
+      "duration_ms": 11835.4,
       "checks": 90,
       "detail": "90 queries, 450 docs validated"
     },
     {
       "name": "orchestrator_engine_concurrency_and_malformed_inputs",
       "passed": true,
-      "duration_ms": 57.25,
+      "duration_ms": 76.97,
       "checks": 161,
       "detail": "161 orchestrator engine responses validated"
     },
     {
       "name": "rag_endpoint_degraded_envelope",
       "passed": true,
-      "duration_ms": 219.77,
+      "duration_ms": 139310.19,
       "checks": 80,
       "detail": "80 endpoint requests validated"
     },
     {
       "name": "orchestrator_fastapi_envelope_stress",
       "passed": true,
-      "duration_ms": 72.46,
+      "duration_ms": 85.02,
       "checks": 60,
       "detail": "60 endpoint responses validated"
     },
     {
       "name": "deployment_validation_commands",
       "passed": true,
-      "duration_ms": 2959.46,
+      "duration_ms": 49088.3,
       "checks": 3,
       "detail": "compose config and industrial validators passed"
     }
   ],
   "failures": [],
-  "timestamp": "2026-06-15T00:45:31Z"
+  "timestamp": "2026-06-15T06:01:31Z"
 }

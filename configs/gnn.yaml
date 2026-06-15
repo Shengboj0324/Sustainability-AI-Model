@@ -68,6 +68,8 @@ graph:
 
 data:
   # Graph data files
+  use_processed_files: true
+  allow_rule_fallback: false
   graph_file: "data/processed/gnn/graph.parquet"
   node_features_file: "data/processed/gnn/node_features.parquet"
   node_labels_file: "data/processed/gnn/node_labels.parquet"

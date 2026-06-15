@@ -1,0 +1,140 @@
+{
+  "checks": [
+    {
+      "detail": "training data dependencies are import-compatible",
+      "metrics": {
+        "albumentations": "2.0.8",
+        "datasets": "4.1.1",
+        "huggingface_hub": "0.36.2",
+        "missing": [],
+        "pandas": "2.0.3",
+        "pillow": "11.3.0",
+        "pyarrow": "21.0.0",
+        "pycocotools": "2.0.10",
+        "torch": "2.2.0",
+        "torchvision": "0.17.0",
+        "transformers": "4.57.1"
+      },
+      "name": "dependency_contract",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "detail": "all training modules import cleanly",
+      "metrics": {
+        "failures": {}
+      },
+      "name": "training_module_imports",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "detail": "vision ImageFolder contract matches config",
+      "metrics": {
+        "expected_classes": 30,
+        "min_per_class": {
+          "test": 29,
+          "train": 224,
+          "val": 28
+        },
+        "totals": {
+          "test": 2296,
+          "train": 18147,
+          "val": 2259
+        }
+      },
+      "name": "vision_folder_taxonomy_and_counts",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "detail": "no exact image hashes appear across train/val/test",
+      "metrics": {
+        "cross_split_hashes": 0,
+        "duplicate_files_total": 0,
+        "duplicate_hashes_total": 0,
+        "samples": []
+      },
+      "name": "vision_exact_hash_leakage",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "detail": "all scanned images decoded",
+      "metrics": {
+        "duration_ms": 6626.06,
+        "failures": [],
+        "full_scan": true,
+        "sample_sizes": [
+          [
+            256,
+            256
+          ],
+          [
+            256,
+            256
+          ],
+          [
+            256,
+            256
+          ],
+          [
+            256,
+            256
+          ],
+          [
+            256,
+            256
+          ]
+        ],
+        "scanned": 22702
+      },
+      "name": "vision_image_decode_scan",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "detail": "configured LLM SFT files are schema-valid",
+      "metrics": {
+        "files": {
+          "data/processed/llm_sft/expert_sft_train.jsonl": {
+            "examples": 12,
+            "max_message_chars": 3967
+          },
+          "data/processed/llm_sft/generated_sft_train.jsonl": {
+            "examples": 6152,
+            "max_message_chars": 1455
+          },
+          "data/processed/llm_sft/generated_sft_val.jsonl": {
+            "examples": 684,
+            "max_message_chars": 1088
+          }
+        },
+        "max_length": 2048,
+        "total_examples": 6848
+      },
+      "name": "llm_sft_configured_jsonl_contract",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "detail": "GNN parquet files match graph training contract",
+      "metrics": {
+        "edges": 118,
+        "feature_dim": 128,
+        "graph_file": "data/processed/gnn/graph.parquet",
+        "node_features_file": "data/processed/gnn/node_features.parquet",
+        "nodes": 43
+      },
+      "name": "gnn_parquet_contract",
+      "passed": true,
+      "severity": "error"
+    }
+  ],
+  "duration_ms": 24839.76,
+  "failed": 0,
+  "ok": true,
+  "passed": 7,
+  "started_at": "2026-06-15T06:16:54.174178+00:00",
+  "warnings": 0
+}

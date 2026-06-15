@@ -1,209 +1,168 @@
-# Vision Classifier Configuration
-# Waste and material classification from images
-# PEAK STANDARD: SOTA EVA-02 Backbone with 448px resolution
-
 model:
-  backbone: "eva02_large_patch14_448.mim_m38m_ft_in22k_in1k" # State-of-the-art Vision Transformer
+  backbone: eva02_large_patch14_448.mim_m38m_ft_in22k_in1k
   pretrained: true
-  pretrained_source: "timm"
-
-  # Multi-head classification
+  pretrained_source: timm
   multi_head: true
-  num_classes_item: 30 # 30 fine-grained waste categories (matches dataset + export_pipeline)
-  num_classes_material: 15 # PET, HDPE, PP, PVC, glass, aluminum, paper, etc.
-  num_classes_bin: 4 # Recycle, compost, landfill, hazardous
-
-  # Model architecture
-  drop_rate: 0.2 # Increased for larger model
-  drop_path_rate: 0.2 # Stochastic depth
-
-  # Class definitions — 30 classes matching dataset and deployment/export_pipeline.py
+  num_classes_item: 30
+  num_classes_material: 15
+  num_classes_bin: 4
+  drop_rate: 0.2
+  drop_path_rate: 0.2
   item_classes:
-    - "aerosol_cans"
-    - "aluminum_food_cans"
-    - "aluminum_soda_cans"
-    - "cardboard_boxes"
-    - "cardboard_packaging"
-    - "clothing"
-    - "coffee_grounds"
-    - "disposable_plastic_cutlery"
-    - "eggshells"
-    - "food_waste"
-    - "glass_beverage_bottles"
-    - "glass_cosmetic_containers"
-    - "glass_food_jars"
-    - "magazines"
-    - "newspaper"
-    - "office_paper"
-    - "paper_cups"
-    - "plastic_cup_lids"
-    - "plastic_detergent_bottles"
-    - "plastic_food_containers"
-    - "plastic_shopping_bags"
-    - "plastic_soda_bottles"
-    - "plastic_straws"
-    - "plastic_trash_bags"
-    - "plastic_water_bottles"
-    - "shoes"
-    - "steel_food_cans"
-    - "styrofoam_cups"
-    - "styrofoam_food_containers"
-    - "tea_bags"
-
+  - aerosol_cans
+  - aluminum_food_cans
+  - aluminum_soda_cans
+  - cardboard_boxes
+  - cardboard_packaging
+  - clothing
+  - coffee_grounds
+  - disposable_plastic_cutlery
+  - eggshells
+  - food_waste
+  - glass_beverage_bottles
+  - glass_cosmetic_containers
+  - glass_food_jars
+  - magazines
+  - newspaper
+  - office_paper
+  - paper_cups
+  - plastic_cup_lids
+  - plastic_detergent_bottles
+  - plastic_food_containers
+  - plastic_shopping_bags
+  - plastic_soda_bottles
+  - plastic_straws
+  - plastic_trash_bags
+  - plastic_water_bottles
+  - shoes
+  - steel_food_cans
+  - styrofoam_cups
+  - styrofoam_food_containers
+  - tea_bags
   material_classes:
-    - "PET"
-    - "HDPE"
-    - "PVC"
-    - "LDPE"
-    - "PP"
-    - "PS"
-    - "glass"
-    - "aluminum"
-    - "steel"
-    - "paper"
-    - "cardboard"
-    - "cotton"
-    - "polyester"
-    - "mixed"
-    - "other"
-
+  - PET
+  - HDPE
+  - PVC
+  - LDPE
+  - PP
+  - PS
+  - glass
+  - aluminum
+  - steel
+  - paper
+  - cardboard
+  - cotton
+  - polyester
+  - mixed
+  - other
 data:
-  # Data directories
-  data_dir: "data/processed/vision_cls"
-  train_dir: "data/processed/vision_cls/train"
-  val_dir: "data/processed/vision_cls/val"
-  test_dir: "data/processed/vision_cls/test"
-
-  # Image processing
-  input_size: 448 # CRITICAL: Higher resolution for fine-grained details
-  interpolation: "bicubic"
-  mean: [0.48145466, 0.4578275, 0.40821073] # CLIP/EVA mean
-  std: [0.26862954, 0.26130258, 0.27577711] # CLIP/EVA std
-
-  # Data loading — reduced for M4 Max memory constraints
-  # EVA-02 Large at 448px uses ~10GB+ for model + activations
+  data_dir: data/processed/vision_cls_clean
+  train_dir: data/processed/vision_cls_clean/train
+  val_dir: data/processed/vision_cls_clean/val
+  test_dir: data/processed/vision_cls_clean/test
+  input_size: 448
+  interpolation: bicubic
+  mean:
+  - 0.48145466
+  - 0.4578275
+  - 0.40821073
+  std:
+  - 0.26862954
+  - 0.26130258
+  - 0.27577711
   num_workers: 2
-  pin_memory: false # MPS does not benefit from pin_memory
-  persistent_workers: false # Save memory from idle worker processes
-
-  # Augmentations for training (Peak Standard)
+  pin_memory: false
+  persistent_workers: false
   augmentations:
-    - type: "random_resized_crop"
-      size: 448
-      scale: [0.08, 1.0] # Aggressive scaling
-      ratio: [0.75, 1.3333333333333333]
-    - type: "horizontal_flip"
-      p: 0.5
-    - type: "rand_augment" # AutoAugment/RandAugment
-      num_ops: 2
-      magnitude: 9
-    - type: "color_jitter"
-      brightness: 0.4
-      contrast: 0.4
-      saturation: 0.4
-      hue: 0.1
-    - type: "random_erasing"
-      p: 0.25
-      mode: "pixel"
-    - type: "normalize"
-      mean: [0.48145466, 0.4578275, 0.40821073]
-      std: [0.26862954, 0.26130258, 0.27577711]
-
+  - type: random_resized_crop
+    size: 448
+    scale:
+    - 0.08
+    - 1.0
+    ratio:
+    - 0.75
+    - 1.3333333333333333
+  - type: horizontal_flip
+    p: 0.5
+  - type: rand_augment
+    num_ops: 2
+    magnitude: 9
+  - type: color_jitter
+    brightness: 0.4
+    contrast: 0.4
+    saturation: 0.4
+    hue: 0.1
+  - type: random_erasing
+    p: 0.25
+    mode: pixel
+  - type: normalize
+    mean:
+    - 0.48145466
+    - 0.4578275
+    - 0.40821073
+    std:
+    - 0.26862954
+    - 0.26130258
+    - 0.27577711
+  source_data_dir: data/processed/vision_cls
 training:
-  # Output
-  output_dir: "models/vision/classifier"
-  experiment_name: "waste_classifier_eva02_peak_v1"
-
-  # CRITICAL: Reproducibility
+  output_dir: models/vision/classifier
+  experiment_name: waste_classifier_eva02_peak_v1
   seed: 42
-
-  # Batch size — tuned for Apple M4 Max (38GB unified memory)
-  # EVA-02 Large at 448px: ~1.5GB per sample in attention
-  # batch_size=2 × grad_accum=32 = effective batch size 64
   batch_size: 2
   val_batch_size: 4
-  gradient_accumulation_steps: 32 # Effective batch size = 64
-
-  # Training duration
+  gradient_accumulation_steps: 32
   num_epochs: 50
   early_stopping_patience: 15
-
-  # Optimization
-  optimizer: "adamw"
-  learning_rate: 1.0e-4 # Lower LR for fine-tuning
+  optimizer: adamw
+  learning_rate: 0.0001
   weight_decay: 0.05
-  layer_decay: 0.8 # Layer-wise LR decay (crucial for Transformers)
-  betas: [0.9, 0.999]
-  eps: 1.0e-8
-
-  # Learning rate schedule
-  lr_scheduler: "cosine"
+  layer_decay: 0.8
+  betas:
+  - 0.9
+  - 0.999
+  eps: 1.0e-08
+  lr_scheduler: cosine
   warmup_epochs: 5
-  min_lr: 1.0e-6
-
-  # Regularization
+  min_lr: 1.0e-06
   label_smoothing: 0.1
-  mixup_alpha: 0.8 # Stronger mixup
-  cutmix_alpha: 1.0 # Stronger cutmix
-  mixup_prob: 1.0 # Always apply mixup/cutmix
+  mixup_alpha: 0.8
+  cutmix_alpha: 1.0
+  mixup_prob: 1.0
   cutmix_prob: 1.0
-
-  # Gradient clipping
-  clip_grad_norm: 5.0 # Transformers sometimes need higher clip
-
-  # Mixed precision
+  clip_grad_norm: 5.0
   use_amp: true
-  amp_dtype: "float16" # MPS does not support bfloat16; use float16
-
-  # Memory optimization
-  gradient_checkpointing: true # Trade compute for ~60% memory reduction
-
-  # Checkpointing
+  amp_dtype: float16
+  gradient_checkpointing: true
   save_freq: 1
   save_every: 1
   save_best_only: false
-
-  # Class balancing
   use_balanced_sampler: true
-
-  # Logging
   log_interval: 10
   val_interval: 1
-
 loss:
-  # Multi-task loss configuration
-  item_type_loss: "cross_entropy"
-  material_loss: "cross_entropy"
-  bin_type_loss: "cross_entropy"
-
-  # Loss weights
+  item_type_loss: cross_entropy
+  material_loss: cross_entropy
+  bin_type_loss: cross_entropy
   loss_weights:
     item_type: 1.0
     material: 1.0
     bin_type: 0.5
-
 evaluation:
-  # Metrics
   metrics:
-    - "top1_acc_item"
-    - "top5_acc_item"
-    - "top1_acc_material"
-    - "top5_acc_material"
-    - "top1_acc_bin"
-    - "f1_macro_item"
-    - "f1_macro_material"
-    - "f1_weighted_item"
-    - "f1_weighted_material"
-
-  # Confusion matrix
+  - top1_acc_item
+  - top5_acc_item
+  - top1_acc_material
+  - top5_acc_material
+  - top1_acc_bin
+  - f1_macro_item
+  - f1_macro_material
+  - f1_weighted_item
+  - f1_weighted_material
   confusion_matrix: true
   save_confusion_matrix: true
-
-  # Per-class metrics
   per_class_metrics: true
-
 inference:
-  # Inference settings
   batch_size: 32
-  tta: true # CRITICAL: Enable TTA by default
-  tta_transforms: 10 # 10-crop equivalent
+  tta: true
+  tta_transforms: 10

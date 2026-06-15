@@ -9,6 +9,7 @@ Usage:
     python scripts/train_unified_pipeline.py --stage vision  # single stage
     python scripts/train_unified_pipeline.py --stage gnn llm # multiple
     python scripts/train_unified_pipeline.py --dry-run       # validate only
+    python scripts/train_unified_pipeline.py --full-data-scan --stage vision
 """
 import argparse, json, logging, os, subprocess, sys, time, shutil, yaml
 from dataclasses import dataclass, field
@@ -35,6 +36,17 @@ def _run_script(script: str, env_extra: Dict = None) -> int:
     logger.info(f"  ▸ Running: {' '.join(cmd)}")
     return subprocess.run(cmd, cwd=str(PROJECT_ROOT), env=env).returncode
 
+def _run_data_pipeline_validation(full_scan: bool = False) -> int:
+    cmd = [sys.executable, str(PROJECT_ROOT / "scripts" / "data_pipeline_stress_validate.py")]
+    if full_scan:
+        cmd.append("--full-image-scan")
+    logger.info("\n" + "=" * 70)
+    logger.info("DATA PIPELINE VALIDATION")
+    logger.info("  Verifying Vision, LLM SFT, and GNN training data contracts")
+    logger.info("=" * 70)
+    logger.info(f"  ▸ Running: {' '.join(cmd)}")
+    return subprocess.run(cmd, cwd=str(PROJECT_ROOT)).returncode
+
 def _check_files(files: List[str]) -> bool:
     missing = [f for f in files if not (PROJECT_ROOT / f).exists()]
     if missing:
@@ -43,7 +55,7 @@ def _check_files(files: List[str]) -> bool:
     return True
 
 # ── Inter-stage dependency validation ─────────────────────────────────
-def _validate_stage_dependencies(stage: str) -> Optional[str]:
+def _validate_stage_dependencies(stage: str, require_external_auth: bool = True) -> Optional[str]:
     """
     Validate that upstream stage artifacts exist before starting a stage.
     Returns an error message if validation fails, None if OK.
@@ -72,12 +84,15 @@ def _validate_stage_dependencies(stage: str) -> Optional[str]:
         missing = [f for f in required if not (PROJECT_ROOT / f).exists()]
         if missing:
             return f"LLM SFT data missing: {missing}. Run generate_sft_dataset.py first."
-        # Verify HuggingFace authentication
-        try:
-            from huggingface_hub import HfApi
-            HfApi().whoami()
-        except Exception:
-            return "HuggingFace not authenticated — run: huggingface-cli login"
+        # Verify HuggingFace authentication only for a real LLM launch.
+        # Dry-runs are used by notebooks/CI to validate local data contracts
+        # without requiring developer secrets.
+        if require_external_auth:
+            try:
+                from huggingface_hub import HfApi
+                HfApi().whoami()
+            except Exception:
+                return "HuggingFace not authenticated — run: huggingface-cli login"
     return None
 
 
@@ -124,7 +139,7 @@ def run_llm_stage(dry_run: bool = False) -> StageResult:
     logger.info("=" * 70)
     if not (PROJECT_ROOT / "configs" / "llm_sft.yaml").exists():
         return StageResult("llm", False, 0, "configs/llm_sft.yaml not found")
-    dep_err = _validate_stage_dependencies("llm")
+    dep_err = _validate_stage_dependencies("llm", require_external_auth=not dry_run)
     if dep_err:
         return StageResult("llm", False, 0, dep_err)
     if dry_run:
@@ -167,6 +182,8 @@ def main():
     parser.add_argument("--stage", nargs="*", choices=list(STAGE_MAP.keys()))
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--skip-preflight", action="store_true")
+    parser.add_argument("--skip-data-validation", action="store_true")
+    parser.add_argument("--full-data-scan", action="store_true")
     args = parser.parse_args()
     stages = args.stage or list(STAGE_MAP.keys())
 
@@ -178,6 +195,11 @@ def main():
 
     if not args.skip_preflight and not preflight_check():
         logger.error("Pre-flight FAILED"); sys.exit(1)
+
+    if not args.skip_data_validation:
+        rc = _run_data_pipeline_validation(full_scan=args.full_data_scan)
+        if rc != 0:
+            logger.error("Data pipeline validation FAILED"); sys.exit(rc)
 
     results, t0 = [], time.time()
     for name in stages:

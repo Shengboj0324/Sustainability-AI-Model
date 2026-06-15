@@ -29,6 +29,7 @@ import re
 from functools import lru_cache
 import time
 import uuid
+import httpx
 
 # Import shared utilities - CRITICAL: Single source of truth
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -933,6 +934,7 @@ class RAGService:
             timeout = qdrant_config.get("timeout", 30)
             grpc_port = qdrant_config.get("grpc_port", 6334)
             prefer_grpc = qdrant_config.get("prefer_grpc", True)
+            startup_timeout = float(qdrant_config.get("startup_connect_timeout", min(float(timeout), 5.0)))
 
             logger.info(f"Connecting to Qdrant at {host}:{port} (gRPC: {prefer_grpc})")
 
@@ -944,14 +946,17 @@ class RAGService:
                 prefer_grpc=prefer_grpc,
                 timeout=timeout,
                 # Connection pool settings for production
-                limits={
-                    "max_connections": 100,
-                    "max_keepalive_connections": 20
-                }
+                limits=httpx.Limits(
+                    max_connections=100,
+                    max_keepalive_connections=20,
+                )
             )
 
             # Check if collection exists
-            collections = await self.qdrant_client.get_collections()
+            collections = await asyncio.wait_for(
+                self.qdrant_client.get_collections(),
+                timeout=startup_timeout,
+            )
             collection_names = [c.name for c in collections.collections]
 
             if self.collection_name not in collection_names:
@@ -961,6 +966,12 @@ class RAGService:
                 logger.info(f"Connected to collection: {self.collection_name}")
 
         except Exception as e:
+            if self.qdrant_client:
+                try:
+                    await self.qdrant_client.close()
+                except Exception:
+                    pass
+            self.qdrant_client = None
             logger.error(f"Failed to connect to Qdrant: {e}")
             raise
 

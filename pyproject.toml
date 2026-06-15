@@ -28,6 +28,7 @@ dependencies = [
     "torch>=2.2.0",
     "torchvision>=0.17.0",
     "transformers>=4.37.0",
+    "huggingface-hub>=0.34.0,<1.0",
     "peft>=0.8.0",
     "accelerate>=0.26.0",
     "bitsandbytes>=0.42.0",
@@ -172,4 +173,3 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --cov=services --cov=training --cov-report=html --cov-report=term"
-

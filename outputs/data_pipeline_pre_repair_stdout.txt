@@ -1,0 +1,330 @@
+{
+  "checks": [
+    {
+      "detail": "transformers 4.57.1 is incompatible with huggingface-hub 1.8.0; require <1.0",
+      "metrics": {
+        "albumentations": "2.0.8",
+        "datasets": "4.1.1",
+        "huggingface_hub": "1.8.0",
+        "missing": [],
+        "pandas": "2.0.3",
+        "pillow": "11.3.0",
+        "pyarrow": "21.0.0",
+        "pycocotools": "2.0.10",
+        "torch": "2.2.0",
+        "torchvision": "0.17.0",
+        "transformers": "4.57.1"
+      },
+      "name": "dependency_contract",
+      "passed": false,
+      "severity": "error"
+    },
+    {
+      "detail": "training module imports failed",
+      "metrics": {
+        "failures": {
+          "training.gnn.train_gnn": "ModuleNotFoundError: No module named 'training'",
+          "training.llm.train_sft": "ModuleNotFoundError: No module named 'training'",
+          "training.vision.dataset": "ModuleNotFoundError: No module named 'training'",
+          "training.vision.train_classifier": "ModuleNotFoundError: No module named 'training'",
+          "training.vision.train_multihead": "ModuleNotFoundError: No module named 'training'"
+        }
+      },
+      "name": "training_module_imports",
+      "passed": false,
+      "severity": "error"
+    },
+    {
+      "detail": "vision ImageFolder contract matches config",
+      "metrics": {
+        "expected_classes": 30,
+        "min_per_class": {
+          "test": 45,
+          "train": 396,
+          "val": 50
+        },
+        "totals": {
+          "test": 2598,
+          "train": 21176,
+          "val": 2646
+        }
+      },
+      "name": "vision_folder_taxonomy_and_counts",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "detail": "1143 exact hashes leak across splits",
+      "metrics": {
+        "cross_split_hashes": 1143,
+        "duplicate_files_total": 6880,
+        "duplicate_hashes_total": 3165,
+        "samples": [
+          {
+            "entries": [
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/train/aerosol_cans/Image_107.png",
+                "size": 33148,
+                "split": "train"
+              },
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/val/aerosol_cans/Image_207.png",
+                "size": 33148,
+                "split": "val"
+              }
+            ],
+            "sha1": "8c388ea6144368e8ddafa7ebcecf8f443baeb8b9"
+          },
+          {
+            "entries": [
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/train/aerosol_cans/Image_129.png",
+                "size": 67679,
+                "split": "train"
+              },
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/test/aerosol_cans/Image_134.png",
+                "size": 67679,
+                "split": "test"
+              }
+            ],
+            "sha1": "59728e08669741d45d64dd01c743dac8acdfc111"
+          },
+          {
+            "entries": [
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/train/aerosol_cans/Image_138.png",
+                "size": 46269,
+                "split": "train"
+              },
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/test/aerosol_cans/Image_63.png",
+                "size": 46269,
+                "split": "test"
+              }
+            ],
+            "sha1": "390dda86089ef9a0b32973ec41619bd2adbe0b66"
+          },
+          {
+            "entries": [
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/train/aerosol_cans/Image_15.png",
+                "size": 41469,
+                "split": "train"
+              },
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/val/aerosol_cans/Image_10.png",
+                "size": 41469,
+                "split": "val"
+              }
+            ],
+            "sha1": "bf0d529fe2a2fabe736d62536230978df361d953"
+          },
+          {
+            "entries": [
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/train/aerosol_cans/Image_168.png",
+                "size": 60250,
+                "split": "train"
+              },
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/val/aerosol_cans/Image_90.png",
+                "size": 60250,
+                "split": "val"
+              }
+            ],
+            "sha1": "5ea2fa50096fa2fe5b1084f8b626c0ff751e1d6b"
+          },
+          {
+            "entries": [
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/train/aerosol_cans/Image_176.png",
+                "size": 14145,
+                "split": "train"
+              },
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/train/aerosol_cans/Image_73.png",
+                "size": 14145,
+                "split": "train"
+              },
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/test/aerosol_cans/Image_185.png",
+                "size": 14145,
+                "split": "test"
+              }
+            ],
+            "sha1": "c1d69cdc5f210b8aa10ccdf0d5b52f49303e10c9"
+          },
+          {
+            "entries": [
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/train/aerosol_cans/Image_20.png",
+                "size": 29281,
+                "split": "train"
+              },
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/test/aerosol_cans/Image_33.png",
+                "size": 29281,
+                "split": "test"
+              }
+            ],
+            "sha1": "121e72df635f37fb3b9df7df46d728021f6b1fab"
+          },
+          {
+            "entries": [
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/train/aerosol_cans/Image_206.png",
+                "size": 81577,
+                "split": "train"
+              },
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/val/aerosol_cans/Image_213.png",
+                "size": 81577,
+                "split": "val"
+              },
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/test/aerosol_cans/Image_54.png",
+                "size": 81577,
+                "split": "test"
+              }
+            ],
+            "sha1": "8ded87b9b6402254d821098c1354a7f3cbb3f9a2"
+          },
+          {
+            "entries": [
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/train/aerosol_cans/Image_22.png",
+                "size": 61271,
+                "split": "train"
+              },
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/val/aerosol_cans/Image_184.png",
+                "size": 61271,
+                "split": "val"
+              }
+            ],
+            "sha1": "8c0c32a744f1d9f5e3c4a0e4ee09587683e93b54"
+          },
+          {
+            "entries": [
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/train/aerosol_cans/Image_231.png",
+                "size": 30864,
+                "split": "train"
+              },
+              {
+                "class": "aerosol_cans",
+                "path": "data/processed/vision_cls/test/aerosol_cans/Image_195.png",
+                "size": 30864,
+                "split": "test"
+              }
+            ],
+            "sha1": "3fd18c56638a751ccf00cca575df7c14e454fda1"
+          }
+        ]
+      },
+      "name": "vision_exact_hash_leakage",
+      "passed": false,
+      "severity": "error"
+    },
+    {
+      "detail": "all scanned images decoded",
+      "metrics": {
+        "duration_ms": 21.26,
+        "failures": [],
+        "full_scan": false,
+        "sample_sizes": [
+          [
+            256,
+            256
+          ],
+          [
+            384,
+            384
+          ],
+          [
+            256,
+            256
+          ],
+          [
+            384,
+            384
+          ],
+          [
+            384,
+            384
+          ]
+        ],
+        "scanned": 200
+      },
+      "name": "vision_image_decode_scan",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "detail": "configured LLM SFT files are schema-valid",
+      "metrics": {
+        "files": {
+          "data/processed/llm_sft/expert_sft_train.jsonl": {
+            "examples": 12,
+            "max_message_chars": 3967
+          },
+          "data/processed/llm_sft/generated_sft_train.jsonl": {
+            "examples": 6152,
+            "max_message_chars": 1455
+          },
+          "data/processed/llm_sft/generated_sft_val.jsonl": {
+            "examples": 684,
+            "max_message_chars": 1088
+          }
+        },
+        "max_length": 2048,
+        "total_examples": 6848
+      },
+      "name": "llm_sft_configured_jsonl_contract",
+      "passed": true,
+      "severity": "error"
+    },
+    {
+      "detail": "feature dimension 2 does not match config input_dim 128; node features missing required column node_type; node features missing required column name; node count 20 is below production 43-node graph contract; edge count 12 is below expected production relationship coverage",
+      "metrics": {
+        "edges": 12,
+        "feature_dim": 2,
+        "graph_file": "data/processed/gnn/graph.parquet",
+        "node_features_file": "data/processed/gnn/node_features.parquet",
+        "nodes": 20
+      },
+      "name": "gnn_parquet_contract",
+      "passed": false,
+      "severity": "error"
+    }
+  ],
+  "duration_ms": 3699.46,
+  "failed": 4,
+  "ok": false,
+  "passed": 3,
+  "started_at": "2026-06-15T05:51:53.820321+00:00",
+  "warnings": 0
+}
+Data pipeline report written to /Users/jiangshengbo/Desktop/Sustainability-AI-Model/outputs/data_pipeline/data_pipeline_stress_report.json
