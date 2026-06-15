@@ -49,6 +49,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
         self.public_endpoints = {
             "/",
             "/health",
+            "/health/ios",
+            "/health/live",
+            "/health/ready",
+            "/health/startup",
             "/docs",
             "/redoc",
             "/openapi.json"
@@ -58,6 +62,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
     
     async def dispatch(self, request: Request, call_next):
         """Process request with authentication"""
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         # Skip auth for public endpoints
         if request.url.path in self.public_endpoints:
             return await call_next(request)
@@ -134,4 +141,3 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # Check if key is in valid set
         return api_key in self.valid_api_keys
-

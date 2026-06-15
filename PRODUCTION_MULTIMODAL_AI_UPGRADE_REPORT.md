@@ -16,7 +16,7 @@ The latest full repository test run passed:
 
 Deployment readiness verdict: STAGING READY
 
-This is not marked PRODUCTION READY because Docker validation found real remaining production gaps: the service image is still monolithic and large, full vector RAG startup still depends on an external embedding checkpoint/cache, the LLM service needs a real local or OpenAI-compatible backend, and full compose startup with Postgres/Redis plus all application services was not completed because host Postgres/Redis ports were already occupied.
+This is not marked PRODUCTION READY because Docker validation found real remaining production gaps: the service image is still monolithic and large, full vector RAG startup still depends on an external embedding checkpoint/cache, the LLM service needs a real local or OpenAI-compatible backend, and the Docker stack is intentionally `not_ready` when Vision/LLM/RAG are running in explicit no-model/degraded mode.
 
 ## Current Architecture Before Changes
 
@@ -50,7 +50,16 @@ This is not marked PRODUCTION READY because Docker validation found real remaini
 - RAG now has real local lexical fallback retrieval with provenance and trust metadata.
 - RAG Qdrant startup now uses `httpx.Limits`, bounded startup probing, and clears partial clients on failed startup so degraded lexical retrieval is explicit and testable.
 - Docker Compose now points to the actual root `Dockerfile` and the actual Vision/LLM `server_v2` modules.
+- Docker Compose now places every service on the same `releaf-network`, eliminating the prior split-network DNS failure where app services could not resolve `postgres`, `qdrant`, or peer service hostnames.
+- Docker Compose no longer hard-requires NVIDIA runtime in the base Vision service; GPU acceleration must be enabled in deployment-specific overrides.
+- Docker Compose now passes explicit deterministic/degraded-mode controls for validation: `ORCHESTRATOR_EXECUTION_MODE`, `LLM_BACKEND`, `LLM_DISABLE_LOCAL`, `RAG_DISABLE_MODEL_LOADING`, and `VISION_DISABLE_MODEL_LOADING`.
+- Compose development/test mounts `services/common` into app containers so shared health/readiness fixes are not hidden by stale baked image layers.
 - Compose config requires external Postgres and Neo4j passwords.
+- API Gateway mobile/web contract now accepts `image` or `image_b64`, and `lat/lon` or `latitude/longitude`.
+- API Gateway `/api/v1/chat/` now preserves orchestrator confidence, confidence level, warnings, sources, citations, fallback state, partial-answer state, response ID, processing time, and metadata.
+- API Gateway dependency health now uses deployment service URLs instead of hardcoded `localhost`, and `/health/ios` reports real feature availability from downstream status.
+- API Gateway CORS preflight and health/startup/readiness probes are allowed through auth/rate-limit middleware while application routes remain API-key protected.
+- Vision and RAG now support explicit non-production fast-start degraded modes that bind ports and report not-ready instead of hanging startup or masquerading as fully loaded model services.
 - Prometheus metrics are idempotent for circuit breaker, Redis, and RAG modules.
 - Kaggle credentials were moved out of the repo to `~/.kaggle/kaggle.json`; repo now has `kaggle.json.template` and ignores real `kaggle.json`.
 - `scripts/data_pipeline_stress_validate.py` provides a strict data-pipeline audit and opt-in repair harness for dependency contracts, training imports, Vision ImageFolder splits, image decode integrity, LLM SFT JSONL files, and GNN parquet graph contracts.
@@ -66,6 +75,11 @@ This is not marked PRODUCTION READY because Docker validation found real remaini
 - `configs/gnn.yaml`
 - `configs/vision_cls.yaml`
 - `docker-compose.yml`
+- `services/api_gateway/main.py`
+- `services/api_gateway/schemas.py`
+- `services/api_gateway/routers/chat.py`
+- `services/api_gateway/middleware/auth.py`
+- `services/api_gateway/middleware/rate_limit.py`
 - `pyproject.toml`
 - `requirements.txt`
 - `requirements-arm.txt`
@@ -80,12 +94,14 @@ This is not marked PRODUCTION READY because Docker validation found real remaini
 - `services/orchestrator/engine.py`
 - `services/org_search_service/server.py`
 - `services/rag_service/server.py`
+- `services/vision_service/server_v2.py`
 - `tests/integration/test_rag_production.py`
 - `tests/test_reasoning_system.py`
 - `tests/unit/test_training_notebook_contract.py`
 - `tests/unit/test_llm_service_backend_modes.py`
 - `tests/unit/test_multimodal_orchestrator_engine.py`
 - `tests/unit/test_rag_service.py`
+- `tests/unit/test_api_gateway_mobile_contract.py`
 - `training/gnn/train_gnn.py`
 - `Sustainability_AI_Model_Training.ipynb`
 
@@ -97,9 +113,12 @@ This is not marked PRODUCTION READY because Docker validation found real remaini
 - `scripts/stress_new_multimodal_paths.py`
 - `scripts/data_pipeline_stress_validate.py`
 - `scripts/validate_training_notebook.py`
+- `scripts/mobile_deployment_validate.py`
+- `scripts/mobile_gateway_stress.py`
 - `tests/unit/test_multimodal_orchestrator_engine.py`
 - `tests/unit/test_data_pipeline_stress_validator.py`
 - `tests/unit/test_training_notebook_contract.py`
+- `tests/unit/test_api_gateway_mobile_contract.py`
 - `kaggle.json.template`
 - `.dockerignore`
 - `PRODUCTION_MULTIMODAL_AI_UPGRADE_REPORT.md`
@@ -140,6 +159,16 @@ The original `data/processed/vision_cls` tree was not deleted. It is retained as
 - Docker container imports initially failed on OpenCV because the runtime image lacked `libGL.so.1`.
 - Docker container imports initially failed for Vision because model source was accidentally excluded along with model checkpoints/artifacts.
 - Qdrant Compose healthcheck was invalid for `qdrant/qdrant:v1.8.0`: `/health` returns 404 and the image does not include `curl`.
+- API Gateway downstream health used hardcoded `localhost` URLs, which is wrong inside Docker and caused false degraded/unreachable status for mobile/web deployments.
+- API Gateway `/api/v1/chat/` lost orchestrator intelligence fields and constructed `ChatResponse` without required `processing_time_ms`.
+- API Gateway forwarded a Pydantic `Location` object directly into an `httpx` JSON request, producing a public-route `500` for mobile-style `latitude/longitude` payloads.
+- API Gateway CORS preflight and health/readiness probe handling was inconsistent across auth and rate-limit middleware.
+- Base Docker Compose hard-required NVIDIA runtime for Vision, preventing CPU-only Linux and Apple Silicon validation.
+- Base Docker Compose split databases and application services across different networks, so app services could not resolve database service names.
+- Compose bind-mounted individual service directories but not `services/common`, so shared health/readiness fixes could be hidden by stale baked image code.
+- RAG startup blocked for 120 seconds per attempt trying to load `BAAI/bge-large-en-v1.5` on CPU, delaying port binding and mobile readiness checks.
+- Vision startup could block on real model loading even when the goal was gateway/mobile deployment validation.
+- Standard mobile stress traffic with a non-tiered key correctly hit rate limiting after the burst bucket, showing that stress tests must use an enterprise-tier key when testing backend stability rather than limiter behavior.
 - Deterministic orchestrator overclaimed medium confidence and citations for meaningless input such as `???`.
 - LLM service startup tried local model loading before explicit API/degraded operation and could trigger heavy/gated model behavior during container startup.
 - LLM and KG detailed health endpoints serialized dataclass health results as Python repr strings instead of JSON.
@@ -182,6 +211,20 @@ The original `data/processed/vision_cls` tree was not deleted. It is retained as
 - Fixed RAG endpoint so degraded retrieval returns structured results instead of `503`.
 - Fixed RAG Qdrant client construction and failed-startup cleanup.
 - Fixed Docker Compose build/module wiring.
+- Fixed API Gateway downstream health checks to use `ORCHESTRATOR_URL`, `VISION_SERVICE_URL`, `LLM_SERVICE_URL`, `RAG_SERVICE_URL`, `KG_SERVICE_URL`, and `ORG_SEARCH_SERVICE_URL`.
+- Expanded API Gateway mobile/web input compatibility for `image_b64` and `latitude/longitude` while preserving validation that rejects conflicting image inputs.
+- Fixed `/api/v1/chat/` to preserve confidence, citations, sources, warnings, fallback state, partial-answer state, response ID, metadata, and processing time.
+- Fixed gateway JSON forwarding by serializing `Location` with `model_dump()` before calling the orchestrator.
+- Allowed CORS preflight and health/startup/readiness probes through auth/rate-limit middleware while keeping app routes API-key protected.
+- Removed mandatory NVIDIA runtime from base Compose; GPU allocation must now be supplied via deployment override.
+- Put all Compose services on `releaf-network` so container DNS works consistently.
+- Mounted `services/common` into Compose app services for development/test validation so shared health code is current.
+- Added explicit fast-start degraded modes:
+  - `RAG_DISABLE_MODEL_LOADING=true`
+  - `VISION_DISABLE_MODEL_LOADING=true`
+  These bind ports quickly and report not-ready instead of silently claiming production model availability.
+- Added `scripts/mobile_deployment_validate.py` for live gateway health, CORS, OpenAPI, text-chat, and multimodal-chat validation.
+- Added `scripts/mobile_gateway_stress.py` for concurrent website/iOS-style gateway stress tests.
 - Added deployment URL overrides to the orchestrator.
 - Fixed RAG config compatibility and embedding timeout behavior.
 - Made Prometheus collectors resilient to duplicate imports.
@@ -280,6 +323,10 @@ The original `data/processed/vision_cls` tree was not deleted. It is retained as
 - Dockerized LLM degraded-mode health/readiness/generate checks with updated source bind-mounted.
 - Dockerized KG service readiness and material endpoint check against Docker Neo4j.
 - Dockerized RAG offline degraded startup and local lexical fallback retrieval check with updated source bind-mounted.
+- `POSTGRES_PASSWORD=docker_strict_postgres NEO4J_PASSWORD=docker_strict_neo4j ORCHESTRATOR_EXECUTION_MODE=deterministic_test LLM_DISABLE_LOCAL=true LLM_BACKEND=api RAG_DISABLE_MODEL_LOADING=true VISION_DISABLE_MODEL_LOADING=true docker compose up -d --force-recreate api-gateway`
+- `python scripts/mobile_deployment_validate.py --base-url http://localhost:8080 --origin capacitor://localhost --api-key enterprise_mobile_final --allow-degraded-readiness --timeout 60 --output outputs/mobile_deployment_validation_final.json`
+- `python scripts/mobile_gateway_stress.py --base-url http://localhost:8080 --origin capacitor://localhost --api-key enterprise_mobile_final_stress --requests 120 --concurrency 16 --timeout 60 --output outputs/mobile_gateway_stress_final.json`
+- `pytest -q tests/unit/test_api_gateway_mobile_contract.py tests/unit/test_llm_service_backend_modes.py tests/unit/test_rag_service.py tests/unit/test_vision_service.py`
 - Secret/default scan with `rg` for cloud keys, private keys, API keys, and reusable password defaults.
 - Checkpoint metadata inspection with `torch.load(..., map_location="cpu")`.
 
@@ -313,6 +360,8 @@ The original `data/processed/vision_cls` tree was not deleted. It is retained as
 - RAG integration suite: 11 passed, 4 warnings.
 - RAG unit suite: 10 passed, 4 warnings.
 - LLM backend/health unit suite: 4 passed, 4 warnings.
+- Mobile/API Gateway contract suite: 5 passed.
+- Targeted mobile/RAG/LLM/Vision regression suite: 22 passed, 12 warnings.
 - New stress harness: 5 passed, 0 failed, 394 total checks.
   - `rag_lexical_direct_concurrency`: 90 checks, 450 documents validated.
   - `orchestrator_engine_concurrency_and_malformed_inputs`: 161 responses validated.
@@ -353,6 +402,18 @@ The original `data/processed/vision_cls` tree was not deleted. It is retained as
   - `/health/ready` remains not-ready.
   - `/health` returns 503 JSON with `startup_complete: true`.
   - `/retrieve` returns structured local lexical fallback documents with `doc_id`, `source`, provenance, lineage, trust indicators, and degraded metadata.
+- Docker mobile/web gateway runtime:
+  - Full Compose app stack started on Docker Desktop Linux engine after network/GPU/fast-start fixes.
+  - `/health/ios` returned `status: degraded` with real service status.
+  - Orchestrator, KG, and org search were reachable through container DNS.
+  - Vision, LLM, and RAG reported 503/not-ready in explicit no-model/no-backend mode rather than connection failure or fake readiness.
+  - CORS preflight for `capacitor://localhost` passed.
+  - OpenAPI exposed 17 paths and 17 schemas, including chat, vision, and organization contracts.
+  - Authenticated `/api/v1/chat/` text flow returned all required mobile fields with `confidence_score: 0.807`, `confidence_level: high`.
+  - Authenticated `/api/v1/chat/` multimodal flow returned all required mobile fields with `confidence_score: 0.493`, `confidence_level: low`, `partial_answer: true`.
+  - Functional degraded validation passed 9/9 checks with `--allow-degraded-readiness`.
+  - Standard-key stress intentionally hit rate limiting: 120 requests, 19-20 successes, remaining requests returned 429.
+  - Enterprise-prefix stress passed: 120 requests, concurrency 16, 120 successes, 0 failures, p50 92.35ms, p95 114.98ms, max 117.60ms.
 - Py compile check: passed for touched modules.
 - Compile-all check: passed for `services`, `scripts`, `training`, and `tests`.
 - Model artifact gate: passed.
@@ -392,17 +453,24 @@ Docker validation found and fixed concrete container defects:
 - Qdrant healthcheck is now valid for the actual Qdrant image.
 - Core imports and compile checks pass inside Linux containers.
 - Data pipeline full image scan passes inside Docker: 22,702 images scanned, 0 decode failures, 0 exact split leakage.
+- Full Compose app stack now starts on the Docker Linux engine in deterministic/degraded validation mode.
+- Gateway public port `8080` correctly routes authenticated website/iOS chat traffic to orchestrator port `8000`.
+- Compose service DNS now works across the app/database network.
+- The stack does not claim production readiness when Vision, LLM, or RAG are in no-model/no-backend mode.
 
-Important caveat: final LLM/RAG/shared-health fixes were verified in Docker using read-only bind mounts over the rebuilt images. The monolithic image rebuild passed immediately before those last source-level health fixes, but the final health serialization/RAG degraded-startup changes still need one more full image bake in CI or a Linux runner before release tagging.
+Important caveat: final API Gateway, Vision, RAG, and shared-health fixes were verified in Docker using bind mounts over the rebuilt images. The monolithic image rebuild passed immediately before these last source-level deployment fixes, but they still need one more full image bake in CI or a Linux runner before release tagging.
 
 ## Remaining Blockers
 
-- Full live docker-compose startup with Postgres, Redis, and all application services was not completed because host Postgres/Redis ports were already occupied.
+- Full live docker-compose startup now works in deterministic/degraded validation mode, but `/health/ready` correctly remains `not_ready` while Vision/LLM/RAG run without production model backends.
+- Vision service is reachable in Compose, but `VISION_DISABLE_MODEL_LOADING=true` means image intelligence is intentionally disabled and `/health` returns 503.
+- RAG service is reachable in Compose, but `RAG_DISABLE_MODEL_LOADING=true` means vector retrieval is intentionally disabled and `/health` returns 503.
+- LLM service is reachable in Compose, but no `LLM_API_KEY` or local backend is configured, so `/health` and generation correctly return 503.
 - Production RAG vector retrieval has not been validated against a live embedding model plus populated Qdrant collection in this environment.
 - Neo4j/KG connectivity was validated against Docker Neo4j, but the graph was not seeded with production material/upcycling data during this pass.
 - Vision checkpoint inference has not been benchmarked in a Linux container during this pass.
 - LLM production backend has not been exercised with a live local or OpenAI-compatible model; degraded/no-backend behavior was validated.
-- Final health/RAG source fixes need to be baked into Docker images after the bind-mounted verification.
+- Final API Gateway, Vision, RAG, and shared-health source fixes need to be baked into Docker images after the bind-mounted verification.
 - Service images are still monolithic and about 3.74GB each.
 - Dockerfile layer layout still invalidates dependency installation on service-code edits, causing slow rebuilds.
 - Full real Vision, LLM, and GNN training runs were not launched; the validated scope is strict data handoff, imports, schema, decoding, loader, tokenization, and split construction.
@@ -414,14 +482,14 @@ Important caveat: final LLM/RAG/shared-health fixes were verified in Docker usin
 
 STAGING READY
 
-The repository now has enough validated structure and capability for industrial staging: contracts are stable, the full suite passes, Docker images build, core Linux container import/compile/runtime checks pass, secrets are externalized, model artifacts are present, RAG has a real provenance-aware degraded retrieval path, and the active training data contracts for Vision, LLM SFT, and GNN pass strict validation.
+The repository now has enough validated structure and capability for industrial staging: contracts are stable, the full suite previously passed, the targeted mobile/RAG/LLM/Vision regression suite passes, Docker images build, core Linux container import/compile/runtime checks pass, secrets are externalized, model artifacts are present, RAG has a real provenance-aware degraded retrieval path, mobile/web gateway flows are validated through Docker, and the active training data contracts for Vision, LLM SFT, and GNN pass strict validation.
 
-It is not PRODUCTION READY until final source fixes are baked into images, full compose can run without host port conflicts, real RAG vector retrieval is validated with a populated Qdrant collection, LLM is exercised against a real backend, Vision checkpoint inference is benchmarked in Linux, and production KG data is seeded and validated.
+It is not PRODUCTION READY until final source fixes are baked into images, Compose reaches ready with real Vision/LLM/RAG backends, real RAG vector retrieval is validated with a populated Qdrant collection, LLM is exercised against a real backend, Vision checkpoint inference is benchmarked in Linux, and production KG data is seeded and validated.
 
 ## Next Recommended Engineering Milestones
 
-1. Rebuild all Docker images after the final health/RAG source fixes and rerun the Docker import/compile/runtime smoke suite.
-2. Resolve host Postgres/Redis port conflicts or run Compose on an isolated Linux runner, then execute `POSTGRES_PASSWORD=... NEO4J_PASSWORD=... docker compose up --build` and validate `/health`, `/ready`, `/metrics`, `/orchestrate`, and `/retrieve`.
+1. Rebuild all Docker images after the final API Gateway/Vision/RAG/shared-health source fixes and rerun the Docker import/compile/runtime smoke suite.
+2. Run Compose on an isolated Linux runner with real model/backend configuration, then validate `/health`, `/ready`, `/metrics`, `/api/v1/chat/`, `/api/v1/vision/analyze`, `/retrieve`, and `/orchestrate`.
 3. Validate Qdrant vector retrieval by ingesting a small corpus and asserting citation provenance.
 4. Validate Neo4j/KG routes against seeded material/upcycling/hazard graph data.
 5. Run real Vision checkpoint inference and latency tests in Linux.

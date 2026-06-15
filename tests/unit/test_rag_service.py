@@ -181,7 +181,7 @@ class TestRAGService:
         server.rag_service.embedding_model = None
         server.rag_service.qdrant_client = None
 
-        with TestClient(server.app) as client:
+        with patch.dict("os.environ", {"RAG_DISABLE_MODEL_LOADING": "true"}), TestClient(server.app) as client:
             response = client.post(
                 "/retrieve",
                 json={
@@ -207,7 +207,7 @@ class TestRAGService:
         server.rag_service.embedding_model = None
         server.rag_service.qdrant_client = None
 
-        with TestClient(server.app) as client:
+        with patch.dict("os.environ", {"RAG_DISABLE_MODEL_LOADING": "true"}), TestClient(server.app) as client:
             response = client.post(
                 "/retrieve",
                 json={

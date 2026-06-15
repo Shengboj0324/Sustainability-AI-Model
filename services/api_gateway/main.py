@@ -22,9 +22,13 @@ from .schemas import HealthResponse
 # Import monitoring components
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+_SERVICE_DIR = Path(__file__).resolve().parents[1]
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+for _path in (str(_PROJECT_ROOT), str(_SERVICE_DIR)):
+    if _path not in sys.path:
+        sys.path.insert(0, _path)
 from common.structured_logging import get_logger, log_context, set_correlation_id
-from common.health_checks import HealthChecker, HealthStatus
+from common.health_checks import HealthChecker, HealthCheckResult, HealthStatus
 from common.alerting import init_alerting, send_alert, AlertSeverity
 
 # Try to import optional monitoring components
@@ -69,6 +73,15 @@ ALLOWED_ORIGINS: List[str] = os.getenv(
     "CORS_ORIGINS",
     "https://releaf.ai,https://www.releaf.ai,https://app.releaf.ai,capacitor://localhost,ionic://localhost"
 ).split(",")
+
+SERVICE_HEALTH_ENDPOINTS = {
+    "orchestrator": ("ORCHESTRATOR_URL", "http://localhost:8000"),
+    "vision": ("VISION_SERVICE_URL", "http://localhost:8001"),
+    "llm": ("LLM_SERVICE_URL", "http://localhost:8002"),
+    "rag": ("RAG_SERVICE_URL", "http://localhost:8003"),
+    "kg": ("KG_SERVICE_URL", "http://localhost:8004"),
+    "org_search": ("ORG_SEARCH_SERVICE_URL", "http://localhost:8005"),
+}
 
 # CORS middleware (iOS-ready)
 app.add_middleware(
@@ -168,19 +181,26 @@ async def health_check():
 @app.get("/health/ios", response_model=Dict[str, Any])
 async def ios_health_check():
     """iOS-specific health check with client info"""
+    services_status = await check_downstream_services()
+    orchestrator_healthy = services_status.get("orchestrator", {}).get("healthy", False)
+    vision_healthy = services_status.get("vision", {}).get("healthy", False)
+    org_search_healthy = services_status.get("org_search", {}).get("healthy", False)
+    all_healthy = all(status["healthy"] for status in services_status.values())
+
     return {
-        "status": "healthy",
+        "status": "healthy" if all_healthy else "degraded",
         "timestamp": datetime.utcnow().isoformat(),
         "ios_support": True,
         "api_version": "v1",
         "features": {
-            "chat": True,
-            "vision": True,
-            "organization_search": True,
+            "chat": orchestrator_healthy,
+            "vision": vision_healthy,
+            "organization_search": org_search_healthy,
             "offline_support": True,
-            "image_analysis": True,
-            "geospatial_search": True
+            "image_analysis": vision_healthy or orchestrator_healthy,
+            "geospatial_search": org_search_healthy,
         },
+        "services": services_status,
         "rate_limits": {
             "standard": {
                 "requests_per_minute": 100,
@@ -206,12 +226,8 @@ async def ios_health_check():
 async def check_downstream_services() -> Dict[str, Dict[str, Any]]:
     """Check health of downstream services"""
     services = {
-        "orchestrator": "http://localhost:8000/health",
-        "vision": "http://localhost:8001/health",
-        "llm": "http://localhost:8002/health",
-        "rag": "http://localhost:8003/health",
-        "kg": "http://localhost:8004/health",
-        "org_search": "http://localhost:8005/health",
+        service_name: f"{os.getenv(env_name, default_url).rstrip('/')}/health"
+        for service_name, (env_name, default_url) in SERVICE_HEALTH_ENDPOINTS.items()
     }
     
     status = {}
@@ -221,16 +237,40 @@ async def check_downstream_services() -> Dict[str, Dict[str, Any]]:
                 response = await client.get(url)
                 status[service_name] = {
                     "healthy": response.status_code == 200,
-                    "latency_ms": response.elapsed.total_seconds() * 1000
+                    "status_code": response.status_code,
+                    "latency_ms": response.elapsed.total_seconds() * 1000,
+                    "url": url,
                 }
             except Exception as e:
                 logger.error(f"Health check failed for {service_name}: {e}")
                 status[service_name] = {
                     "healthy": False,
-                    "error": str(e)
+                    "error": str(e),
+                    "url": url,
                 }
     
     return status
+
+
+async def check_downstream_health() -> HealthCheckResult:
+    """Aggregate downstream dependency status for gateway readiness."""
+    services_status = await check_downstream_services()
+    unhealthy = [
+        service_name
+        for service_name, service_status in services_status.items()
+        if not service_status.get("healthy", False)
+    ]
+    if unhealthy:
+        return HealthCheckResult(
+            status=HealthStatus.UNHEALTHY,
+            message=f"Unhealthy downstream services: {', '.join(unhealthy)}",
+            details=services_status,
+        )
+    return HealthCheckResult(
+        status=HealthStatus.HEALTHY,
+        message="All downstream services reachable",
+        details=services_status,
+    )
 
 
 @app.exception_handler(HTTPException)
@@ -313,6 +353,7 @@ async def startup_event():
         logger.warning("Failed to initialize alerting", error=str(e))
 
     # Mark service as ready
+    health_checker.add_check("downstream_services", check_downstream_health)
     health_checker.mark_ready()
     health_checker.mark_startup_complete()
     logger.info("API Gateway initialized successfully")
@@ -354,4 +395,3 @@ if __name__ == "__main__":
         reload=True,
         log_level="info"
     )
-

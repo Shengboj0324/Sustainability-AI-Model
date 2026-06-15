@@ -88,6 +88,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - releaf-network
 
   # API Gateway
   api-gateway:
@@ -98,15 +100,26 @@ services:
     ports:
       - "8080:8080"
     environment:
+      - ENV=${ENV:-development}
       - ORCHESTRATOR_URL=http://orchestrator:8000
+      - VISION_SERVICE_URL=http://vision-service:8001
+      - LLM_SERVICE_URL=http://llm-service:8002
+      - RAG_SERVICE_URL=http://rag-service:8003
+      - KG_SERVICE_URL=http://kg-service:8004
+      - ORG_SEARCH_SERVICE_URL=http://org-search-service:8005
+      - VALID_API_KEYS=${VALID_API_KEYS:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173,capacitor://localhost,ionic://localhost}
     depends_on:
       - orchestrator
       - postgres
       - redis
     volumes:
       - ./services/api_gateway:/app/services/api_gateway
+      - ./services/common:/app/services/common
       - ./configs:/app/configs
     command: uvicorn services.api_gateway.main:app --host 0.0.0.0 --port 8080 --reload
+    networks:
+      - releaf-network
 
   # Orchestrator Service
   orchestrator:
@@ -122,6 +135,7 @@ services:
       - RAG_SERVICE_URL=http://rag-service:8003
       - KG_SERVICE_URL=http://kg-service:8004
       - ORG_SEARCH_SERVICE_URL=http://org-search-service:8005
+      - ORCHESTRATOR_EXECUTION_MODE=${ORCHESTRATOR_EXECUTION_MODE:-}
     depends_on:
       - vision-service
       - llm-service
@@ -130,8 +144,11 @@ services:
       - org-search-service
     volumes:
       - ./services/orchestrator:/app/services/orchestrator
+      - ./services/common:/app/services/common
       - ./configs:/app/configs
     command: uvicorn services.orchestrator.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - releaf-network
 
   # Vision Service (requires GPU)
   vision-service:
@@ -141,18 +158,20 @@ services:
     container_name: releaf-vision-service
     ports:
       - "8001:8001"
+    environment:
+      - VISION_DISABLE_MODEL_LOADING=${VISION_DISABLE_MODEL_LOADING:-true}
     volumes:
       - ./services/vision_service:/app/services/vision_service
+      - ./services/common:/app/services/common
       - ./models:/app/models
       - ./configs:/app/configs
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+    # GPU acceleration should be enabled in a deployment-specific override file.
+    # Keeping the base Compose file CPU-compatible lets web/iOS gateway and
+    # deterministic fallback validation run on Linux CI, Apple Silicon, and
+    # developer machines without NVIDIA runtime support.
     command: uvicorn services.vision_service.server_v2:app --host 0.0.0.0 --port 8001
+    networks:
+      - releaf-network
 
   # LLM Service (GPU optional — falls back to OpenAI-compatible API backend)
   llm-service:
@@ -163,6 +182,8 @@ services:
     ports:
       - "8002:8002"
     environment:
+      - LLM_BACKEND=${LLM_BACKEND:-api}
+      - LLM_DISABLE_LOCAL=${LLM_DISABLE_LOCAL:-true}
       - LLM_API_KEY=${LLM_API_KEY:-}
       - LLM_API_BASE_URL=${LLM_API_BASE_URL:-https://api.openai.com/v1}
       - LLM_MODEL_NAME=${LLM_MODEL_NAME:-gpt-4o-mini}
@@ -170,6 +191,7 @@ services:
       - LLM_MAX_RETRIES=${LLM_MAX_RETRIES:-2}
     volumes:
       - ./services/llm_service:/app/services/llm_service
+      - ./services/common:/app/services/common
       - ./models:/app/models
       - ./configs:/app/configs
     # GPU is optional. Uncomment below if running local model inference:
@@ -181,6 +203,8 @@ services:
     #           count: 1
     #           capabilities: [gpu]
     command: uvicorn services.llm_service.server_v2:app --host 0.0.0.0 --port 8002
+    networks:
+      - releaf-network
 
   # RAG Service
   rag-service:
@@ -194,12 +218,16 @@ services:
       - qdrant
     volumes:
       - ./services/rag_service:/app/services/rag_service
+      - ./services/common:/app/services/common
       - ./data:/app/data
       - ./configs:/app/configs
     environment:
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
+      - RAG_DISABLE_MODEL_LOADING=${RAG_DISABLE_MODEL_LOADING:-true}
     command: uvicorn services.rag_service.server:app --host 0.0.0.0 --port 8003 --reload
+    networks:
+      - releaf-network
 
   # Knowledge Graph Service
   kg-service:
@@ -213,12 +241,15 @@ services:
       - neo4j
     volumes:
       - ./services/kg_service:/app/services/kg_service
+      - ./services/common:/app/services/common
       - ./configs:/app/configs
     environment:
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_USER=${NEO4J_USER:-neo4j}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set in .env file}
     command: uvicorn services.kg_service.server:app --host 0.0.0.0 --port 8004 --reload
+    networks:
+      - releaf-network
 
   # Organization Search Service
   org-search-service:
@@ -232,6 +263,7 @@ services:
       - postgres
     volumes:
       - ./services/org_search_service:/app/services/org_search_service
+      - ./services/common:/app/services/common
       - ./configs:/app/configs
     environment:
       - POSTGRES_HOST=postgres
@@ -240,6 +272,8 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-releaf_user}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env file}
     command: uvicorn services.org_search_service.server:app --host 0.0.0.0 --port 8005 --reload
+    networks:
+      - releaf-network
 
 volumes:
   postgres_data:

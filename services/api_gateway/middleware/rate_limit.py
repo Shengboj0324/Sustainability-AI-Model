@@ -115,7 +115,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         """Process request with rate limiting (thread-safe)"""
         # Skip rate limiting for health checks
-        if request.url.path in ["/health", "/health/ios", "/", "/docs", "/redoc", "/openapi.json"]:
+        if request.method == "OPTIONS" or request.url.path in [
+            "/health",
+            "/health/ios",
+            "/health/live",
+            "/health/ready",
+            "/health/startup",
+            "/",
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+        ]:
             return await call_next(request)
 
         # Get client identifier (IP address or API key)
@@ -202,4 +212,3 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.last_cleanup = now
         if to_remove:
             logger.info(f"Cleaned up {len(to_remove)} old rate limit buckets")
-

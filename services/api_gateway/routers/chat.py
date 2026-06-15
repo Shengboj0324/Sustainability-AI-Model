@@ -8,6 +8,7 @@ import logging
 from typing import List, Dict, Any, Optional
 import httpx
 import os
+import time
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -37,6 +38,7 @@ async def chat(request: ChatRequest, http_request: Request):
     - Searches for organizations if needed
     - Generates final response with LLM
     """
+    start_time = time.perf_counter()
     try:
         # Convert messages to dict format
         messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
@@ -44,7 +46,7 @@ async def chat(request: ChatRequest, http_request: Request):
         # Build orchestrator request
         orchestrator_request = {
             "messages": messages,
-            "location": request.location,
+            "location": request.location.model_dump() if request.location else None,
             "image": request.image,
             "image_url": request.image_url,
             "max_tokens": request.max_tokens,
@@ -62,8 +64,24 @@ async def chat(request: ChatRequest, http_request: Request):
         
         return ChatResponse(
             response=result.get("response", ""),
-            context=result.get("context"),
-            metadata=result.get("metadata")
+            sources=result.get("sources"),
+            suggestions=result.get("suggestions"),
+            processing_time_ms=result.get(
+                "processing_time_ms",
+                (time.perf_counter() - start_time) * 1000,
+            ),
+            confidence_score=result.get("confidence_score"),
+            confidence_level=result.get("confidence_level"),
+            warnings=result.get("warnings"),
+            citations=result.get("citations"),
+            fallback_used=result.get("fallback_used", False),
+            partial_answer=result.get("partial_answer", False),
+            response_id=result.get("response_id"),
+            metadata={
+                **(result.get("metadata") or {}),
+                "gateway_route": "/api/v1/chat",
+                "orchestrator_url": ORCHESTRATOR_URL,
+            },
         )
         
     except httpx.TimeoutException:
@@ -84,6 +102,7 @@ async def simple_chat(request: ChatRequest):
     
     For basic questions that don't need vision/RAG/KG
     """
+    start_time = time.perf_counter()
     try:
         # Convert messages to dict format
         messages = [{"role": msg.role, "content": msg.content} for msg in request.messages]
@@ -108,7 +127,13 @@ async def simple_chat(request: ChatRequest):
         
         return ChatResponse(
             response=result.get("response", ""),
-            metadata={"usage": result.get("usage"), "model": result.get("model")}
+            processing_time_ms=(time.perf_counter() - start_time) * 1000,
+            confidence_score=result.get("confidence"),
+            metadata={
+                "usage": result.get("usage"),
+                "model": result.get("model"),
+                "gateway_route": "/api/v1/chat/simple",
+            },
         )
         
     except httpx.TimeoutException:
@@ -126,4 +151,3 @@ async def simple_chat(request: ChatRequest):
 async def health():
     """Health check"""
     return {"status": "healthy", "router": "chat"}
-

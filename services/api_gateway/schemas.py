@@ -2,7 +2,7 @@
 Pydantic schemas for API Gateway
 """
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator, ConfigDict
 from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime
 from enum import Enum
@@ -17,8 +17,22 @@ class HealthResponse(BaseModel):
 
 class Location(BaseModel):
     """Geographic location"""
-    lat: float = Field(..., ge=-90, le=90, description="Latitude")
-    lon: float = Field(..., ge=-180, le=180, description="Longitude")
+    model_config = ConfigDict(populate_by_name=True)
+
+    lat: float = Field(
+        ...,
+        ge=-90,
+        le=90,
+        description="Latitude",
+        validation_alias=AliasChoices("lat", "latitude"),
+    )
+    lon: float = Field(
+        ...,
+        ge=-180,
+        le=180,
+        description="Longitude",
+        validation_alias=AliasChoices("lon", "longitude"),
+    )
 
 
 class ChatMessage(BaseModel):
@@ -31,30 +45,41 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     """Chat request"""
+    model_config = ConfigDict(populate_by_name=True)
+
     messages: List[ChatMessage]
-    image: Optional[str] = Field(None, description="Base64 encoded image")
+    image: Optional[str] = Field(
+        None,
+        description="Base64 encoded image",
+        validation_alias=AliasChoices("image", "image_b64"),
+    )
     image_url: Optional[str] = Field(None, description="URL to image")
     location: Optional[Location] = None
     max_tokens: int = Field(512, ge=1, le=4096)
     temperature: float = Field(0.7, ge=0, le=2)
     stream: bool = False
 
-    @field_validator('image', 'image_url')
-    @classmethod
-    def validate_image_input(cls, v, info):
-        """Ensure only one image input method is used"""
-        # In Pydantic v2, we need to check the data dict
-        if info.data.get('image') and info.data.get('image_url'):
-            raise ValueError("Provide either 'image' or 'image_url', not both")
-        return v
+    @model_validator(mode="after")
+    def validate_image_input(self):
+        """Ensure only one image input method is used."""
+        if self.image and self.image_url:
+            raise ValueError("Provide either 'image'/'image_b64' or 'image_url', not both")
+        return self
 
 
 class ChatResponse(BaseModel):
     """Chat response"""
     response: str
-    sources: Optional[List[Dict[str, str]]] = None
+    sources: Optional[List[Dict[str, Any]]] = None
     suggestions: Optional[List[str]] = None
     processing_time_ms: float
+    confidence_score: Optional[float] = None
+    confidence_level: Optional[str] = None
+    warnings: Optional[List[str]] = None
+    citations: Optional[List[Dict[str, Any]]] = None
+    fallback_used: bool = False
+    partial_answer: bool = False
+    response_id: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
 

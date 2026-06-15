@@ -775,6 +775,16 @@ class RAGService:
 
         CRITICAL FIX: Gracefully degrade if sentence-transformers not available
         """
+        if os.getenv("RAG_DISABLE_MODEL_LOADING", "").lower() in {"1", "true", "yes"}:
+            logger.error(
+                "RAG_DISABLE_MODEL_LOADING is enabled. Starting RAG in explicit "
+                "non-production lexical/degraded mode without embedding or reranker models."
+            )
+            self.embedding_model = None
+            self.reranker = None
+            self.qdrant_client = None
+            return
+
         # Check if sentence-transformers is available
         if not SENTENCE_TRANSFORMERS_AVAILABLE:
             logger.error(
@@ -1546,8 +1556,14 @@ async def startup():
             logger.info("RAG service initialized successfully")
 
             # Add health checks
-            health_checker.add_check("qdrant", lambda: check_qdrant_health(rag_service.qdrant_client))
-            health_checker.mark_ready()
+            if rag_service.qdrant_client is not None:
+                health_checker.add_check("qdrant", lambda: check_qdrant_health(rag_service.qdrant_client))
+
+            if rag_service.embedding_model is None:
+                logger.error("RAG service started without embedding model; marking not ready")
+                health_checker.mark_not_ready()
+            else:
+                health_checker.mark_ready()
             health_checker.mark_startup_complete()
 
             logger.info("Health checks configured")

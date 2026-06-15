@@ -39,7 +39,7 @@ from shared.utils import RateLimiter, RequestCache
 
 # Import monitoring components
 from common.structured_logging import get_logger, log_context, set_correlation_id
-from common.health_checks import HealthChecker, HealthStatus
+from common.health_checks import HealthChecker, HealthCheckResult, HealthStatus
 from common.alerting import init_alerting, send_alert, AlertSeverity
 from common.circuit_breaker import CircuitBreaker
 
@@ -239,6 +239,14 @@ class VisionServiceV2:
 
     async def initialize(self):
         """Initialize vision system"""
+        if os.getenv("VISION_DISABLE_MODEL_LOADING", "").lower() in {"1", "true", "yes"}:
+            logger.error(
+                "VISION_DISABLE_MODEL_LOADING is enabled. Starting Vision service "
+                "in explicit non-production degraded mode without model loading."
+            )
+            self.vision_system = None
+            return
+
         try:
             logger.info("Initializing integrated vision system...")
             start_time = time.time()
@@ -406,11 +414,18 @@ async def startup():
         # Add health checks
         async def check_vision_health():
             if vision_service.vision_system is None:
-                return {"status": "unhealthy", "reason": "Vision system not loaded"}
-            return {"status": "healthy"}
+                return HealthCheckResult(
+                    status=HealthStatus.UNHEALTHY,
+                    message="Vision system not loaded",
+                    details={"mode": "degraded_no_model"},
+                )
+            return HealthCheckResult(status=HealthStatus.HEALTHY, message="Vision system loaded")
 
         health_checker.add_check("vision_model", check_vision_health)
-        health_checker.mark_ready()
+        if vision_service.vision_system is None:
+            health_checker.mark_not_ready()
+        else:
+            health_checker.mark_ready()
         health_checker.mark_startup_complete()
 
         logger.info("Health checks configured")
@@ -646,4 +661,3 @@ if __name__ == "__main__":
         reload=False,
         log_level="info"
     )
-
