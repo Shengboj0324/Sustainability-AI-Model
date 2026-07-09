@@ -106,9 +106,9 @@ class DepthGeometryAnalyzer:
             value = getattr(intrinsics, name)
             if not np.isfinite(value) or value <= 0:
                 raise ValueError(f"Camera intrinsic {name} must be positive")
-        if not (0 <= intrinsics.cx <= width):
+        if not (0 <= intrinsics.cx < width):
             raise ValueError("Camera intrinsic cx must lie within image width")
-        if not (0 <= intrinsics.cy <= height):
+        if not (0 <= intrinsics.cy < height):
             raise ValueError("Camera intrinsic cy must lie within image height")
 
     def depth_to_points(
@@ -117,6 +117,8 @@ class DepthGeometryAnalyzer:
         intrinsics: CameraIntrinsics,
         max_points: int = 20000,
     ) -> np.ndarray:
+        if max_points <= 0:
+            raise ValueError("max_points must be positive")
         self.validate_intrinsics(intrinsics, depth)
         valid = np.isfinite(depth) & (depth > 0)
         ys, xs = np.nonzero(valid)

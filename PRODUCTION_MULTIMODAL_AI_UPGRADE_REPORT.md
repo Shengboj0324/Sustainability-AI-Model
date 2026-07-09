@@ -688,6 +688,57 @@ Verdict after this pass:
 - The old “no 3D ingestion/API contract” blocker is closed.
 - The final remaining 3D blocker is specifically “no trained/evaluated 3D classifier dataset/model,” and that requires external capture data from the user.
 
+## Algorithm And Mathematical Error-Elimination Pass - 2026-07-09
+
+Issues found and fixed:
+
+- GNN link-prediction leakage:
+  - Problem: GNN embeddings were computed using the full graph, so validation/test edges were present during message passing.
+  - Fix: `create_train_val_test_split` now stores `train_edge_index`, and training/evaluation use train-only message-passing edges while still scoring the selected positive split edges.
+  - Added tests proving `train_edge_index == edge_index[:, train_mask]` and is not the full graph.
+- GNN negative sampling:
+  - Problem: negative samples could duplicate within a batch, reducing training signal.
+  - Fix: negative sampling now tracks sampled negatives and returns unique non-edges; zero-sample requests return a valid empty edge index.
+- Depth camera math:
+  - Problem: intrinsics allowed `cx == width` or `cy == height`, which is outside the valid pixel-index domain.
+  - Fix: `cx` and `cy` now use exclusive upper bounds.
+  - Added exact pinhole projection tests for `x=(u-cx)z/fx`, `y=(v-cy)z/fy`, plus invalid-boundary and `max_points` tests.
+- GNN graph math/invariants:
+  - Added tests proving every taxonomy item has canonical `MADE_OF` and `DISPOSAL_ROUTE` edges, reverse edges exist, node IDs are contiguous, features are finite, and upcycling edge `difficulty`/`confidence` are normalized.
+- 3D endpoint logic:
+  - Added endpoint tests proving `/analyze-3d` returns geometry metrics with `model_available=false` and rejects bad intrinsics instead of returning fake classifier output.
+
+Validation:
+
+```text
+python -m py_compile models/vision/depth_geometry.py training/gnn/train_gnn.py models/gnn/graph_contract.py models/vision/classifier.py scripts/model_component_stress_validate.py scripts/industrial_model_readiness_audit.py
+PASS
+
+pytest -q --no-cov tests/unit/test_depth_geometry.py tests/unit/test_gnn_training_math_contract.py tests/unit/test_vision_3d_endpoint_contract.py tests/unit/test_data_pipeline_stress_validator.py tests/unit/test_industrial_model_readiness_audit.py tests/unit/test_vision_classifier_taxonomy_contract.py tests/unit/test_api_gateway_mobile_contract.py tests/unit/test_vision_service.py
+30 passed, 8 warnings
+
+WANDB_MODE=disabled GNN_NUM_EPOCHS=25 GNN_OUTPUT_DIR=models/gnn/ckpts_canonical_smoke GNN_EXPERIMENT_NAME=canonical_graph_smoke_no_leakage GNN_NEGATIVE_SAMPLING_RATIO=2 python training/gnn/train_gnn.py
+PASS: best_val_acc=0.8600, test_acc=0.7885, train-only message passing
+
+python scripts/data_pipeline_stress_validate.py --sample-size 1000 --output outputs/data_pipeline/data_pipeline_stress_report_math_pass.json
+PASS: 7 checks, 0 failures, 0 warnings
+Vision decode sample: 1000 images, 0 failures
+Vision exact split leakage: 0 cross-split hashes
+LLM SFT schema: 6848 examples
+GNN parquet: 72 nodes, 252 edges
+
+python scripts/model_component_stress_validate.py --output outputs/model_readiness/model_component_stress_report.json
+PASS: 6 passed, 0 errors, 1 warning
+
+python scripts/industrial_model_readiness_audit.py --sample-per-split 100 --output outputs/model_readiness/industrial_model_readiness_report.json
+PASS: 24 passed, 0 errors, 1 warning
+```
+
+Residual warnings:
+
+- FastAPI `on_event` deprecation warnings remain.
+- Learned 3D waste classification remains unimplemented until calibrated labeled RGB-D/LiDAR data is supplied.
+
 ## Next Recommended Engineering Milestones
 
 1. Rebuild all Docker images after the final API Gateway/Vision/RAG/shared-health source fixes and rerun the Docker import/compile/runtime smoke suite.

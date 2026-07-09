@@ -211,6 +211,7 @@ def create_train_val_test_split(data: Data, config: dict) -> Data:
     data.train_mask = edge_train_mask
     data.val_mask = edge_val_mask
     data.test_mask = edge_test_mask
+    data.train_edge_index = data.edge_index[:, edge_train_mask]
 
     logger.info(
         f"Edge split: Train={edge_train_mask.sum().item()}, "
@@ -270,11 +271,14 @@ def negative_sampling(edge_index, num_nodes, num_neg_samples):
     Moved BEFORE usage to prevent NameError.
     """
     neg_edges = []
+    neg_set = set()
     edge_set = set(map(tuple, edge_index.t().tolist()))
     num_neg_samples = int(num_neg_samples)
+    if num_neg_samples <= 0:
+        return torch.empty((2, 0), dtype=torch.long)
 
     max_attempts = 100
-    batch_size = num_neg_samples * 2
+    batch_size = max(2, num_neg_samples * 2)
 
     for attempt in range(max_attempts):
         if len(neg_edges) >= num_neg_samples:
@@ -288,8 +292,9 @@ def negative_sampling(edge_index, num_nodes, num_neg_samples):
 
         for edge in candidates:
             edge_tuple = tuple(edge.tolist())
-            if edge_tuple not in edge_set:
+            if edge_tuple not in edge_set and edge_tuple not in neg_set:
                 neg_edges.append(edge.tolist())
+                neg_set.add(edge_tuple)
                 if len(neg_edges) >= num_neg_samples:
                     break
 
@@ -307,7 +312,8 @@ def evaluate_link_prediction(model, data, device, mask):
     """Evaluate link prediction accuracy."""
     model.eval()
 
-    z = model(data.x.to(device), data.edge_index.to(device))
+    message_edge_index = getattr(data, "train_edge_index", data.edge_index).to(device)
+    z = model(data.x.to(device), message_edge_index)
 
     pos_edge_index = data.edge_index[:, mask].to(device)
 
@@ -348,7 +354,8 @@ def train_epoch_link_prediction(model, data, optimizer, device, config):
     optimizer.zero_grad()
 
     # Get node embeddings
-    z = model(data.x.to(device), data.edge_index.to(device))
+    message_edge_index = getattr(data, "train_edge_index", data.edge_index).to(device)
+    z = model(data.x.to(device), message_edge_index)
 
     # Compute link prediction loss
     pos_loss = -torch.log(
