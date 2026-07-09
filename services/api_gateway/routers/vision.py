@@ -15,6 +15,8 @@ from fastapi import APIRouter, HTTPException, Request
 from services.api_gateway.schemas import (
     VisionRequest,
     VisionResponse,
+    Vision3DRequest,
+    Vision3DResponse,
     DetectionResult,
     VisionClassificationResult,
     RecommendationResult
@@ -57,6 +59,32 @@ async def analyze_image(request: VisionRequest, http_request: Request):
         raise HTTPException(status_code=e.response.status_code, detail=str(e))
     except Exception as e:
         logger.error(f"Vision analysis failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/analyze-3d", response_model=Vision3DResponse)
+async def analyze_depth_geometry(request: Vision3DRequest):
+    """Depth/RGB-D geometry analysis.
+
+    This endpoint forwards calibrated depth maps to the vision service. It does
+    not claim 3D waste classification unless the downstream service reports a
+    trained model in its response metadata.
+    """
+    try:
+        payload = request.model_dump() if hasattr(request, "model_dump") else request.dict()
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(f"{VISION_SERVICE_URL}/analyze-3d", json=payload)
+            response.raise_for_status()
+            result = response.json()
+        return Vision3DResponse(**result)
+    except httpx.TimeoutException:
+        logger.error("Vision 3D service timeout")
+        raise HTTPException(status_code=504, detail="Vision 3D analysis timeout")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Vision 3D service error: {e}")
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except Exception as e:
+        logger.error(f"Vision 3D analysis failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -116,4 +144,3 @@ async def health():
     except Exception as e:
         logger.error(f"Vision service health check failed: {e}")
         return {"status": "unhealthy", "router": "vision", "error": str(e)}
-

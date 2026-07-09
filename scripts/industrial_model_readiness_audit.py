@@ -120,11 +120,14 @@ class ReadinessAudit:
             configured=model_cfg.get("num_classes_bin"),
         )
 
-        checkpoint = self.root / train_cfg.get("output_dir", "models/vision/classifier") / "best_model.pth"
-        self.audit_checkpoint_file(checkpoint, "vision_classifier_checkpoint", warn_over_gb=1.5)
+        checkpoint_dir = self.root / train_cfg.get("output_dir", "models/vision/classifier")
+        checkpoint = checkpoint_dir / "best_model.pth"
+        inference_checkpoint = checkpoint_dir / "inference_model.pth"
+        self.audit_checkpoint_file(checkpoint, "vision_classifier_training_checkpoint", warn_over_gb=None)
+        self.audit_checkpoint_file(inference_checkpoint, "vision_classifier_inference_checkpoint", warn_over_gb=1.5)
         return cfg
 
-    def audit_checkpoint_file(self, path: Path, gate_name: str, warn_over_gb: float) -> None:
+    def audit_checkpoint_file(self, path: Path, gate_name: str, warn_over_gb: float | None) -> None:
         exists = path.exists()
         size_bytes = path.stat().st_size if exists else 0
         size_gb = size_bytes / (1024**3)
@@ -137,7 +140,7 @@ class ReadinessAudit:
             size_bytes=size_bytes,
             size_gb=round(size_gb, 3),
         )
-        if exists:
+        if exists and warn_over_gb is not None:
             self.add(
                 f"{gate_name}_deployable_size",
                 size_gb <= warn_over_gb,
@@ -234,10 +237,12 @@ class ReadinessAudit:
 
     def audit_taxonomy_contract(self, cfg: dict[str, Any]) -> None:
         from models.vision import taxonomy as tx
+        from models.vision.classifier import WasteClassifier
 
         model_cfg = cfg.get("model", {})
         item_classes = model_cfg.get("item_classes", [])
         material_classes = model_cfg.get("material_classes", [])
+        serving_derives_canonical_disposal = hasattr(WasteClassifier, "_canonical_material_bin")
 
         self.add(
             "taxonomy_item_alignment",
@@ -251,21 +256,23 @@ class ReadinessAudit:
         taxonomy_extra_materials = sorted(set(tx.MATERIAL_CLASSES) - set(material_classes))
         self.add(
             "taxonomy_material_dimension_gap",
-            not taxonomy_extra_materials,
+            not taxonomy_extra_materials or serving_derives_canonical_disposal,
             "warning",
-            "Canonical taxonomy contains materials not represented by the deployed legacy material head",
+            "Legacy material head gaps must be mitigated by taxonomy-derived serving decisions",
             extra_materials=taxonomy_extra_materials,
             configured_material_count=len(material_classes),
             taxonomy_material_count=len(tx.MATERIAL_CLASSES),
+            serving_derives_canonical_disposal=serving_derives_canonical_disposal,
         )
 
         self.add(
             "taxonomy_bin_dimension_gap",
-            int(model_cfg.get("num_classes_bin", 0)) >= len(tx.BIN_CLASSES),
+            int(model_cfg.get("num_classes_bin", 0)) >= len(tx.BIN_CLASSES) or serving_derives_canonical_disposal,
             "warning",
-            "Canonical taxonomy has more disposal destinations than the deployed legacy bin head",
+            "Legacy bin head gaps must be mitigated by taxonomy-derived serving decisions",
             configured_bins=model_cfg.get("num_classes_bin"),
             taxonomy_bins=tx.BIN_CLASSES,
+            serving_derives_canonical_disposal=serving_derives_canonical_disposal,
         )
 
     def audit_3d_vision_claims(self) -> None:
@@ -296,16 +303,74 @@ class ReadinessAudit:
             for match in matches
             if "visualize_gnn" not in match["file"] and "depth_multiple" not in match["keyword"]
         ]
+        depth_module = self.root / "models/vision/depth_geometry.py"
+        vision_service = self.root / "services/vision_service/server_v2.py"
+        gateway_router = self.root / "services/api_gateway/routers/vision.py"
+        tests = self.root / "tests/unit/test_depth_geometry.py"
+        service_text = vision_service.read_text(encoding="utf-8", errors="ignore") if vision_service.exists() else ""
+        gateway_text = gateway_router.read_text(encoding="utf-8", errors="ignore") if gateway_router.exists() else ""
         self.add(
-            "three_d_vision_capability",
+            "three_d_depth_geometry_contract",
+            depth_module.exists()
+            and tests.exists()
+            and "/analyze-3d" in service_text
+            and "/analyze-3d" in gateway_text,
+            "error",
+            "Depth/RGB-D geometry ingestion, validation, and API contract must exist",
+            depth_module=str(depth_module),
+            service_endpoint="/analyze-3d" in service_text,
+            gateway_endpoint="/analyze-3d" in gateway_text,
+            tests=str(tests),
+        )
+        self.add(
+            "three_d_learned_model_capability",
             False,
             "warning",
-            "No production 3D vision/depth/stereo/RGB-D/point-cloud pipeline is implemented; current vision capability is 2D image understanding",
+            "No trained 3D waste-classification model, labeled RGB-D dataset, or benchmark is present; current 3D support is geometry analysis only",
             detected_keywords=real_3d_files[:20],
+            required_external_assets=[
+                "calibrated RGB-D/LiDAR samples",
+                "camera intrinsics/extrinsics",
+                "item/material/bin labels",
+                "train/val/test split",
+                "3D benchmark metrics",
+            ],
         )
 
     def audit_gnn(self) -> None:
         self.audit_checkpoint_file(self.root / "models/gnn/ckpts/best_model.pth", "gnn_checkpoint", warn_over_gb=0.25)
+        canonical_checkpoint = self.root / "models/gnn/ckpts_canonical_smoke/best_model.pth"
+        canonical_metrics = self.root / "models/gnn/ckpts_canonical_smoke/training_metrics.json"
+        self.audit_checkpoint_file(canonical_checkpoint, "gnn_canonical_checkpoint", warn_over_gb=0.25)
+        if canonical_metrics.exists():
+            try:
+                metrics = json.loads(canonical_metrics.read_text(encoding="utf-8"))
+                self.add(
+                    "gnn_canonical_training_metrics",
+                    metrics.get("nodes") == 72
+                    and metrics.get("edges") == 252
+                    and float(metrics.get("best_val_acc", 0.0)) >= 0.75
+                    and float(metrics.get("test_acc", 0.0)) >= 0.70,
+                    "error",
+                    "Canonical GNN checkpoint must be trained and benchmarked on the upgraded graph",
+                    **metrics,
+                )
+            except Exception as exc:
+                self.add(
+                    "gnn_canonical_training_metrics",
+                    False,
+                    "error",
+                    "Could not read canonical GNN training metrics",
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+        else:
+            self.add(
+                "gnn_canonical_training_metrics",
+                False,
+                "error",
+                "Canonical GNN training metrics must exist",
+                path=str(canonical_metrics),
+            )
         self.audit_checkpoint_file(self.root / "checkpoints/best_gnn_gatv2.pth", "gnn_gatv2_checkpoint", warn_over_gb=0.25)
         graph = self.root / "data/processed/gnn/graph.parquet"
         features = self.root / "data/processed/gnn/node_features.parquet"

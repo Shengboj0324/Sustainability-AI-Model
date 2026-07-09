@@ -240,6 +240,21 @@ class WasteClassifier:
 
         logger.info(f"WasteClassifier initialized on device: {self.device}")
 
+    def _canonical_material_bin(self, item_name: str, fallback_material: str, fallback_bin: str) -> Tuple[str, str]:
+        """Return taxonomy-derived user-facing material/bin for an item.
+
+        The deployed checkpoint's material/bin heads are legacy auxiliary heads
+        with 15 materials and 4 bins. User-facing disposal decisions should use
+        the canonical taxonomy so `special` and `donate` are not collapsed into
+        legacy labels.
+        """
+        try:
+            decision = tx.disposal_for_item(item_name)
+            return decision["material"], decision["bin"]
+        except Exception:
+            logger.warning("Falling back to legacy material/bin heads for unknown item %s", item_name)
+            return fallback_material, fallback_bin
+
     def _get_default_config(self) -> Dict[str, Any]:
         """Default config matching the DEPLOYED checkpoint
         (deployment_package/best_model.pth): EVA-02 Large @448, 30 items,
@@ -471,14 +486,19 @@ class WasteClassifier:
             if return_embedding:
                 embedding = raw_features[0].cpu().numpy()
 
+            item_name = self.item_classes[item_top_indices[0][0].item()]
+            legacy_material = self.material_classes[material_top_indices[0][0].item()]
+            legacy_bin = self.bin_classes[bin_top_idx[0].item()]
+            canonical_material, canonical_bin = self._canonical_material_bin(item_name, legacy_material, legacy_bin)
+
             # Build result
             result = ClassificationResult(
-                item_type=self.item_classes[item_top_indices[0][0].item()],
+                item_type=item_name,
                 item_confidence=item_top_probs[0][0].item(),
-                material_type=self.material_classes[material_top_indices[0][0].item()],
-                material_confidence=material_top_probs[0][0].item(),
-                bin_type=self.bin_classes[bin_top_idx[0].item()],
-                bin_confidence=bin_probs[0][bin_top_idx[0]].item(),
+                material_type=canonical_material,
+                material_confidence=item_top_probs[0][0].item(),
+                bin_type=canonical_bin,
+                bin_confidence=item_top_probs[0][0].item(),
                 top_k_items=[
                     (self.item_classes[idx.item()], prob.item())
                     for prob, idx in zip(item_top_probs[0], item_top_indices[0])
@@ -554,13 +574,18 @@ class WasteClassifier:
                     )
                     bin_top_idx = torch.argmax(bin_probs[j:j+1], dim=1)
 
+                    item_name = self.item_classes[item_top_indices[0][0].item()]
+                    legacy_material = self.material_classes[material_top_indices[0][0].item()]
+                    legacy_bin = self.bin_classes[bin_top_idx[0].item()]
+                    canonical_material, canonical_bin = self._canonical_material_bin(item_name, legacy_material, legacy_bin)
+
                     result = ClassificationResult(
-                        item_type=self.item_classes[item_top_indices[0][0].item()],
+                        item_type=item_name,
                         item_confidence=item_top_probs[0][0].item(),
-                        material_type=self.material_classes[material_top_indices[0][0].item()],
-                        material_confidence=material_top_probs[0][0].item(),
-                        bin_type=self.bin_classes[bin_top_idx[0].item()],
-                        bin_confidence=bin_probs[j][bin_top_idx[0]].item(),
+                        material_type=canonical_material,
+                        material_confidence=item_top_probs[0][0].item(),
+                        bin_type=canonical_bin,
+                        bin_confidence=item_top_probs[0][0].item(),
                         top_k_items=[
                             (self.item_classes[idx.item()], prob.item())
                             for prob, idx in zip(item_top_probs[0], item_top_indices[0])
@@ -636,4 +661,3 @@ class WasteClassifier:
             logger.info("MPS memory cleared")
 
         logger.info("Classifier cleanup complete")
-

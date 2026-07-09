@@ -16,6 +16,7 @@ CRITICAL FIXES:
 
 import os
 import sys
+import json
 import yaml
 import logging
 from pathlib import Path
@@ -380,6 +381,14 @@ def main():
     try:
         # Load config
         config = load_config()
+        if os.getenv("GNN_NUM_EPOCHS"):
+            config["training"]["num_epochs"] = int(os.environ["GNN_NUM_EPOCHS"])
+        if os.getenv("GNN_OUTPUT_DIR"):
+            config["training"]["output_dir"] = os.environ["GNN_OUTPUT_DIR"]
+        if os.getenv("GNN_EXPERIMENT_NAME"):
+            config["training"]["experiment_name"] = os.environ["GNN_EXPERIMENT_NAME"]
+        if os.getenv("GNN_NEGATIVE_SAMPLING_RATIO"):
+            config["task"]["link_prediction"]["negative_sampling_ratio"] = int(os.environ["GNN_NEGATIVE_SAMPLING_RATIO"])
 
         # CRITICAL FIX: Validate configuration
         validate_config(config)
@@ -392,7 +401,8 @@ def main():
         wandb.init(
             project="releaf-gnn",
             config=config,
-            name=config["training"]["experiment_name"]
+            name=config["training"]["experiment_name"],
+            mode=os.getenv("WANDB_MODE", "disabled"),
         )
 
         # CRITICAL: Device selection — GNN MUST use CPU on Apple Silicon
@@ -434,7 +444,8 @@ def main():
         )
 
         # Training loop
-        best_val_acc = 0.0
+        best_val_acc = -1.0
+        best_epoch = -1
         output_dir = Path(config["training"]["output_dir"])
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -465,8 +476,9 @@ def main():
                 scheduler.step(val_acc)
 
                 # Save best model
-                if val_acc > best_val_acc:
+                if val_acc >= best_val_acc:
                     best_val_acc = val_acc
+                    best_epoch = epoch + 1
                     torch.save({
                         'epoch': epoch,
                         'model_state_dict': model.state_dict(),
@@ -479,6 +491,20 @@ def main():
         # Final evaluation on test set
         test_acc = evaluate_link_prediction(model, data, device, data.test_mask)
         logger.info(f"\nTraining complete! Best val_acc: {best_val_acc:.4f}, Test acc: {test_acc:.4f}")
+        metrics = {
+            "best_val_acc": best_val_acc,
+            "best_epoch": best_epoch,
+            "test_acc": test_acc,
+            "nodes": int(data.num_nodes),
+            "edges": int(data.edge_index.size(1)),
+            "train_edges": int(data.train_mask.sum().item()),
+            "val_edges": int(data.val_mask.sum().item()),
+            "test_edges": int(data.test_mask.sum().item()),
+            "num_epochs": int(config["training"]["num_epochs"]),
+        }
+        with (output_dir / "training_metrics.json").open("w", encoding="utf-8") as handle:
+            json.dump(metrics, handle, indent=2)
+        logger.info("Saved GNN training metrics to %s", output_dir / "training_metrics.json")
 
         wandb.log({"test_acc": test_acc})
         wandb.finish()

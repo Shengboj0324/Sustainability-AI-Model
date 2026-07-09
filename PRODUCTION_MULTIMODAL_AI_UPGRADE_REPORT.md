@@ -558,6 +558,136 @@ Remaining model/data blockers:
 - The exhaustive checkpoint accuracy script is now config-driven, but still timed out in the local bounded run. It needs a CI-safe bounded mode and a separate long-running accuracy job before industrial release.
 - The upgraded 72-node GNN graph should be treated as a new data contract. Existing GNN checkpoints should be retrained or at least benchmarked against the regenerated graph before production promotion.
 
+## Blocker Closure Pass - 2026-07-09
+
+Closed or materially reduced blockers:
+
+- Vision deployment artifact size:
+  - Added `scripts/export_vision_inference_checkpoint.py`.
+  - Exported `models/vision/classifier/inference_model.pth`.
+  - Training checkpoint size: 3.479GB.
+  - Inference-only checkpoint size: 1.212GB.
+  - Reduction: 2.267GB.
+  - The inference artifact is below the current 1.5GB bounded deployment threshold.
+- Legacy material/bin taxonomy loss:
+  - Updated `models/vision/classifier.py` so user-facing `material_type` and `bin_type` are derived from the canonical taxonomy using the predicted item.
+  - The direct 15-material/4-bin heads remain auxiliary diagnostics, but the primary serving route can now return canonical destinations such as `special` and `donate`.
+  - Added `tests/unit/test_vision_classifier_taxonomy_contract.py`.
+- GNN canonical graph checkpoint:
+  - Trained a fresh bounded canonical-graph checkpoint in `models/gnn/ckpts_canonical_smoke`.
+  - Graph: 72 nodes, 252 edges.
+  - Best validation accuracy: 0.8600.
+  - Test accuracy: 0.7308.
+  - Metrics written to `models/gnn/ckpts_canonical_smoke/training_metrics.json`.
+- Exhaustive vision stress script timeout:
+  - Added bounded mode controls to `scripts/exhaustive_vision_stress_test.py`.
+  - Fixed class-balanced bounded sampling.
+  - Fixed confusion-matrix shape bug for small subsets.
+  - Fixed false “industrial deployment ready” verdict in bounded/skipped-gradient mode.
+  - Bounded run now completes and reports issues honestly instead of timing out.
+
+Commands run and results:
+
+```text
+python scripts/export_vision_inference_checkpoint.py
+PASS: output_size_gb=1.212, source_size_gb=3.479
+
+WANDB_MODE=disabled GNN_NUM_EPOCHS=25 GNN_OUTPUT_DIR=models/gnn/ckpts_canonical_smoke GNN_EXPERIMENT_NAME=canonical_graph_smoke GNN_NEGATIVE_SAMPLING_RATIO=2 python training/gnn/train_gnn.py
+PASS: best_val_acc=0.8600, test_acc=0.7308, nodes=72, edges=252
+
+VISION_STRESS_MAX_SAMPLES=30 VISION_STRESS_MAX_CORRUPTION_SAMPLES=6 VISION_STRESS_LATENCY_ITERS=2 VISION_STRESS_LATENCY_WARMUP=0 VISION_STRESS_SKIP_GRADIENT=1 python scripts/exhaustive_vision_stress_test.py
+PASS as bounded diagnostic, not production proof.
+Reported issues: bounded sample only, skipped gradient, Gaussian blur robustness drops.
+
+pytest -q --no-cov tests/unit/test_data_pipeline_stress_validator.py tests/unit/test_industrial_model_readiness_audit.py tests/unit/test_vision_classifier_taxonomy_contract.py
+10 passed
+
+python scripts/model_component_stress_validate.py --output outputs/model_readiness/model_component_stress_report.json
+PASS: 5 passed, 0 errors, 1 warning.
+Remaining warning: no real 3D vision runtime capability.
+
+python scripts/industrial_model_readiness_audit.py --sample-per-split 100 --output outputs/model_readiness/industrial_model_readiness_report.json
+PASS with warning: 23 passed, 0 errors, 1 warning.
+Remaining warning: no production 3D vision/depth/stereo/RGB-D/point-cloud pipeline.
+```
+
+Remaining blocker after this pass:
+
+- Real 3D vision is still not implemented. This cannot be honestly closed by a placeholder or pseudo-depth heuristic. Industrial 3D capability requires, at minimum, a real depth/RGB-D/stereo/point-cloud input contract, model backend, dataset or benchmark, calibration/evaluation, API schema, mobile/web capture contract, and runtime health checks.
+
+Updated readiness:
+
+- `STAGING READY` remains the correct verdict.
+- The system is substantially closer to industrial deployment: data integrity, GNN graph reasoning, canonical disposal serving, bounded stress diagnostics, and deployment artifact sizing are improved and validated.
+- `PRODUCTION READY` is still not justified until the 3D capability claim is either implemented with real evidence or removed from deployment scope, and full long-run vision accuracy/robustness is run in a production-like Linux environment.
+
+## 3D Vision Boundary Pass - 2026-07-09
+
+What was implemented without faking capability:
+
+- Added `models/vision/depth_geometry.py`.
+  - Accepts base64 `.npy` depth arrays and 16-bit PNG/TIFF-style depth maps.
+  - Requires explicit camera intrinsics: `fx`, `fy`, `cx`, `cy`, `width`, `height`.
+  - Validates single-channel depth, positive scale, finite positive pixels, and intrinsics/depth dimension agreement.
+  - Projects valid depth pixels into metric 3D points.
+  - Returns real geometry metrics: valid-pixel ratio, min/max/mean depth, point count, centroid, spatial extent, surface roughness, confidence, and warnings.
+- Added `POST /analyze-3d` to the Vision service.
+- Added `POST /api/v1/vision/analyze-3d` to the API Gateway.
+- Added `tests/unit/test_depth_geometry.py`.
+- Updated `scripts/model_component_stress_validate.py` to exercise the depth geometry contract.
+- Updated `scripts/industrial_model_readiness_audit.py` to split the old 3D blocker into:
+  - `three_d_depth_geometry_contract`: now passing.
+  - `three_d_learned_model_capability`: still a warning.
+
+Validation:
+
+```text
+pytest -q --no-cov tests/unit/test_depth_geometry.py tests/unit/test_industrial_model_readiness_audit.py
+7 passed
+
+python scripts/model_component_stress_validate.py --output outputs/model_readiness/model_component_stress_report.json
+PASS: 6 passed, 0 errors, 1 warning
+3D geometry contract: point_count=20, valid_pixel_ratio=1.0, model_available=false
+
+python scripts/industrial_model_readiness_audit.py --sample-per-split 100 --output outputs/model_readiness/industrial_model_readiness_report.json
+PASS with warning: 24 passed, 0 errors, 1 warning
+3D geometry contract: passed
+Learned 3D model capability: warning
+```
+
+What remains unimplementable from the repository alone:
+
+- A learned 3D waste/material classifier cannot be created honestly without real calibrated 3D data and labels.
+- The current 3D endpoint is real geometry analysis, not 3D waste classification. It explicitly returns `model_available=false`.
+
+What the user must provide to close the final learned-3D blocker:
+
+1. Calibrated iOS LiDAR/RGB-D samples:
+   - RGB image.
+   - Depth map in meters or millimeters.
+   - Camera intrinsics for every sample: `fx`, `fy`, `cx`, `cy`, width, height.
+   - Device/source metadata, for example iPhone/iPad model and capture app/export format.
+2. Labels:
+   - Item class using the 30-class taxonomy.
+   - Material class.
+   - Disposal/bin class.
+   - Optional object mask or bounding box if multiple objects appear.
+3. Dataset split:
+   - Train/validation/test split with no duplicate captures across splits.
+   - At least a small pilot set first: recommended minimum 30-50 samples per target class for a smoke model, more for industrial claims.
+4. Evaluation target:
+   - Decide whether 3D is expected to improve item classification, material discrimination, object volume/shape estimation, contamination detection, or all of these.
+   - Define acceptance thresholds before training.
+5. Deployment target:
+   - Whether 3D inference runs on-device, server-side, or hybrid.
+   - Maximum request payload size, latency target, and whether iOS will send raw depth, compressed depth, or derived point clouds.
+
+Verdict after this pass:
+
+- `STAGING READY` remains correct.
+- The old “no 3D ingestion/API contract” blocker is closed.
+- The final remaining 3D blocker is specifically “no trained/evaluated 3D classifier dataset/model,” and that requires external capture data from the user.
+
 ## Next Recommended Engineering Milestones
 
 1. Rebuild all Docker images after the final API Gateway/Vision/RAG/shared-health source fixes and rerun the Docker import/compile/runtime smoke suite.

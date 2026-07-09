@@ -69,6 +69,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from models.vision.integrated_vision import IntegratedVisionSystem, IntegratedVisionResult
 from models.vision.classifier import ClassificationResult
 from models.vision.detector import Detection
+from models.vision.depth_geometry import CameraIntrinsics, DepthGeometryAnalyzer
 
 # Configure structured logging
 logger = get_logger(__name__)
@@ -124,6 +125,46 @@ class VisionRequest(BaseModel):
     enable_classification: bool = Field(True, description="Enable classification")
     enable_recommendations: bool = Field(False, description="Enable GNN recommendations")
     top_k: int = Field(5, ge=1, le=20, description="Top-K classification results")
+
+
+class DepthCameraIntrinsicsRequest(BaseModel):
+    fx: float = Field(..., gt=0)
+    fy: float = Field(..., gt=0)
+    cx: float = Field(..., ge=0)
+    cy: float = Field(..., ge=0)
+    width: int = Field(..., ge=2)
+    height: int = Field(..., ge=2)
+
+
+class Vision3DRequest(BaseModel):
+    """Depth/RGB-D geometry request.
+
+    This endpoint performs validated 3D geometry analysis only. It does not
+    classify waste from depth because no trained 3D model is configured.
+    """
+    depth_b64: str = Field(..., description="Base64 encoded NPY or 16-bit PNG/TIFF depth map")
+    depth_format: str = Field("npy", description="npy, png16, png, tiff, or tif")
+    depth_unit_scale: float = Field(1.0, gt=0, description="Multiplier converting raw depth values to meters")
+    intrinsics: DepthCameraIntrinsicsRequest
+
+
+class Vision3DResponse(BaseModel):
+    capability: str
+    model_available: bool
+    depth_format: str
+    width: int
+    height: int
+    valid_pixel_ratio: float
+    depth_min_m: float
+    depth_max_m: float
+    depth_mean_m: float
+    point_count: int
+    centroid_m: List[float]
+    extent_m: List[float]
+    surface_roughness_m: float
+    confidence: float
+    warnings: List[str]
+    metadata: Dict[str, Any]
 
 
 class DetectionResponse(BaseModel):
@@ -215,6 +256,7 @@ class VisionServiceV2:
         self.classifier_path = os.getenv("CLASSIFIER_CHECKPOINT_PATH")
         self.detector_path = os.getenv("DETECTOR_CHECKPOINT_PATH")
         self.gnn_path = os.getenv("GNN_CHECKPOINT_PATH")
+        self.depth_analyzer = DepthGeometryAnalyzer()
         # PEAK STANDARD: Explicit config loading
         self.vision_config_path = os.getenv("VISION_CONFIG_PATH", "configs/vision_cls.yaml")
         self.gnn_config_path = os.getenv("GNN_CONFIG_PATH", "configs/gnn.yaml")
@@ -349,6 +391,21 @@ class VisionServiceV2:
         if self.vision_system:
             self.vision_system.cleanup()
         logger.info("Vision service shutdown complete")
+
+    async def analyze_3d(self, request: Vision3DRequest) -> Dict[str, Any]:
+        intrinsics_data = (
+            request.intrinsics.model_dump()
+            if hasattr(request.intrinsics, "model_dump")
+            else request.intrinsics.dict()
+        )
+        intrinsics = CameraIntrinsics(**intrinsics_data)
+        result = self.depth_analyzer.analyze(
+            depth_b64=request.depth_b64,
+            depth_format=request.depth_format,
+            depth_unit_scale=request.depth_unit_scale,
+            intrinsics=intrinsics,
+        )
+        return result.to_dict()
 
 
 # Initialize service
@@ -617,6 +674,37 @@ async def analyze_image(request: VisionRequest, http_request: Request):
         REQUESTS_TOTAL.labels(endpoint=endpoint, status="error").inc()
         logger.error(f"Analysis failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        ACTIVE_REQUESTS.dec()
+
+
+@app.post("/analyze-3d", response_model=Vision3DResponse)
+async def analyze_depth_geometry(request: Vision3DRequest, http_request: Request):
+    """Validate and analyze calibrated depth/RGB-D geometry.
+
+    This is intentionally not a waste classifier. It provides the real geometry
+    contract required for future trained 3D models and fails closed on invalid
+    depth or camera intrinsics.
+    """
+    ACTIVE_REQUESTS.inc()
+    endpoint = "analyze_3d"
+    start_time = time.time()
+    try:
+        client_ip = http_request.client.host if http_request.client else "unknown"
+        if not await rate_limiter.check_rate_limit(client_ip):
+            REQUESTS_TOTAL.labels(endpoint=endpoint, status="rate_limited").inc()
+            raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+        result = await vision_service.analyze_3d(request)
+        REQUESTS_TOTAL.labels(endpoint=endpoint, status="success").inc()
+        REQUEST_DURATION.labels(endpoint=endpoint).observe(time.time() - start_time)
+        return Vision3DResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        REQUESTS_TOTAL.labels(endpoint=endpoint, status="error").inc()
+        logger.error(f"3D depth analysis failed: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))
     finally:
         ACTIVE_REQUESTS.dec()
 

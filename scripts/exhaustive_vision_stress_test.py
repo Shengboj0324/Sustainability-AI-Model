@@ -24,7 +24,7 @@ import torch
 import torch.nn.functional as F
 import torchvision.transforms as T
 from torchvision.datasets import ImageFolder
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from PIL import Image, ImageFilter
 from tqdm import tqdm
 
@@ -64,8 +64,31 @@ STD          = _data_cfg.get("std", [0.26862954, 0.26130258, 0.27577711])
 BATCH_SIZE   = 4
 NUM_WORKERS  = 0
 BACKBONE     = _model_cfg.get("backbone", "eva02_large_patch14_448.mim_m38m_ft_in22k_in1k")
+MAX_EVAL_SAMPLES = int(os.getenv("VISION_STRESS_MAX_SAMPLES", "0") or "0")
+MAX_CORRUPTION_SAMPLES = int(os.getenv("VISION_STRESS_MAX_CORRUPTION_SAMPLES", "500"))
+LATENCY_ITERS = int(os.getenv("VISION_STRESS_LATENCY_ITERS", "50"))
+LATENCY_WARMUP = int(os.getenv("VISION_STRESS_LATENCY_WARMUP", "5"))
+SKIP_GRADIENT = os.getenv("VISION_STRESS_SKIP_GRADIENT", "0").lower() in {"1", "true", "yes"}
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _balanced_subset_indices(targets, max_samples, num_classes):
+    if max_samples <= 0 or max_samples >= len(targets):
+        return list(range(len(targets)))
+    per_class = defaultdict(list)
+    for idx, target in enumerate(targets):
+        per_class[int(target)].append(idx)
+    selected = []
+    rounds = max(1, int(np.ceil(max_samples / max(num_classes, 1))))
+    for offset in range(rounds):
+        for cls in range(num_classes):
+            items = per_class.get(cls, [])
+            if offset < len(items):
+                selected.append(items[offset])
+            if len(selected) >= max_samples:
+                return selected
+    return selected[:max_samples]
 
 # ─── DEVICE ──────────────────────────────────────────────────────────
 if torch.cuda.is_available():
@@ -74,7 +97,7 @@ elif torch.backends.mps.is_available():
     DEVICE = torch.device("mps")
 else:
     DEVICE = torch.device("cpu")
-print(f"Device: {DEVICE}")
+print(f"Device: {DEVICE}", flush=True)
 
 # ─── TRANSFORMS ──────────────────────────────────────────────────────
 val_transform = T.Compose([
@@ -134,13 +157,17 @@ print("="*70)
 
 eval_dir = TEST_DIR if TEST_DIR.exists() and any(TEST_DIR.iterdir()) else VAL_DIR
 dataset = ImageFolder(root=str(eval_dir), transform=val_transform)
-loader  = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
+eval_dataset = dataset
+if MAX_EVAL_SAMPLES > 0 and MAX_EVAL_SAMPLES < len(dataset):
+    eval_dataset = Subset(dataset, _balanced_subset_indices(dataset.targets, MAX_EVAL_SAMPLES, len(dataset.classes)))
+loader  = DataLoader(eval_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
 idx_to_class = {v: k for k, v in dataset.class_to_idx.items()}
 NUM_CLASSES = len(dataset.classes)
 
 print(f"  Eval directory:  {eval_dir}")
 print(f"  Config path:     {CONFIG_PATH}")
 print(f"  Total images:    {len(dataset)}")
+print(f"  Evaluated images:{len(eval_dataset):5d}")
 print(f"  Num classes:     {NUM_CLASSES}")
 
 if class_names:
@@ -196,7 +223,14 @@ print(f"  ★ Top-5 Accuracy: {top5_acc:.2f}%")
 from sklearn.metrics import classification_report, confusion_matrix as cm_func
 
 target_names = [idx_to_class[i] for i in range(NUM_CLASSES)]
-report = classification_report(all_labels, all_preds, target_names=target_names, output_dict=True, zero_division=0)
+report = classification_report(
+    all_labels,
+    all_preds,
+    labels=list(range(NUM_CLASSES)),
+    target_names=target_names,
+    output_dict=True,
+    zero_division=0,
+)
 print("\n  Per-Class Metrics:")
 print(f"  {'Class':40s} {'Prec':>7s} {'Recall':>7s} {'F1':>7s} {'Support':>8s}")
 print("  " + "-"*70)
@@ -223,7 +257,7 @@ print("\n" + "="*70)
 print("4. CONFUSION MATRIX")
 print("="*70)
 
-conf_mat = cm_func(all_labels, all_preds)
+conf_mat = cm_func(all_labels, all_preds, labels=list(range(NUM_CLASSES)))
 np.save(OUTPUT_DIR / "confusion_matrix.npy", conf_mat)
 print(f"  Saved confusion matrix to {OUTPUT_DIR / 'confusion_matrix.npy'}")
 
@@ -303,7 +337,7 @@ print("="*70)
 
 # Warmup
 dummy = torch.randn(1, 3, INPUT_SIZE, INPUT_SIZE).to(DEVICE)
-for _ in range(5):
+for _ in range(LATENCY_WARMUP):
     with torch.no_grad():
         model(dummy)
     if DEVICE.type == "mps":
@@ -311,7 +345,7 @@ for _ in range(5):
 
 # Single-image latency
 latencies = []
-for _ in range(50):
+for _ in range(LATENCY_ITERS):
     t0 = time.perf_counter()
     with torch.no_grad():
         model(dummy)
@@ -333,7 +367,7 @@ print(f"    Throughput:     {1000/lat.mean():.1f} img/s")
 for bs in [1, 2, 4]:
     batch_input = torch.randn(bs, 3, INPUT_SIZE, INPUT_SIZE).to(DEVICE)
     times = []
-    for _ in range(20):
+    for _ in range(max(1, min(20, LATENCY_ITERS))):
         t0 = time.perf_counter()
         with torch.no_grad():
             model(batch_input)
@@ -353,7 +387,7 @@ print("7. ROBUSTNESS UNDER CORRUPTIONS")
 print("="*70)
 
 # Get a small subset for corruption tests
-subset_indices = list(range(min(500, len(dataset))))
+subset_indices = list(range(min(MAX_CORRUPTION_SAMPLES, len(dataset))))
 subset_labels = np.array([dataset.targets[i] for i in subset_indices])
 
 def eval_corruption(name, transform_fn):
@@ -409,9 +443,11 @@ def _jpeg_compress(img, quality):
     buf.seek(0)
     return Image.open(buf).convert("RGB")
 
+corruption_results = {}
 for name, fn in corruptions.items():
     acc = eval_corruption(name, fn)
     drop = clean_acc - acc
+    corruption_results[name] = {"accuracy": float(acc), "drop": float(drop)}
     status = "✅" if drop < 10 else ("⚠️" if drop < 20 else "❌")
     print(f"  {status} {name:30s} → {acc:5.1f}%  (drop: {drop:+.1f}%)")
 
@@ -420,39 +456,48 @@ print("\n" + "="*70)
 print("8. GRADIENT & ACTIVATION SANITY")
 print("="*70)
 
-test_input = torch.randn(1, 3, INPUT_SIZE, INPUT_SIZE, requires_grad=True).to(DEVICE)
-model.train()  # Enable gradients
-out_item, out_mat, out_bin = model(test_input)
-loss = out_item.sum() + out_mat.sum() + out_bin.sum()
-loss.backward()
-model.eval()
-
-# Check for dead parameters (all zeros)
-dead_params = 0
-total_param_count = 0
-for name, p in model.named_parameters():
-    total_param_count += 1
-    if p.grad is not None:
-        if p.grad.abs().max().item() == 0:
-            dead_params += 1
-    else:
-        dead_params += 1
-
-print(f"  Total named parameters:    {total_param_count}")
-print(f"  Parameters with zero grad: {dead_params}")
-if dead_params == 0:
-    print("  ✅ No dead parameters — all gradients flow correctly")
+if SKIP_GRADIENT:
+    dead_params = 0
+    total_param_count = 0
+    with torch.no_grad():
+        out_item, out_mat, out_bin = model(torch.randn(1, 3, INPUT_SIZE, INPUT_SIZE).to(DEVICE))
+    has_nan = torch.isnan(out_item).any() or torch.isnan(out_mat).any() or torch.isnan(out_bin).any()
+    has_inf = torch.isinf(out_item).any() or torch.isinf(out_mat).any() or torch.isinf(out_bin).any()
+    print("  Gradient backprop skipped by VISION_STRESS_SKIP_GRADIENT=1")
 else:
-    print(f"  ⚠️  {dead_params} parameters have zero gradient — possible dead neurons")
+    test_input = torch.randn(1, 3, INPUT_SIZE, INPUT_SIZE, requires_grad=True).to(DEVICE)
+    model.train()  # Enable gradients
+    out_item, out_mat, out_bin = model(test_input)
+    loss = out_item.sum() + out_mat.sum() + out_bin.sum()
+    loss.backward()
+    model.eval()
 
-# Check output ranges
-print(f"  Item logits range:     [{out_item.min().item():.2f}, {out_item.max().item():.2f}]")
-print(f"  Material logits range: [{out_mat.min().item():.2f}, {out_mat.max().item():.2f}]")
-print(f"  Bin logits range:      [{out_bin.min().item():.2f}, {out_bin.max().item():.2f}]")
-has_nan = torch.isnan(out_item).any() or torch.isnan(out_mat).any() or torch.isnan(out_bin).any()
-has_inf = torch.isinf(out_item).any() or torch.isinf(out_mat).any() or torch.isinf(out_bin).any()
-print(f"  NaN in outputs: {'❌ YES' if has_nan else '✅ NO'}")
-print(f"  Inf in outputs: {'❌ YES' if has_inf else '✅ NO'}")
+    # Check for dead parameters (all zeros)
+    dead_params = 0
+    total_param_count = 0
+    for name, p in model.named_parameters():
+        total_param_count += 1
+        if p.grad is not None:
+            if p.grad.abs().max().item() == 0:
+                dead_params += 1
+        else:
+            dead_params += 1
+
+    print(f"  Total named parameters:    {total_param_count}")
+    print(f"  Parameters with zero grad: {dead_params}")
+    if dead_params == 0:
+        print("  ✅ No dead parameters — all gradients flow correctly")
+    else:
+        print(f"  ⚠️  {dead_params} parameters have zero gradient — possible dead neurons")
+
+    # Check output ranges
+    print(f"  Item logits range:     [{out_item.min().item():.2f}, {out_item.max().item():.2f}]")
+    print(f"  Material logits range: [{out_mat.min().item():.2f}, {out_mat.max().item():.2f}]")
+    print(f"  Bin logits range:      [{out_bin.min().item():.2f}, {out_bin.max().item():.2f}]")
+    has_nan = torch.isnan(out_item).any() or torch.isnan(out_mat).any() or torch.isnan(out_bin).any()
+    has_inf = torch.isinf(out_item).any() or torch.isinf(out_mat).any() or torch.isinf(out_bin).any()
+    print(f"  NaN in outputs: {'❌ YES' if has_nan else '✅ NO'}")
+    print(f"  Inf in outputs: {'❌ YES' if has_inf else '✅ NO'}")
 
 
 # ─── 9. MODEL OUTPUT CONSISTENCY ───────────────────────────────────
@@ -511,15 +556,22 @@ report_data = {
         "p99": round(float(np.percentile(lat, 99)), 1),
     },
     "throughput_img_per_sec": round(1000 / lat.mean(), 1),
+    "robustness": {
+        "clean_subset_accuracy": round(clean_acc, 2),
+        "corruptions": corruption_results,
+    },
     "gradient_sanity": {
         "dead_params": dead_params,
         "nan_in_output": bool(has_nan),
         "inf_in_output": bool(has_inf),
+        "skipped": bool(SKIP_GRADIENT),
     },
     "deterministic": max_diff < 1e-5,
     "worst_classes": [(cls, round(f1 * 100, 1)) for cls, f1 in worst_classes],
-    "eval_samples": len(dataset),
-    "eval_dir": str(eval_dir),
+        "eval_samples": len(eval_dataset),
+        "total_available_eval_samples": len(dataset),
+        "eval_dir": str(eval_dir),
+        "bounded_mode": MAX_EVAL_SAMPLES > 0,
 }
 
 # Overall verdict
@@ -530,6 +582,18 @@ if macro_f1 < 80:
     issues.append(f"Macro F1 ({macro_f1:.1f}%) below 80% threshold")
 if ece > 0.10:
     issues.append(f"ECE ({ece*100:.1f}%) above 10% — poor calibration")
+if MAX_EVAL_SAMPLES > 0:
+    issues.append(
+        f"Bounded mode evaluated {len(eval_dataset)} of {len(dataset)} images; "
+        "do not use as full production accuracy proof"
+    )
+if SKIP_GRADIENT:
+    issues.append("Gradient backprop sanity was skipped")
+if lat.mean() > 250:
+    issues.append(f"Single-image mean latency ({lat.mean():.1f}ms) above 250ms deployment target")
+for name, result in corruption_results.items():
+    if result["drop"] > 20:
+        issues.append(f"Robustness drop under {name} is {result['drop']:.1f}%")
 if has_nan or has_inf:
     issues.append("NaN/Inf detected in model outputs")
 if dead_params > total_param_count * 0.1:

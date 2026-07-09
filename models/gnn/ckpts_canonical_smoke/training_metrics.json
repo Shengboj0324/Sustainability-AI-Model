@@ -1,0 +1,11 @@
+{
+  "best_val_acc": 0.8600000143051147,
+  "best_epoch": 18,
+  "test_acc": 0.7307692170143127,
+  "nodes": 72,
+  "edges": 252,
+  "train_edges": 201,
+  "val_edges": 25,
+  "test_edges": 26,
+  "num_epochs": 25
+}

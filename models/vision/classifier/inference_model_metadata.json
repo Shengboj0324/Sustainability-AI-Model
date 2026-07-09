@@ -1,0 +1,15 @@
+{
+  "source": "models/vision/classifier/best_model.pth",
+  "output": "models/vision/classifier/inference_model.pth",
+  "metadata_output": "models/vision/classifier/inference_model_metadata.json",
+  "source_size_gb": 3.479,
+  "output_size_gb": 1.212,
+  "reduction_gb": 2.267,
+  "training_state_removed": true,
+  "metrics": {
+    "val_acc": 93.19727891156462,
+    "val_loss": 0.863412540394734
+  },
+  "source_epoch": 41,
+  "class_count": 30
+}

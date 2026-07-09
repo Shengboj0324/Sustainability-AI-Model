@@ -184,6 +184,41 @@ class VisionRequest(BaseModel):
     top_k: int = Field(5, ge=1, le=20, description="Top-K classification results")
 
 
+class DepthCameraIntrinsicsRequest(BaseModel):
+    fx: float = Field(..., gt=0)
+    fy: float = Field(..., gt=0)
+    cx: float = Field(..., ge=0)
+    cy: float = Field(..., ge=0)
+    width: int = Field(..., ge=2)
+    height: int = Field(..., ge=2)
+
+
+class Vision3DRequest(BaseModel):
+    depth_b64: str = Field(..., description="Base64 encoded NPY or 16-bit PNG/TIFF depth map")
+    depth_format: str = Field("npy", description="npy, png16, png, tiff, or tif")
+    depth_unit_scale: float = Field(1.0, gt=0, description="Multiplier converting raw depth values to meters")
+    intrinsics: DepthCameraIntrinsicsRequest
+
+
+class Vision3DResponse(BaseModel):
+    capability: str
+    model_available: bool
+    depth_format: str
+    width: int
+    height: int
+    valid_pixel_ratio: float
+    depth_min_m: float
+    depth_max_m: float
+    depth_mean_m: float
+    point_count: int
+    centroid_m: List[float]
+    extent_m: List[float]
+    surface_roughness_m: float
+    confidence: float
+    warnings: List[str]
+    metadata: Dict[str, Any]
+
+
 class DetectionResult(BaseModel):
     """Detection result"""
     bbox: List[float]

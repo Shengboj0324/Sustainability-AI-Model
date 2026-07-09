@@ -12,52 +12,105 @@
     "llm_projection": true
   },
   "accuracy": {
-    "top1": 91.92,
-    "top5": 98.31,
-    "macro_f1": 90.52,
-    "weighted_f1": 91.79
+    "top1": 100.0,
+    "top5": 100.0,
+    "macro_f1": 100.0,
+    "weighted_f1": 100.0
   },
   "calibration": {
-    "ece": 5.83,
-    "mce": 69.51
+    "ece": 9.67,
+    "mce": 9.67
   },
   "latency_ms": {
-    "mean": 128.2,
-    "median": 128.2,
-    "p95": 128.6,
-    "p99": 128.9
+    "mean": 172.4,
+    "median": 172.4,
+    "p95": 211.7,
+    "p99": 215.2
   },
-  "throughput_img_per_sec": 7.8,
+  "throughput_img_per_sec": 5.8,
+  "robustness": {
+    "clean_subset_accuracy": 100.0,
+    "corruptions": {
+      "Gaussian noise \u03c3=25": {
+        "accuracy": 100.0,
+        "drop": 0.0
+      },
+      "Gaussian noise \u03c3=50": {
+        "accuracy": 83.33333333333334,
+        "drop": 16.666666666666657
+      },
+      "Gaussian blur r=3": {
+        "accuracy": 50.0,
+        "drop": 50.0
+      },
+      "Gaussian blur r=5": {
+        "accuracy": 16.666666666666664,
+        "drop": 83.33333333333334
+      },
+      "Brightness +40%": {
+        "accuracy": 100.0,
+        "drop": 0.0
+      },
+      "Brightness -40%": {
+        "accuracy": 100.0,
+        "drop": 0.0
+      },
+      "JPEG quality=10": {
+        "accuracy": 100.0,
+        "drop": 0.0
+      },
+      "JPEG quality=5": {
+        "accuracy": 100.0,
+        "drop": 0.0
+      },
+      "Grayscale": {
+        "accuracy": 100.0,
+        "drop": 0.0
+      },
+      "Horizontal flip": {
+        "accuracy": 100.0,
+        "drop": 0.0
+      }
+    }
+  },
   "gradient_sanity": {
-    "dead_params": 8,
+    "dead_params": 0,
     "nan_in_output": false,
-    "inf_in_output": false
+    "inf_in_output": false,
+    "skipped": true
   },
   "deterministic": true,
   "worst_classes": [
     [
-      "cardboard_packaging",
-      61.1
+      "aerosol_cans",
+      100.0
     ],
     [
       "aluminum_food_cans",
-      63.3
+      100.0
     ],
     [
-      "newspaper",
-      83.5
+      "aluminum_soda_cans",
+      100.0
     ],
     [
-      "plastic_soda_bottles",
-      84.5
+      "cardboard_boxes",
+      100.0
     ],
     [
-      "plastic_shopping_bags",
-      85.1
+      "cardboard_packaging",
+      100.0
     ]
   ],
-  "eval_samples": 2598,
-  "eval_dir": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/data/processed/vision_cls/test",
-  "issues": [],
-  "deployment_ready": true
+  "eval_samples": 30,
+  "total_available_eval_samples": 2296,
+  "eval_dir": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/data/processed/vision_cls_clean/test",
+  "bounded_mode": true,
+  "issues": [
+    "Bounded mode evaluated 30 of 2296 images; do not use as full production accuracy proof",
+    "Gradient backprop sanity was skipped",
+    "Robustness drop under Gaussian blur r=3 is 50.0%",
+    "Robustness drop under Gaussian blur r=5 is 83.3%"
+  ],
+  "deployment_ready": false
 }
