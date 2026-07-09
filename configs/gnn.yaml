@@ -5,8 +5,8 @@
 model:
   type: "gatv2" # CRITICAL: Superior attention mechanism
   input_dim: 128 # Input feature dimension (matches KG node feature dim)
-  num_layers: 3 # 3 layers for 43-node graph (sufficient message passing depth)
-  hidden_dim: 64 # Right-sized for 43-node KG (avoids 104M param waste)
+  num_layers: 3 # 3 layers for the canonical sustainability graph
+  hidden_dim: 64 # Right-sized for the small KG while preserving deployability
   output_dim: 64 # Embedding dimension
 
   # GraphSAGE specific
@@ -98,7 +98,7 @@ task:
   # Node classification
   node_classification:
     target_node_type: "Material"
-    num_classes: 15
+    num_classes: 16
 
 training:
   # Output

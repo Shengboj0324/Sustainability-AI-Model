@@ -36,16 +36,34 @@ from models.vision.classifier import MultiHeadClassifier
 warnings.filterwarnings("ignore")
 
 # ─── CONFIG ──────────────────────────────────────────────────────────
-CKPT_PATH    = PROJECT_ROOT / "models/vision/classifier/best_model.pth"
-TEST_DIR     = PROJECT_ROOT / "data/processed/vision_cls/test"
-VAL_DIR      = PROJECT_ROOT / "data/processed/vision_cls/val"
+try:
+    import yaml
+except ImportError:
+    yaml = None
+
+CONFIG_PATH  = PROJECT_ROOT / os.getenv("VISION_CLS_CONFIG", "configs/vision_cls.yaml")
+_cfg = {}
+if yaml is not None and CONFIG_PATH.exists():
+    with open(CONFIG_PATH, "r", encoding="utf-8") as _f:
+        _cfg = yaml.safe_load(_f) or {}
+
+_data_cfg = _cfg.get("data", {})
+_train_cfg = _cfg.get("training", {})
+_model_cfg = _cfg.get("model", {})
+
+CKPT_PATH    = PROJECT_ROOT / os.getenv(
+    "VISION_CKPT_PATH",
+    str(Path(_train_cfg.get("output_dir", "models/vision/classifier")) / "best_model.pth"),
+)
+TEST_DIR     = PROJECT_ROOT / _data_cfg.get("test_dir", "data/processed/vision_cls_clean/test")
+VAL_DIR      = PROJECT_ROOT / _data_cfg.get("val_dir", "data/processed/vision_cls_clean/val")
 OUTPUT_DIR   = PROJECT_ROOT / "outputs/stress_test"
-INPUT_SIZE   = 448
-MEAN         = [0.48145466, 0.4578275, 0.40821073]
-STD          = [0.26862954, 0.26130258, 0.27577711]
+INPUT_SIZE   = int(_data_cfg.get("input_size", 448))
+MEAN         = _data_cfg.get("mean", [0.48145466, 0.4578275, 0.40821073])
+STD          = _data_cfg.get("std", [0.26862954, 0.26130258, 0.27577711])
 BATCH_SIZE   = 4
 NUM_WORKERS  = 0
-BACKBONE     = "eva02_large_patch14_448.mim_m38m_ft_in22k_in1k"
+BACKBONE     = _model_cfg.get("backbone", "eva02_large_patch14_448.mim_m38m_ft_in22k_in1k")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -121,6 +139,7 @@ idx_to_class = {v: k for k, v in dataset.class_to_idx.items()}
 NUM_CLASSES = len(dataset.classes)
 
 print(f"  Eval directory:  {eval_dir}")
+print(f"  Config path:     {CONFIG_PATH}")
 print(f"  Total images:    {len(dataset)}")
 print(f"  Num classes:     {NUM_CLASSES}")
 

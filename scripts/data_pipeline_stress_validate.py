@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import yaml
-from PIL import Image
+from PIL import Image, ImageOps
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -116,6 +116,7 @@ def hardlink_or_copy(src: Path, dst: Path) -> None:
 def image_is_decodable(path: Path) -> Tuple[bool, Optional[str]]:
     try:
         with Image.open(path) as image:
+            image = ImageOps.exif_transpose(image)
             image.verify()
         return True, None
     except Exception as exc:
@@ -459,81 +460,9 @@ BINS = ["recycle", "compost", "landfill", "special", "donate"]
 
 
 def build_gnn_tables(input_dim: int) -> Tuple[Any, Any]:
-    import numpy as np
-    import pandas as pd
+    from models.gnn.graph_contract import build_graph_tables
 
-    nodes = []
-    for idx, name in enumerate(TARGET_CLASSES):
-        nodes.append({"node_id": idx, "node_type": "ItemType", "name": name})
-    offset = len(nodes)
-    for i, name in enumerate(MATERIALS):
-        nodes.append({"node_id": offset + i, "node_type": "Material", "name": name})
-    offset = len(nodes)
-    for i, name in enumerate(BINS):
-        nodes.append({"node_id": offset + i, "node_type": "Bin", "name": name})
-
-    features = np.zeros((len(nodes), input_dim), dtype="float32")
-    for i, node in enumerate(nodes):
-        features[i, i % input_dim] = 1.0
-        features[i, (i * 7 + 3) % input_dim] += 0.5
-        if node["node_type"] == "Material":
-            features[i, (i * 11 + 5) % input_dim] += 1.5
-        elif node["node_type"] == "Bin":
-            features[i, (i * 13 + 9) % input_dim] += 2.0
-    feature_df = pd.DataFrame(features, columns=[f"feature_{i}" for i in range(input_dim)])
-    node_df = pd.concat([pd.DataFrame(nodes), feature_df], axis=1)
-
-    mat_base = len(TARGET_CLASSES)
-    bin_base = mat_base + len(MATERIALS)
-    mat_idx = {m: mat_base + i for i, m in enumerate(MATERIALS)}
-    bin_idx = {b: bin_base + i for i, b in enumerate(BINS)}
-    item_material = {
-        "aerosol_cans": "metal", "aluminum_food_cans": "metal", "aluminum_soda_cans": "metal",
-        "steel_food_cans": "metal", "cardboard_boxes": "paper", "cardboard_packaging": "paper",
-        "magazines": "paper", "newspaper": "paper", "office_paper": "paper", "paper_cups": "paper",
-        "glass_beverage_bottles": "glass", "glass_cosmetic_containers": "glass", "glass_food_jars": "glass",
-        "disposable_plastic_cutlery": "plastic", "plastic_cup_lids": "plastic",
-        "plastic_detergent_bottles": "plastic", "plastic_food_containers": "plastic",
-        "plastic_shopping_bags": "plastic", "plastic_soda_bottles": "plastic",
-        "plastic_straws": "plastic", "plastic_trash_bags": "plastic", "plastic_water_bottles": "plastic",
-        "coffee_grounds": "organic", "eggshells": "organic", "food_waste": "organic", "tea_bags": "organic",
-        "clothing": "textile", "shoes": "mixed", "styrofoam_cups": "styrofoam",
-        "styrofoam_food_containers": "styrofoam",
-    }
-    material_bin = {
-        "plastic": "recycle", "paper": "recycle", "glass": "recycle", "metal": "recycle",
-        "organic": "compost", "textile": "donate", "styrofoam": "landfill", "mixed": "special",
-    }
-    item_bin_override = {
-        "disposable_plastic_cutlery": "landfill", "plastic_straws": "landfill",
-        "plastic_trash_bags": "landfill", "plastic_shopping_bags": "special",
-        "paper_cups": "landfill", "shoes": "donate",
-    }
-    confusion_pairs = [
-        ("glass_beverage_bottles", "glass_food_jars"), ("cardboard_boxes", "cardboard_packaging"),
-        ("aluminum_food_cans", "steel_food_cans"), ("aluminum_soda_cans", "steel_food_cans"),
-        ("plastic_soda_bottles", "plastic_water_bottles"), ("plastic_soda_bottles", "plastic_detergent_bottles"),
-        ("newspaper", "office_paper"), ("newspaper", "magazines"), ("office_paper", "magazines"),
-        ("styrofoam_cups", "styrofoam_food_containers"), ("plastic_food_containers", "plastic_cup_lids"),
-        ("plastic_food_containers", "disposable_plastic_cutlery"), ("coffee_grounds", "tea_bags"),
-        ("food_waste", "coffee_grounds"), ("clothing", "shoes"),
-    ]
-    edges = []
-
-    def add(a: int, b: int, rel: str) -> None:
-        edges.append({"source": a, "target": b, "relationship": rel})
-        edges.append({"source": b, "target": a, "relationship": f"reverse_{rel}"})
-
-    for idx, cls in enumerate(TARGET_CLASSES):
-        add(idx, mat_idx[item_material[cls]], "MADE_OF")
-    for mat, bin_name in material_bin.items():
-        add(mat_idx[mat], bin_idx[bin_name], "GOES_TO")
-    for cls, bin_name in item_bin_override.items():
-        add(TARGET_CLASSES.index(cls), bin_idx[bin_name], "BIN_OVERRIDE")
-    for a, b in confusion_pairs:
-        add(TARGET_CLASSES.index(a), TARGET_CLASSES.index(b), "SIMILAR_TO")
-    edge_df = pd.DataFrame(edges)
-    return edge_df, node_df
+    return build_graph_tables(input_dim)
 
 
 def repair_gnn_parquet(gnn_cfg: Dict[str, Any]) -> Dict[str, Any]:
@@ -585,9 +514,19 @@ def check_gnn_parquet(report: PipelineReport, gnn_cfg: Dict[str, Any]) -> None:
         max_node = max(int(edge_df["source"].max()), int(edge_df["target"].max()))
         if max_node >= node_count:
             errors.append(f"edge references node {max_node} but only {node_count} nodes exist")
-    if node_count < 43:
-        errors.append(f"node count {node_count} is below production 43-node graph contract")
-    if len(edge_df) < 100:
+    node_types = set(node_df["node_type"].dropna().astype(str)) if "node_type" in node_df.columns else set()
+    relationships = set(edge_df["relationship"].dropna().astype(str)) if "relationship" in edge_df.columns else set()
+    required_node_types = {"ItemType", "Material", "Bin", "ProductIdea", "Hazard"}
+    required_relationships = {"MADE_OF", "GOES_TO", "DISPOSAL_ROUTE", "CAN_BE_UPCYCLED_TO", "HAS_HAZARD", "SIMILAR_TO"}
+    missing_node_types = sorted(required_node_types - node_types)
+    missing_relationships = sorted(required_relationships - relationships)
+    if missing_node_types:
+        errors.append(f"GNN graph missing node types: {missing_node_types}")
+    if missing_relationships:
+        errors.append(f"GNN graph missing relationship types: {missing_relationships}")
+    if node_count < 60:
+        errors.append(f"node count {node_count} is below canonical taxonomy graph contract")
+    if len(edge_df) < 170:
         errors.append(f"edge count {len(edge_df)} is below expected production relationship coverage")
     report.add(
         "gnn_parquet_contract",

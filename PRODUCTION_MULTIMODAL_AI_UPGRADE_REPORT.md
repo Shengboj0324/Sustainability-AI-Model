@@ -486,6 +486,78 @@ The repository now has enough validated structure and capability for industrial 
 
 It is not PRODUCTION READY until final source fixes are baked into images, Compose reaches ready with real Vision/LLM/RAG backends, real RAG vector retrieval is validated with a populated Qdrant collection, LLM is exercised against a real backend, Vision checkpoint inference is benchmarked in Linux, and production KG data is seeded and validated.
 
+## Additional Model, Data, And Neural Stress Pass - 2026-07-09
+
+Scope:
+
+- Elevated the data/model validation layer after a strict review of the training launch path, GNN data contract, neural network architecture checks, and claimed 3D vision capability.
+- Treated 3D/depth capability as unproven unless an actual RGB-D/stereo/depth/point-cloud model and dataset contract exists.
+- Ran the checks locally on macOS. Earlier Docker Linux validation remains documented above, but this specific model/data pass was not rerun inside Docker.
+
+Code changes:
+
+- Added `models/gnn/graph_contract.py` as the canonical GNN graph builder.
+- Upgraded `scripts/data_pipeline_stress_validate.py` so GNN parquet repair now generates a 72-node, 252-edge canonical graph with `ItemType`, `Material`, `Bin`, `ProductIdea`, and `Hazard` nodes.
+- Added required GNN relationships: `MADE_OF`, `DISPOSAL_ROUTE`, `GOES_TO`, `CAN_BE_UPCYCLED_TO`, `HAS_HAZARD`, and `SIMILAR_TO`.
+- Replaced the stale 43-node fallback graph in `training/gnn/train_gnn.py` with the shared canonical graph contract.
+- Updated `configs/gnn.yaml` to use the canonical 16-material target count.
+- Hardened image decode validation to exercise EXIF orientation handling.
+- Added `scripts/industrial_model_readiness_audit.py` gates for model/data readiness, checkpoint deployability, taxonomy drift, GNN graph contract, and 3D-vision claims.
+- Added `scripts/model_component_stress_validate.py` as a bounded neural component stress gate.
+- Added and updated unit tests for data-pipeline, model-readiness, and GNN graph contract behavior.
+
+Commands run and results:
+
+```text
+python -m py_compile scripts/industrial_model_readiness_audit.py scripts/exhaustive_vision_stress_test.py
+PASS
+
+pytest -q --no-cov tests/unit/test_industrial_model_readiness_audit.py
+4 passed in 0.18s
+
+python scripts/data_pipeline_stress_validate.py --repair-gnn --sample-size 500 --output outputs/data_pipeline/data_pipeline_stress_report_model_pass.json
+PASS: 8 checks, 0 failed, 0 warnings
+GNN repair: 72 nodes, 252 edges, 128 features
+Vision sample decode: 500 images, 0 failures
+Vision exact split leakage: 0 cross-split hashes
+LLM SFT: 6,848 schema-valid examples
+
+pytest -q --no-cov tests/unit/test_data_pipeline_stress_validator.py tests/unit/test_industrial_model_readiness_audit.py
+7 passed
+
+python scripts/train_unified_pipeline.py --dry-run --skip-preflight --stage vision gnn llm
+PASS: data validation passed, all dry-run stages passed
+
+python scripts/data_pipeline_stress_validate.py --full-image-scan --output outputs/data_pipeline/data_pipeline_full_image_scan_model_pass.json
+PASS: 7 checks, 0 failed, 0 warnings
+Vision full decode: 22,702 images, 0 failures
+Vision exact split leakage: 0 cross-split hashes
+GNN contract: 72 nodes, 252 edges
+
+python scripts/industrial_model_readiness_audit.py --sample-per-split 100 --output outputs/model_readiness/industrial_model_readiness_report.json
+PASS with warnings: 16 passed, 0 errors, 4 warnings
+staging_ready=true, industrial_ready=false
+
+python scripts/model_component_stress_validate.py --output outputs/model_readiness/model_component_stress_report.json
+PASS with warnings: 4 passed, 0 errors, 2 warnings
+Vision legacy forward: 30 item / 15 material / 4 bin finite outputs
+Vision physics-informed forward: 30 item / 16 material / 6 bin finite outputs, decision_violation_rate=0.0
+GNN forward: 72 nodes, 252 edges, finite 72x64 embeddings
+
+python scripts/exhaustive_vision_stress_test.py
+FAILED TO COMPLETE WITHIN 180s TIMEOUT
+No stdout/stderr emitted before timeout. This script is not acceptable as a fast deployment gate in its current form.
+```
+
+Remaining model/data blockers:
+
+- Deployment verdict remains `STAGING READY`, not industrial production ready.
+- The active deployed vision checkpoint is 3.479GB, above the bounded deployment threshold. Export, quantization, and Linux/mobile-adjacent latency validation are still required.
+- The active deployed legacy vision head remains `30 item / 15 material / 4 bin`, while the canonical physics-informed taxonomy is `30 item / 16 material / 6 bin`. The physics-informed architecture exists and passes finite forward checks, but the deployed checkpoint/config still need migration and retraining/validation before this warning can be removed.
+- No real 3D vision capability exists. The repo contains references to depth-like terms and graph visualization, but no RGB-D/stereo/depth/point-cloud ingestion, model, training dataset, evaluation, or serving contract.
+- The exhaustive checkpoint accuracy script is now config-driven, but still timed out in the local bounded run. It needs a CI-safe bounded mode and a separate long-running accuracy job before industrial release.
+- The upgraded 72-node GNN graph should be treated as a new data contract. Existing GNN checkpoints should be retrained or at least benchmarked against the regenerated graph before production promotion.
+
 ## Next Recommended Engineering Milestones
 
 1. Rebuild all Docker images after the final API Gateway/Vision/RAG/shared-health source fixes and rerun the Docker import/compile/runtime smoke suite.

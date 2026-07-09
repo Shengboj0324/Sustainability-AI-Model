@@ -4,16 +4,16 @@
       "detail": "training data dependencies are import-compatible",
       "metrics": {
         "albumentations": "2.0.8",
-        "datasets": "4.8.5",
+        "datasets": "4.1.1",
         "huggingface_hub": "0.36.2",
         "missing": [],
-        "pandas": "2.3.3",
-        "pillow": "12.2.0",
-        "pyarrow": "24.0.0",
-        "pycocotools": "2.0.11",
-        "torch": "2.2.2",
-        "torchvision": "0.17.2",
-        "transformers": "4.57.6"
+        "pandas": "2.0.3",
+        "pillow": "11.3.0",
+        "pyarrow": "21.0.0",
+        "pycocotools": "2.0.10",
+        "torch": "2.2.0",
+        "torchvision": "0.17.0",
+        "transformers": "4.57.1"
       },
       "name": "dependency_contract",
       "passed": true,
@@ -62,13 +62,13 @@
     {
       "detail": "all scanned images decoded",
       "metrics": {
-        "duration_ms": 5328.4,
+        "duration_ms": 1327.89,
         "failures": [],
-        "full_scan": true,
+        "full_scan": false,
         "sample_sizes": [
           [
-            256,
-            256
+            384,
+            384
           ],
           [
             256,
@@ -87,7 +87,7 @@
             256
           ]
         ],
-        "scanned": 22702
+        "scanned": 1000
       },
       "name": "vision_image_decode_scan",
       "passed": true,
@@ -120,21 +120,21 @@
     {
       "detail": "GNN parquet files match graph training contract",
       "metrics": {
-        "edges": 118,
+        "edges": 252,
         "feature_dim": 128,
         "graph_file": "data/processed/gnn/graph.parquet",
         "node_features_file": "data/processed/gnn/node_features.parquet",
-        "nodes": 43
+        "nodes": 72
       },
       "name": "gnn_parquet_contract",
       "passed": true,
       "severity": "error"
     }
   ],
-  "duration_ms": 15557.33,
+  "duration_ms": 15767.49,
   "failed": 0,
   "ok": true,
   "passed": 7,
-  "started_at": "2026-06-15T07:06:24.471289+00:00",
+  "started_at": "2026-07-09T04:06:25.701479+00:00",
   "warnings": 0
 }

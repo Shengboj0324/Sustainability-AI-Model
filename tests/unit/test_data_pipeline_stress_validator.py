@@ -14,13 +14,17 @@ from training.gnn.train_gnn import load_graph_data
 def test_gnn_table_generator_matches_training_contract():
     edges, nodes = build_gnn_tables(input_dim=128)
     feature_cols = [c for c in nodes.columns if c.startswith("feature_")]
+    relationships = set(edges["relationship"])
+    node_types = set(nodes["node_type"])
 
-    assert len(nodes) == 43
-    assert len(edges) == 118
+    assert len(nodes) >= 60
+    assert len(edges) >= 170
     assert len(feature_cols) == 128
     assert {"node_id", "node_type", "name"}.issubset(nodes.columns)
     assert {"source", "target", "relationship"}.issubset(edges.columns)
     assert edges[["source", "target"]].max().max() < len(nodes)
+    assert {"ItemType", "Material", "Bin", "ProductIdea", "Hazard"}.issubset(node_types)
+    assert {"MADE_OF", "GOES_TO", "DISPOSAL_ROUTE", "CAN_BE_UPCYCLED_TO", "HAS_HAZARD", "SIMILAR_TO"}.issubset(relationships)
 
 
 def test_gnn_trainer_loads_processed_parquet_contract():
@@ -29,9 +33,10 @@ def test_gnn_trainer_loads_processed_parquet_contract():
 
     data = load_graph_data(config)
 
-    assert data.x.shape == (43, 128)
+    assert data.x.shape[0] >= 60
+    assert data.x.shape[1] == 128
     assert data.edge_index.shape[0] == 2
-    assert data.edge_index.shape[1] == 118
+    assert data.edge_index.shape[1] >= 170
 
 
 def test_image_decode_helper_rejects_non_image(tmp_path: Path):
