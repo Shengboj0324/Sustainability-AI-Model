@@ -618,6 +618,117 @@ Remaining blocker after this pass:
 Updated readiness:
 
 - `STAGING READY` remains the correct verdict.
+
+## EgoWAM Experimental Add-On Review And Integration - 2026-07-11
+
+Scope:
+
+- Reviewed the newly added `egowam_sample` directory as an experimental reference, not as authoritative production code.
+- Verified its local reference tests and synthetic training smoke path.
+- Identified one transferable technical capability for this sustainability/mobile vision system: camera-stabilized 3D flow for ego-motion compensation.
+- Rejected direct integration of the robotics action-policy model, transformer action decoder, and human/robot co-training loop because this repository does not currently have robot/human action datasets, action labels, or a product contract for robotic action inference.
+
+Technical capability integrated:
+
+- Added camera-stabilized 3D point-flow analysis to `models/vision/depth_geometry.py`.
+- The implementation validates:
+  - finite corresponding 3D points,
+  - matching point correspondence shapes,
+  - non-empty point sets,
+  - calibrated 4x4 camera-to-world SE(3) transforms,
+  - homogeneous transform bottom row,
+  - orthonormal rotation matrices,
+  - rotation determinant equal to +1,
+  - positive finite movement threshold.
+- The mathematical contract is:
+
+```text
+future_world = T_future_camera_to_world * points_future_camera
+future_in_current_camera = inverse(T_current_camera_to_world) * future_world
+stabilized_flow = future_in_current_camera - points_current_camera
+```
+
+- A static world point now has zero flow after camera-motion compensation, even when the mobile camera translates or rotates between frames.
+- This improves the mobile/iOS 3D capture substrate by separating user/camera motion from actual object or scene motion. It is directly relevant to human-factor-aware image acquisition because hand/head/camera movement is common in real customer captures.
+
+Service and API wiring:
+
+- Added Vision service endpoint:
+  - `/analyze-3d-flow`
+- Added API Gateway forwarding endpoint:
+  - `/api/v1/vision/analyze-3d-flow`
+- Added stable gateway schemas:
+  - `Vision3DFlowRequest`
+  - `Vision3DFlowResponse`
+- Response remains explicit and honest:
+  - `capability: camera_stabilized_3d_flow`
+  - `model_available: false`
+  - `classification_status: not_available_without_trained_3d_model`
+
+Files changed in this pass:
+
+- `models/vision/depth_geometry.py`
+- `services/vision_service/server_v2.py`
+- `services/api_gateway/schemas.py`
+- `services/api_gateway/routers/vision.py`
+- `tests/unit/test_depth_geometry.py`
+- `tests/unit/test_vision_3d_endpoint_contract.py`
+- `scripts/model_component_stress_validate.py`
+- `scripts/industrial_model_readiness_audit.py`
+- `PRODUCTION_MULTIMODAL_AI_UPGRADE_REPORT.md`
+
+Tests and validation added:
+
+- Static-world stabilized-flow invariant under camera translation.
+- Randomized 100-case rigid transform invariant for static world points.
+- True object-motion stabilized-flow test.
+- Rigid transform inverse round-trip test.
+- Non-rigid pose rejection test.
+- Structured stabilized-flow metrics test.
+- `/analyze-3d-flow` service endpoint success test.
+- `/analyze-3d-flow` non-rigid-pose rejection test.
+- `/analyze-3d-flow` mismatched-correspondence rejection test.
+- Model component stress gate for stabilized-flow invariant.
+- Industrial readiness audit gate for the camera-stabilized flow API contract.
+
+Commands run and results:
+
+```text
+cd egowam_sample && python -m unittest -v
+PASS: 2 tests
+
+cd egowam_sample && python train_smoke.py --world-target flow --steps 2
+PASS: synthetic training smoke completed; loss decreased from 11.69123 to 9.90942
+
+python -m compileall -q models/vision/depth_geometry.py services/vision_service/server_v2.py services/api_gateway/schemas.py services/api_gateway/routers/vision.py scripts/model_component_stress_validate.py scripts/industrial_model_readiness_audit.py
+PASS
+
+pytest -q --no-cov tests/unit/test_depth_geometry.py tests/unit/test_vision_3d_endpoint_contract.py
+PASS: 17 passed, 4 warnings
+
+pytest -q --no-cov tests/unit/test_depth_geometry.py tests/unit/test_gnn_training_math_contract.py tests/unit/test_vision_3d_endpoint_contract.py tests/unit/test_data_pipeline_stress_validator.py tests/unit/test_industrial_model_readiness_audit.py tests/unit/test_vision_classifier_taxonomy_contract.py tests/unit/test_api_gateway_mobile_contract.py tests/unit/test_vision_service.py
+PASS: 39 passed, 8 warnings
+
+python scripts/model_component_stress_validate.py --output outputs/model_readiness/model_component_stress_report_egowam_flow.json
+PASS: 7 passed, 0 errors, 1 warning
+New stabilized-flow gate: passed, max_abs_flow=0.0
+
+python scripts/industrial_model_readiness_audit.py --sample-per-split 100 --output outputs/model_readiness/industrial_model_readiness_report_egowam_flow.json
+PASS: 25 passed, 0 errors, 1 warning
+staging_ready=true, industrial_ready=false
+New camera-stabilized-flow contract gate: passed
+```
+
+Remaining blocker after EgoWAM review:
+
+- The full EgoWAM-style world/action model is not production-integrated because the required robot/human action dataset and product contract do not exist in this repository.
+- The new 3D flow capability is real geometry, not a learned 3D classifier.
+- Industrial 3D waste recognition still requires external calibrated RGB-D/LiDAR/stereo data, item/material/bin labels, camera intrinsics/extrinsics, train/validation/test splits, a trained 3D or multimodal model, and benchmark results.
+
+Updated readiness:
+
+- `STAGING READY` remains the correct verdict.
+- `PRODUCTION READY` is still not justified because the learned 3D model and real production Vision/LLM/RAG backend validation blockers remain.
 - The system is substantially closer to industrial deployment: data integrity, GNN graph reasoning, canonical disposal serving, bounded stress diagnostics, and deployment artifact sizing are improved and validated.
 - `PRODUCTION READY` is still not justified until the 3D capability claim is either implemented with real evidence or removed from deployment scope, and full long-run vision accuracy/robustness is run in a production-like Linux environment.
 

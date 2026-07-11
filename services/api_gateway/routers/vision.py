@@ -17,6 +17,8 @@ from services.api_gateway.schemas import (
     VisionResponse,
     Vision3DRequest,
     Vision3DResponse,
+    Vision3DFlowRequest,
+    Vision3DFlowResponse,
     DetectionResult,
     VisionClassificationResult,
     RecommendationResult
@@ -85,6 +87,32 @@ async def analyze_depth_geometry(request: Vision3DRequest):
         raise HTTPException(status_code=e.response.status_code, detail=str(e))
     except Exception as e:
         logger.error(f"Vision 3D analysis failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/analyze-3d-flow", response_model=Vision3DFlowResponse)
+async def analyze_camera_stabilized_flow(request: Vision3DFlowRequest):
+    """Camera-stabilized 3D point-flow analysis.
+
+    This endpoint forwards tracked 3D correspondences and camera poses to the
+    vision service. It compensates for mobile camera motion but does not claim
+    learned 3D waste classification.
+    """
+    try:
+        payload = request.model_dump() if hasattr(request, "model_dump") else request.dict()
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(f"{VISION_SERVICE_URL}/analyze-3d-flow", json=payload)
+            response.raise_for_status()
+            result = response.json()
+        return Vision3DFlowResponse(**result)
+    except httpx.TimeoutException:
+        logger.error("Vision 3D flow service timeout")
+        raise HTTPException(status_code=504, detail="Vision 3D flow analysis timeout")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Vision 3D flow service error: {e}")
+        raise HTTPException(status_code=e.response.status_code, detail=str(e))
+    except Exception as e:
+        logger.error(f"Vision 3D flow analysis failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

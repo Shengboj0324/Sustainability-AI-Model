@@ -50,6 +50,103 @@ class DepthGeometryResult:
         return asdict(self)
 
 
+@dataclass
+class CameraStabilizedFlowResult:
+    capability: str
+    model_available: bool
+    point_count: int
+    mean_flow_m: float
+    median_flow_m: float
+    max_flow_m: float
+    moving_point_ratio: float
+    centroid_flow_m: list[float]
+    confidence: float
+    warnings: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def _as_float_array(name: str, value: Any, expected_last_dim: int) -> np.ndarray:
+    arr = np.asarray(value, dtype="float64")
+    if arr.ndim < 1 or arr.shape[-1] != expected_last_dim:
+        raise ValueError(f"{name} must have last dimension {expected_last_dim}, got shape {arr.shape}")
+    if not np.isfinite(arr).all():
+        raise ValueError(f"{name} must contain only finite values")
+    return arr
+
+
+def validate_camera_to_world_transform(transform: Any, name: str = "camera_to_world") -> np.ndarray:
+    """Validate a 4x4 rigid camera-to-world transform.
+
+    The transform is treated as an SE(3) pose: the top-left 3x3 block must be a
+    proper rotation matrix and the bottom row must be homogeneous coordinates.
+    """
+    matrix = np.asarray(transform, dtype="float64")
+    if matrix.shape != (4, 4):
+        raise ValueError(f"{name} must have shape (4, 4), got {matrix.shape}")
+    if not np.isfinite(matrix).all():
+        raise ValueError(f"{name} must contain only finite values")
+    if not np.allclose(matrix[3], np.array([0.0, 0.0, 0.0, 1.0]), rtol=1e-6, atol=1e-6):
+        raise ValueError(f"{name} must have homogeneous bottom row [0, 0, 0, 1]")
+
+    rotation = matrix[:3, :3]
+    should_be_identity = rotation.T @ rotation
+    determinant = float(np.linalg.det(rotation))
+    if not np.allclose(should_be_identity, np.eye(3), rtol=1e-5, atol=1e-5):
+        raise ValueError(f"{name} rotation must be orthonormal")
+    if not np.isclose(determinant, 1.0, rtol=1e-5, atol=1e-5):
+        raise ValueError(f"{name} rotation determinant must be +1")
+    return matrix
+
+
+def transform_points(transform: Any, points: Any) -> np.ndarray:
+    """Apply a rigid 4x4 transform to an array of 3D points."""
+    matrix = validate_camera_to_world_transform(transform, "transform")
+    pts = _as_float_array("points", points, 3)
+    return pts @ matrix[:3, :3].T + matrix[:3, 3]
+
+
+def inverse_rigid_transform(transform: Any) -> np.ndarray:
+    """Invert a validated SE(3) transform without a general matrix inverse."""
+    matrix = validate_camera_to_world_transform(transform, "transform")
+    inverse = np.eye(4, dtype="float64")
+    rotation_t = matrix[:3, :3].T
+    inverse[:3, :3] = rotation_t
+    inverse[:3, 3] = -rotation_t @ matrix[:3, 3]
+    return inverse
+
+
+def camera_stabilized_flow(
+    points_t: Any,
+    points_future: Any,
+    camera_to_world_t: Any,
+    camera_to_world_future: Any,
+) -> np.ndarray:
+    """Compute ego-motion-compensated 3D point displacement.
+
+    `points_t` and `points_future` are corresponding 3D points in their own
+    camera frames. The future points are transformed into the current camera
+    frame before subtraction, so static world points have near-zero flow even
+    when the camera moves.
+    """
+    current_points = _as_float_array("points_t", points_t, 3)
+    future_points = _as_float_array("points_future", points_future, 3)
+    if current_points.shape != future_points.shape:
+        raise ValueError(f"points_t and points_future must have matching shapes, got {current_points.shape} and {future_points.shape}")
+    if current_points.ndim != 2:
+        raise ValueError(f"points_t and points_future must have shape (N, 3), got {current_points.shape}")
+    if current_points.shape[0] == 0:
+        raise ValueError("points_t and points_future must contain at least one point")
+
+    pose_t = validate_camera_to_world_transform(camera_to_world_t, "camera_to_world_t")
+    pose_future = validate_camera_to_world_transform(camera_to_world_future, "camera_to_world_future")
+    future_world = transform_points(pose_future, future_points)
+    future_in_current_camera = transform_points(inverse_rigid_transform(pose_t), future_world)
+    return future_in_current_camera - current_points
+
+
 class DepthGeometryAnalyzer:
     """Validated depth-map geometry analyzer.
 
@@ -181,5 +278,55 @@ class DepthGeometryAnalyzer:
                 "intrinsics": asdict(intrinsics),
                 "classification_model": "not_configured",
                 "classification_status": "not_available_without_trained_3d_model",
+            },
+        )
+
+    def analyze_camera_stabilized_flow(
+        self,
+        points_t: Any,
+        points_future: Any,
+        camera_to_world_t: Any,
+        camera_to_world_future: Any,
+        movement_threshold_m: float = 0.03,
+    ) -> CameraStabilizedFlowResult:
+        if movement_threshold_m <= 0 or not np.isfinite(movement_threshold_m):
+            raise ValueError("movement_threshold_m must be positive and finite")
+
+        flow = camera_stabilized_flow(
+            points_t=points_t,
+            points_future=points_future,
+            camera_to_world_t=camera_to_world_t,
+            camera_to_world_future=camera_to_world_future,
+        )
+        magnitudes = np.linalg.norm(flow, axis=1)
+        centroid_flow = flow.mean(axis=0)
+        moving_ratio = float(np.mean(magnitudes > movement_threshold_m))
+
+        warnings = []
+        if flow.shape[0] < 8:
+            warnings.append("LOW_TRACKED_POINT_COUNT")
+        if moving_ratio > 0.75:
+            warnings.append("HIGH_SCENE_OR_OBJECT_MOTION_AFTER_CAMERA_STABILIZATION")
+        if float(magnitudes.max()) > 2.0:
+            warnings.append("LARGE_STABILIZED_FLOW_CHECK_POINT_CORRESPONDENCE_OR_POSES")
+
+        confidence = min(1.0, max(0.0, (flow.shape[0] / 32.0) * (1.0 if not warnings else 0.75)))
+        return CameraStabilizedFlowResult(
+            capability="camera_stabilized_3d_flow",
+            model_available=False,
+            point_count=int(flow.shape[0]),
+            mean_flow_m=round(float(magnitudes.mean()), 6),
+            median_flow_m=round(float(np.median(magnitudes)), 6),
+            max_flow_m=round(float(magnitudes.max()), 6),
+            moving_point_ratio=round(moving_ratio, 6),
+            centroid_flow_m=[round(float(v), 6) for v in centroid_flow],
+            confidence=round(confidence, 6),
+            warnings=warnings,
+            metadata={
+                "movement_threshold_m": float(movement_threshold_m),
+                "source": "egowam_sample_camera_stabilized_flow_port",
+                "classification_model": "not_configured",
+                "classification_status": "not_available_without_trained_3d_model",
+                "contract": "corresponding_points_and_calibrated_camera_to_world_poses_required",
             },
         )

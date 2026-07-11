@@ -231,12 +231,37 @@ def check_3d_capability(report: StressReport) -> None:
             valid_pixel_ratio=result.valid_pixel_ratio,
             model_available=result.model_available,
         )
+
     except Exception as exc:
         report.add(
             "three_d_depth_geometry_contract",
             False,
             "error",
             "Depth/RGB-D geometry contract failed",
+            error=f"{type(exc).__name__}: {exc}",
+        )
+    try:
+        from models.vision.depth_geometry import camera_stabilized_flow
+
+        pose_t = np.eye(4, dtype="float64")
+        pose_future = np.eye(4, dtype="float64")
+        pose_future[0, 3] = 3.0
+        points_t = np.array([[1.0, 0.0, 2.0], [0.0, 1.0, 3.0]], dtype="float64")
+        points_future = np.array([[-2.0, 0.0, 2.0], [-3.0, 1.0, 3.0]], dtype="float64")
+        stabilized_flow = camera_stabilized_flow(points_t, points_future, pose_t, pose_future)
+        report.add(
+            "three_d_camera_stabilized_flow_invariant",
+            bool(np.allclose(stabilized_flow, np.zeros_like(stabilized_flow), rtol=1e-9, atol=1e-9)),
+            "error",
+            "Camera-stabilized 3D flow must remove ego-motion for static world points",
+            max_abs_flow=float(np.abs(stabilized_flow).max()),
+        )
+    except Exception as exc:
+        report.add(
+            "three_d_camera_stabilized_flow_invariant",
+            False,
+            "error",
+            "Camera-stabilized 3D flow invariant failed",
             error=f"{type(exc).__name__}: {exc}",
         )
     report.add(

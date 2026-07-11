@@ -307,8 +307,10 @@ class ReadinessAudit:
         vision_service = self.root / "services/vision_service/server_v2.py"
         gateway_router = self.root / "services/api_gateway/routers/vision.py"
         tests = self.root / "tests/unit/test_depth_geometry.py"
+        endpoint_tests = self.root / "tests/unit/test_vision_3d_endpoint_contract.py"
         service_text = vision_service.read_text(encoding="utf-8", errors="ignore") if vision_service.exists() else ""
         gateway_text = gateway_router.read_text(encoding="utf-8", errors="ignore") if gateway_router.exists() else ""
+        depth_text = depth_module.read_text(encoding="utf-8", errors="ignore") if depth_module.exists() else ""
         self.add(
             "three_d_depth_geometry_contract",
             depth_module.exists()
@@ -321,6 +323,20 @@ class ReadinessAudit:
             service_endpoint="/analyze-3d" in service_text,
             gateway_endpoint="/analyze-3d" in gateway_text,
             tests=str(tests),
+        )
+        self.add(
+            "three_d_camera_stabilized_flow_contract",
+            depth_module.exists()
+            and endpoint_tests.exists()
+            and "camera_stabilized_flow" in depth_text
+            and "/analyze-3d-flow" in service_text
+            and "/analyze-3d-flow" in gateway_text,
+            "error",
+            "Camera-stabilized 3D flow contract must exist for mobile ego-motion compensation",
+            depth_function="camera_stabilized_flow" in depth_text,
+            service_endpoint="/analyze-3d-flow" in service_text,
+            gateway_endpoint="/analyze-3d-flow" in gateway_text,
+            endpoint_tests=str(endpoint_tests),
         )
         self.add(
             "three_d_learned_model_capability",

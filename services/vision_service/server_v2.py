@@ -167,6 +167,33 @@ class Vision3DResponse(BaseModel):
     metadata: Dict[str, Any]
 
 
+class Vision3DFlowRequest(BaseModel):
+    """Camera-stabilized 3D flow request.
+
+    Points must be corresponding tracked points in each camera frame. Camera
+    poses are camera-to-world SE(3) transforms.
+    """
+    points_t: List[List[float]]
+    points_future: List[List[float]]
+    camera_to_world_t: List[List[float]]
+    camera_to_world_future: List[List[float]]
+    movement_threshold_m: float = Field(0.03, gt=0)
+
+
+class Vision3DFlowResponse(BaseModel):
+    capability: str
+    model_available: bool
+    point_count: int
+    mean_flow_m: float
+    median_flow_m: float
+    max_flow_m: float
+    moving_point_ratio: float
+    centroid_flow_m: List[float]
+    confidence: float
+    warnings: List[str]
+    metadata: Dict[str, Any]
+
+
 class DetectionResponse(BaseModel):
     """Detection result"""
     bbox: List[float]
@@ -404,6 +431,16 @@ class VisionServiceV2:
             depth_format=request.depth_format,
             depth_unit_scale=request.depth_unit_scale,
             intrinsics=intrinsics,
+        )
+        return result.to_dict()
+
+    async def analyze_3d_flow(self, request: Vision3DFlowRequest) -> Dict[str, Any]:
+        result = self.depth_analyzer.analyze_camera_stabilized_flow(
+            points_t=request.points_t,
+            points_future=request.points_future,
+            camera_to_world_t=request.camera_to_world_t,
+            camera_to_world_future=request.camera_to_world_future,
+            movement_threshold_m=request.movement_threshold_m,
         )
         return result.to_dict()
 
@@ -704,6 +741,36 @@ async def analyze_depth_geometry(request: Vision3DRequest, http_request: Request
     except Exception as e:
         REQUESTS_TOTAL.labels(endpoint=endpoint, status="error").inc()
         logger.error(f"3D depth analysis failed: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        ACTIVE_REQUESTS.dec()
+
+
+@app.post("/analyze-3d-flow", response_model=Vision3DFlowResponse)
+async def analyze_camera_stabilized_flow(request: Vision3DFlowRequest, http_request: Request):
+    """Analyze ego-motion-compensated 3D point flow.
+
+    This endpoint uses calibrated camera poses to separate camera motion from
+    object/scene motion. It is not a learned 3D waste classifier.
+    """
+    ACTIVE_REQUESTS.inc()
+    endpoint = "analyze_3d_flow"
+    start_time = time.time()
+    try:
+        client_ip = http_request.client.host if http_request.client else "unknown"
+        if not await rate_limiter.check_rate_limit(client_ip):
+            REQUESTS_TOTAL.labels(endpoint=endpoint, status="rate_limited").inc()
+            raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+        result = await vision_service.analyze_3d_flow(request)
+        REQUESTS_TOTAL.labels(endpoint=endpoint, status="success").inc()
+        REQUEST_DURATION.labels(endpoint=endpoint).observe(time.time() - start_time)
+        return Vision3DFlowResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        REQUESTS_TOTAL.labels(endpoint=endpoint, status="error").inc()
+        logger.error(f"3D stabilized-flow analysis failed: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         ACTIVE_REQUESTS.dec()

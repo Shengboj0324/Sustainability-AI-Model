@@ -219,6 +219,28 @@ class Vision3DResponse(BaseModel):
     metadata: Dict[str, Any]
 
 
+class Vision3DFlowRequest(BaseModel):
+    points_t: List[List[float]] = Field(..., description="Current-frame corresponding 3D points in meters")
+    points_future: List[List[float]] = Field(..., description="Future-frame corresponding 3D points in meters")
+    camera_to_world_t: List[List[float]] = Field(..., description="Current camera-to-world 4x4 SE(3) transform")
+    camera_to_world_future: List[List[float]] = Field(..., description="Future camera-to-world 4x4 SE(3) transform")
+    movement_threshold_m: float = Field(0.03, gt=0)
+
+
+class Vision3DFlowResponse(BaseModel):
+    capability: str
+    model_available: bool
+    point_count: int
+    mean_flow_m: float
+    median_flow_m: float
+    max_flow_m: float
+    moving_point_ratio: float
+    centroid_flow_m: List[float]
+    confidence: float
+    warnings: List[str]
+    metadata: Dict[str, Any]
+
+
 class DetectionResult(BaseModel):
     """Detection result"""
     bbox: List[float]
