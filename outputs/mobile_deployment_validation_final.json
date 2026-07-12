@@ -1,0 +1,275 @@
+{
+  "base_url": "http://localhost:8080",
+  "origin": "capacitor://localhost",
+  "total_checks": 9,
+  "passed": 9,
+  "failed": 0,
+  "ok": true,
+  "checks": [
+    {
+      "name": "GET /",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 10.911957999999998,
+      "error": null,
+      "details": {
+        "service": "ReleAF AI API Gateway",
+        "version": "0.1.0",
+        "status": "operational",
+        "docs": "/docs"
+      }
+    },
+    {
+      "name": "GET /health",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 86.92191600000004,
+      "error": null,
+      "details": {
+        "status": "degraded",
+        "timestamp": "2026-06-15T11:54:53.174045",
+        "services": {
+          "orchestrator": {
+            "healthy": true,
+            "status_code": 200,
+            "latency_ms": 7.601,
+            "url": "http://orchestrator:8000/health"
+          },
+          "vision": {
+            "healthy": false,
+            "status_code": 503,
+            "latency_ms": 56.139,
+            "url": "http://vision-service:8001/health"
+          },
+          "llm": {
+            "healthy": false,
+            "status_code": 503,
+            "latency_ms": 1.32,
+            "url": "http://llm-service:8002/health"
+          },
+          "rag": {
+            "healthy": false,
+            "status_code": 503,
+            "latency_ms": 1.204,
+            "url": "http://rag-service:8003/health"
+          },
+          "kg": {
+            "healthy": true,
+            "status_code": 200,
+            "latency_ms": 6.568,
+            "url": "http://kg-service:8004/health"
+          },
+          "org_search": {
+            "healthy": true,
+            "status_code": 200,
+            "latency_ms": 5.012,
+            "url": "http://org-search-service:8005/health"
+          }
+        }
+      }
+    },
+    {
+      "name": "GET /health/ios",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 55.77641700000002,
+      "error": null,
+      "details": {
+        "status": "degraded",
+        "timestamp": "2026-06-15T11:54:53.210545",
+        "ios_support": true,
+        "api_version": "v1",
+        "features": {
+          "chat": true,
+          "vision": false,
+          "organization_search": true,
+          "offline_support": true,
+          "image_analysis": true,
+          "geospatial_search": true
+        },
+        "services": {
+          "orchestrator": {
+            "healthy": true,
+            "status_code": 200,
+            "latency_ms": 1.3940000000000001,
+            "url": "http://orchestrator:8000/health"
+          },
+          "vision": {
+            "healthy": false,
+            "status_code": 503,
+            "latency_ms": 1.432,
+            "url": "http://vision-service:8001/health"
+          },
+          "llm": {
+            "healthy": false,
+            "status_code": 503,
+            "latency_ms": 1.222,
+            "url": "http://llm-service:8002/health"
+          },
+          "rag": {
+            "healthy": false,
+            "status_code": 503,
+            "latency_ms": 1.4369999999999998,
+            "url": "http://rag-service:8003/health"
+          },
+          "kg": {
+            "healthy": true,
+            "status_code": 200,
+            "latency_ms": 12.228,
+            "url": "http://kg-service:8004/health"
+          },
+          "org_search": {
+            "healthy": true,
+            "status_code": 200,
+            "latency_ms": 6.674,
+            "url": "http://org-search-service:8005/health"
+          }
+        },
+        "rate_limits": {
+          "standard": {
+            "requests_per_minute": 100,
+            "burst": 20
+          },
+          "premium": {
+            "requests_per_minute": 500,
+            "burst": 100
+          },
+          "enterprise": {
+            "requests_per_minute": 1000,
+            "burst": 200
+          }
+        },
+        "endpoints": {
+          "chat": "/api/v1/chat",
+          "vision": "/api/v1/vision/analyze",
+          "organizations": "/api/v1/organizations/search"
+        }
+      }
+    },
+    {
+      "name": "GET /health/live",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 40.82995900000008,
+      "error": null,
+      "details": {
+        "status": "alive",
+        "service": "api_gateway",
+        "timestamp": "2026-06-15T11:54:53.238542"
+      }
+    },
+    {
+      "name": "GET /health/ready",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 210.19674999999992,
+      "error": null,
+      "details": {
+        "status": "not_ready",
+        "service": "api_gateway",
+        "health": "unhealthy",
+        "checks": {
+          "downstream_services": {
+            "status": "unhealthy",
+            "message": "Unhealthy downstream services: vision, llm, rag",
+            "duration_ms": 184.65638160705566,
+            "orchestrator": {
+              "healthy": true,
+              "status_code": 200,
+              "latency_ms": 10.921,
+              "url": "http://orchestrator:8000/health"
+            },
+            "vision": {
+              "healthy": false,
+              "status_code": 503,
+              "latency_ms": 24.306,
+              "url": "http://vision-service:8001/health"
+            },
+            "llm": {
+              "healthy": false,
+              "status_code": 503,
+              "latency_ms": 34.115,
+              "url": "http://llm-service:8002/health"
+            },
+            "rag": {
+              "healthy": false,
+              "status_code": 503,
+              "latency_ms": 28.693,
+              "url": "http://rag-service:8003/health"
+            },
+            "kg": {
+              "healthy": true,
+              "status_code": 200,
+              "latency_ms": 25.813,
+              "url": "http://kg-service:8004/health"
+            },
+            "org_search": {
+              "healthy": true,
+              "status_code": 200,
+              "latency_ms": 34.5,
+              "url": "http://org-search-service:8005/health"
+            }
+          }
+        },
+        "timestamp": "2026-06-15T11:54:53.470224"
+      }
+    },
+    {
+      "name": "GET /openapi.json",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 83.643833,
+      "error": null,
+      "details": {
+        "openapi": "3.1.0",
+        "title": "ReleAF AI API",
+        "version": "0.1.0",
+        "path_count": 17,
+        "schema_count": 17,
+        "has_chat_contract": true,
+        "has_vision_contract": true,
+        "has_org_search_contract": true
+      }
+    },
+    {
+      "name": "OPTIONS /api/v1/chat/",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 23.770415999999962,
+      "error": null,
+      "details": {
+        "allow_origin": "capacitor://localhost"
+      }
+    },
+    {
+      "name": "POST /api/v1/chat/ text_chat",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 77.44454100000009,
+      "error": null,
+      "details": {
+        "missing_fields": [],
+        "confidence_score": 0.807,
+        "confidence_level": "high",
+        "fallback_used": true,
+        "partial_answer": false,
+        "response_preview": "This looks like plastic bottle (PET plastic). Preliminary disposal route: recycle. Empty, clean, and dry recyclable containers; use special drop-off for hazardo"
+      }
+    },
+    {
+      "name": "POST /api/v1/chat/ multimodal_chat",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 90.5205,
+      "error": null,
+      "details": {
+        "missing_fields": [],
+        "confidence_score": 0.493,
+        "confidence_level": "low",
+        "fallback_used": true,
+        "partial_answer": true,
+        "response_preview": "This looks like unknown household item (unknown material). Preliminary disposal route: unknown. Empty, clean, and dry recyclable containers; use special drop-of"
+      }
+    }
+  ]
+}

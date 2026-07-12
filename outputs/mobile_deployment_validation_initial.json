@@ -1,0 +1,1696 @@
+{
+  "base_url": "http://localhost:8080",
+  "origin": "capacitor://localhost",
+  "total_checks": 9,
+  "passed": 6,
+  "failed": 3,
+  "ok": false,
+  "checks": [
+    {
+      "name": "GET /",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 11.015040999999947,
+      "error": null,
+      "details": {
+        "service": "ReleAF AI API Gateway",
+        "version": "0.1.0",
+        "status": "operational",
+        "docs": "/docs"
+      }
+    },
+    {
+      "name": "GET /health",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 12.821874999999983,
+      "error": null,
+      "details": {
+        "status": "degraded",
+        "timestamp": "2026-06-15T11:49:10.543418",
+        "services": {
+          "orchestrator": {
+            "healthy": true,
+            "status_code": 200,
+            "latency_ms": 2.0669999999999997,
+            "url": "http://orchestrator:8000/health"
+          },
+          "vision": {
+            "healthy": false,
+            "error": "All connection attempts failed",
+            "url": "http://vision-service:8001/health"
+          },
+          "llm": {
+            "healthy": false,
+            "status_code": 503,
+            "latency_ms": 1.127,
+            "url": "http://llm-service:8002/health"
+          },
+          "rag": {
+            "healthy": false,
+            "error": "All connection attempts failed",
+            "url": "http://rag-service:8003/health"
+          },
+          "kg": {
+            "healthy": true,
+            "status_code": 200,
+            "latency_ms": 1.248,
+            "url": "http://kg-service:8004/health"
+          },
+          "org_search": {
+            "healthy": false,
+            "error": "All connection attempts failed",
+            "url": "http://org-search-service:8005/health"
+          }
+        }
+      }
+    },
+    {
+      "name": "GET /health/ios",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 10.163083000000018,
+      "error": null,
+      "details": {
+        "status": "degraded",
+        "timestamp": "2026-06-15T11:49:10.553985",
+        "ios_support": true,
+        "api_version": "v1",
+        "features": {
+          "chat": true,
+          "vision": false,
+          "organization_search": false,
+          "offline_support": true,
+          "image_analysis": true,
+          "geospatial_search": false
+        },
+        "services": {
+          "orchestrator": {
+            "healthy": true,
+            "status_code": 200,
+            "latency_ms": 1.0759999999999998,
+            "url": "http://orchestrator:8000/health"
+          },
+          "vision": {
+            "healthy": false,
+            "error": "All connection attempts failed",
+            "url": "http://vision-service:8001/health"
+          },
+          "llm": {
+            "healthy": false,
+            "status_code": 503,
+            "latency_ms": 0.9840000000000001,
+            "url": "http://llm-service:8002/health"
+          },
+          "rag": {
+            "healthy": false,
+            "error": "All connection attempts failed",
+            "url": "http://rag-service:8003/health"
+          },
+          "kg": {
+            "healthy": true,
+            "status_code": 200,
+            "latency_ms": 0.9840000000000001,
+            "url": "http://kg-service:8004/health"
+          },
+          "org_search": {
+            "healthy": false,
+            "error": "All connection attempts failed",
+            "url": "http://org-search-service:8005/health"
+          }
+        },
+        "rate_limits": {
+          "standard": {
+            "requests_per_minute": 100,
+            "burst": 20
+          },
+          "premium": {
+            "requests_per_minute": 500,
+            "burst": 100
+          },
+          "enterprise": {
+            "requests_per_minute": 1000,
+            "burst": 200
+          }
+        },
+        "endpoints": {
+          "chat": "/api/v1/chat",
+          "vision": "/api/v1/vision/analyze",
+          "organizations": "/api/v1/organizations/search"
+        }
+      }
+    },
+    {
+      "name": "GET /health/live",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 1.7529160000000488,
+      "error": null,
+      "details": {
+        "status": "alive",
+        "service": "api_gateway",
+        "timestamp": "2026-06-15T11:49:10.555304"
+      }
+    },
+    {
+      "name": "GET /health/ready",
+      "ok": false,
+      "status_code": 200,
+      "latency_ms": 9.252625000000014,
+      "error": null,
+      "details": {
+        "status": "not_ready",
+        "service": "api_gateway",
+        "health": "unhealthy",
+        "checks": {
+          "downstream_services": {
+            "status": "unhealthy",
+            "message": "Unhealthy downstream services: vision, llm, rag, org_search",
+            "duration_ms": 7.921934127807617,
+            "orchestrator": {
+              "healthy": true,
+              "status_code": 200,
+              "latency_ms": 0.9990000000000001,
+              "url": "http://orchestrator:8000/health"
+            },
+            "vision": {
+              "healthy": false,
+              "error": "All connection attempts failed",
+              "url": "http://vision-service:8001/health"
+            },
+            "llm": {
+              "healthy": false,
+              "status_code": 503,
+              "latency_ms": 0.901,
+              "url": "http://llm-service:8002/health"
+            },
+            "rag": {
+              "healthy": false,
+              "error": "All connection attempts failed",
+              "url": "http://rag-service:8003/health"
+            },
+            "kg": {
+              "healthy": true,
+              "status_code": 200,
+              "latency_ms": 0.723,
+              "url": "http://kg-service:8004/health"
+            },
+            "org_search": {
+              "healthy": false,
+              "error": "All connection attempts failed",
+              "url": "http://org-search-service:8005/health"
+            }
+          }
+        },
+        "timestamp": "2026-06-15T11:49:10.565048"
+      }
+    },
+    {
+      "name": "GET /openapi.json",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 42.49233400000008,
+      "error": null,
+      "details": {
+        "openapi": "3.1.0",
+        "info": {
+          "title": "ReleAF AI API",
+          "description": "AI-powered sustainability and waste intelligence platform",
+          "version": "0.1.0"
+        },
+        "paths": {
+          "/api/v1/chat/": {
+            "post": {
+              "tags": [
+                "chat"
+              ],
+              "summary": "Chat",
+              "description": "Main chat endpoint\n\nRoutes through orchestrator for intelligent workflow execution:\n- Determines if vision analysis is needed\n- Retrieves relevant knowledge from RAG\n- Queries knowledge graph for relationships\n- Searches for organizations if needed\n- Generates final response with LLM",
+              "operationId": "chat_api_v1_chat__post",
+              "requestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/schemas/ChatRequest"
+                    }
+                  }
+                },
+                "required": true
+              },
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/ChatResponse"
+                      }
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/api/v1/chat/simple": {
+            "post": {
+              "tags": [
+                "chat"
+              ],
+              "summary": "Simple Chat",
+              "description": "Simple chat endpoint (direct to LLM, no orchestration)\n\nFor basic questions that don't need vision/RAG/KG",
+              "operationId": "simple_chat_api_v1_chat_simple_post",
+              "requestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/schemas/ChatRequest"
+                    }
+                  }
+                },
+                "required": true
+              },
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/ChatResponse"
+                      }
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/api/v1/chat/health": {
+            "get": {
+              "tags": [
+                "chat"
+              ],
+              "summary": "Health",
+              "description": "Health check",
+              "operationId": "health_api_v1_chat_health_get",
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/api/v1/vision/analyze": {
+            "post": {
+              "tags": [
+                "vision"
+              ],
+              "summary": "Analyze Image",
+              "description": "Complete image analysis endpoint",
+              "operationId": "analyze_image_api_v1_vision_analyze_post",
+              "requestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/schemas/VisionRequest"
+                    }
+                  }
+                },
+                "required": true
+              },
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/VisionResponse"
+                      }
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/api/v1/vision/detect": {
+            "post": {
+              "tags": [
+                "vision"
+              ],
+              "summary": "Detect Objects",
+              "description": "Object detection only endpoint\nFaster endpoint for just detecting objects without classification",
+              "operationId": "detect_objects_api_v1_vision_detect_post",
+              "requestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/schemas/VisionRequest"
+                    }
+                  }
+                },
+                "required": true
+              },
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/api/v1/vision/classify": {
+            "post": {
+              "tags": [
+                "vision"
+              ],
+              "summary": "Classify Image",
+              "description": "Classification only endpoint\n\nFor classifying the whole image without object detection",
+              "operationId": "classify_image_api_v1_vision_classify_post",
+              "requestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/schemas/VisionRequest"
+                    }
+                  }
+                },
+                "required": true
+              },
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/api/v1/vision/health": {
+            "get": {
+              "tags": [
+                "vision"
+              ],
+              "summary": "Health",
+              "description": "Health check",
+              "operationId": "health_api_v1_vision_health_get",
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/api/v1/organizations/search": {
+            "post": {
+              "tags": [
+                "organizations"
+              ],
+              "summary": "Search Organizations",
+              "description": "Search for organizations near a location\n\nFinds:\n- Charities accepting donations\n- Recycling centers\n- Sustainability organizations\n- Waste management facilities",
+              "operationId": "search_organizations_api_v1_organizations_search_post",
+              "requestBody": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/schemas/OrganizationSearchRequest"
+                    }
+                  }
+                },
+                "required": true
+              },
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/OrganizationSearchResponse"
+                      }
+                    }
+                  }
+                },
+                "422": {
+                  "description": "Validation Error",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HTTPValidationError"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/api/v1/organizations/types": {
+            "get": {
+              "tags": [
+                "organizations"
+              ],
+              "summary": "Get Organization Types",
+              "description": "Get available organization types",
+              "operationId": "get_organization_types_api_v1_organizations_types_get",
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/api/v1/organizations/materials": {
+            "get": {
+              "tags": [
+                "organizations"
+              ],
+              "summary": "Get Accepted Materials",
+              "description": "Get list of materials that organizations might accept",
+              "operationId": "get_accepted_materials_api_v1_organizations_materials_get",
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/api/v1/organizations/health": {
+            "get": {
+              "tags": [
+                "organizations"
+              ],
+              "summary": "Health",
+              "description": "Health check",
+              "operationId": "health_api_v1_organizations_health_get",
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/": {
+            "get": {
+              "summary": "Root",
+              "description": "Root endpoint",
+              "operationId": "root__get",
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "additionalProperties": {
+                          "type": "string"
+                        },
+                        "type": "object",
+                        "title": "Response Root  Get"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/health": {
+            "get": {
+              "summary": "Health Check",
+              "description": "Health check endpoint",
+              "operationId": "health_check_health_get",
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/HealthResponse"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/health/ios": {
+            "get": {
+              "summary": "Ios Health Check",
+              "description": "iOS-specific health check with client info",
+              "operationId": "ios_health_check_health_ios_get",
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Response Ios Health Check Health Ios Get"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/health/live": {
+            "get": {
+              "summary": "Liveness",
+              "description": "Liveness probe - is service alive?",
+              "operationId": "liveness_health_live_get",
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/health/ready": {
+            "get": {
+              "summary": "Readiness",
+              "description": "Readiness probe - is service ready for traffic?",
+              "operationId": "readiness_health_ready_get",
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/health/startup": {
+            "get": {
+              "summary": "Startup Probe",
+              "description": "Startup probe - has service finished initialization?",
+              "operationId": "startup_probe_health_startup_get",
+              "responses": {
+                "200": {
+                  "description": "Successful Response",
+                  "content": {
+                    "application/json": {
+                      "schema": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "components": {
+          "schemas": {
+            "ChatMessage": {
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "system",
+                    "user",
+                    "assistant",
+                    "tool"
+                  ],
+                  "title": "Role"
+                },
+                "content": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Content"
+                },
+                "tool_calls": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Tool Calls"
+                },
+                "tool_call_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Tool Call Id"
+                }
+              },
+              "type": "object",
+              "required": [
+                "role"
+              ],
+              "title": "ChatMessage",
+              "description": "Chat message"
+            },
+            "ChatRequest": {
+              "properties": {
+                "messages": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChatMessage"
+                  },
+                  "type": "array",
+                  "title": "Messages"
+                },
+                "image": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Image",
+                  "description": "Base64 encoded image"
+                },
+                "image_url": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Image Url",
+                  "description": "URL to image"
+                },
+                "location": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/services__api_gateway__schemas__Location"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "max_tokens": {
+                  "type": "integer",
+                  "maximum": 4096.0,
+                  "minimum": 1.0,
+                  "title": "Max Tokens",
+                  "default": 512
+                },
+                "temperature": {
+                  "type": "number",
+                  "maximum": 2.0,
+                  "minimum": 0.0,
+                  "title": "Temperature",
+                  "default": 0.7
+                },
+                "stream": {
+                  "type": "boolean",
+                  "title": "Stream",
+                  "default": false
+                }
+              },
+              "type": "object",
+              "required": [
+                "messages"
+              ],
+              "title": "ChatRequest",
+              "description": "Chat request"
+            },
+            "ChatResponse": {
+              "properties": {
+                "response": {
+                  "type": "string",
+                  "title": "Response"
+                },
+                "sources": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Sources"
+                },
+                "suggestions": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Suggestions"
+                },
+                "processing_time_ms": {
+                  "type": "number",
+                  "title": "Processing Time Ms"
+                },
+                "confidence_score": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Confidence Score"
+                },
+                "confidence_level": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Confidence Level"
+                },
+                "warnings": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Warnings"
+                },
+                "citations": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Citations"
+                },
+                "fallback_used": {
+                  "type": "boolean",
+                  "title": "Fallback Used",
+                  "default": false
+                },
+                "partial_answer": {
+                  "type": "boolean",
+                  "title": "Partial Answer",
+                  "default": false
+                },
+                "response_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Id"
+                },
+                "metadata": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Metadata"
+                }
+              },
+              "type": "object",
+              "required": [
+                "response",
+                "processing_time_ms"
+              ],
+              "title": "ChatResponse",
+              "description": "Chat response"
+            },
+            "DetectionResult": {
+              "properties": {
+                "bbox": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array",
+                  "title": "Bbox"
+                },
+                "class_name": {
+                  "type": "string",
+                  "title": "Class Name"
+                },
+                "confidence": {
+                  "type": "number",
+                  "title": "Confidence"
+                },
+                "area": {
+                  "type": "number",
+                  "title": "Area"
+                }
+              },
+              "type": "object",
+              "required": [
+                "bbox",
+                "class_name",
+                "confidence",
+                "area"
+              ],
+              "title": "DetectionResult",
+              "description": "Detection result"
+            },
+            "HTTPValidationError": {
+              "properties": {
+                "detail": {
+                  "items": {
+                    "$ref": "#/components/schemas/ValidationError"
+                  },
+                  "type": "array",
+                  "title": "Detail"
+                }
+              },
+              "type": "object",
+              "title": "HTTPValidationError"
+            },
+            "HealthResponse": {
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "healthy",
+                    "degraded",
+                    "unhealthy"
+                  ],
+                  "title": "Status"
+                },
+                "timestamp": {
+                  "type": "string",
+                  "format": "date-time",
+                  "title": "Timestamp"
+                },
+                "services": {
+                  "additionalProperties": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "object",
+                  "title": "Services"
+                }
+              },
+              "type": "object",
+              "required": [
+                "status",
+                "timestamp",
+                "services"
+              ],
+              "title": "HealthResponse",
+              "description": "Health check response"
+            },
+            "Location-Output": {
+              "properties": {
+                "latitude": {
+                  "type": "number",
+                  "maximum": 90.0,
+                  "minimum": -90.0,
+                  "title": "Latitude",
+                  "description": "Latitude"
+                },
+                "longitude": {
+                  "type": "number",
+                  "maximum": 180.0,
+                  "minimum": -180.0,
+                  "title": "Longitude",
+                  "description": "Longitude"
+                }
+              },
+              "type": "object",
+              "required": [
+                "latitude",
+                "longitude"
+              ],
+              "title": "Location",
+              "description": "Geographic location"
+            },
+            "Organization": {
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "title": "Id"
+                },
+                "name": {
+                  "type": "string",
+                  "title": "Name"
+                },
+                "org_type": {
+                  "type": "string",
+                  "title": "Org Type"
+                },
+                "address": {
+                  "type": "string",
+                  "title": "Address"
+                },
+                "city": {
+                  "type": "string",
+                  "title": "City"
+                },
+                "state": {
+                  "type": "string",
+                  "title": "State"
+                },
+                "zip_code": {
+                  "type": "string",
+                  "title": "Zip Code"
+                },
+                "latitude": {
+                  "type": "number",
+                  "title": "Latitude"
+                },
+                "longitude": {
+                  "type": "number",
+                  "title": "Longitude"
+                },
+                "distance_km": {
+                  "type": "number",
+                  "title": "Distance Km"
+                },
+                "phone": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Phone"
+                },
+                "website": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Website"
+                },
+                "email": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Email"
+                },
+                "accepted_materials": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Accepted Materials"
+                },
+                "operating_hours": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Operating Hours"
+                },
+                "description": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Description"
+                }
+              },
+              "type": "object",
+              "required": [
+                "id",
+                "name",
+                "org_type",
+                "address",
+                "city",
+                "state",
+                "zip_code",
+                "latitude",
+                "longitude",
+                "distance_km",
+                "phone",
+                "website",
+                "email",
+                "accepted_materials",
+                "operating_hours",
+                "description"
+              ],
+              "title": "Organization",
+              "description": "Organization result"
+            },
+            "OrganizationSearchRequest": {
+              "properties": {
+                "location": {
+                  "$ref": "#/components/schemas/services__api_gateway__routers__organizations__Location",
+                  "description": "Search center location"
+                },
+                "radius_km": {
+                  "type": "number",
+                  "maximum": 100.0,
+                  "minimum": 0.1,
+                  "title": "Radius Km",
+                  "description": "Search radius in kilometers",
+                  "default": 10.0
+                },
+                "org_type": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Org Type",
+                  "description": "Organization type filter"
+                },
+                "accepted_materials": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Accepted Materials",
+                  "description": "Filter by accepted materials"
+                },
+                "limit": {
+                  "type": "integer",
+                  "maximum": 100.0,
+                  "minimum": 1.0,
+                  "title": "Limit",
+                  "description": "Max results",
+                  "default": 20
+                }
+              },
+              "type": "object",
+              "required": [
+                "location"
+              ],
+              "title": "OrganizationSearchRequest",
+              "description": "Organization search request"
+            },
+            "OrganizationSearchResponse": {
+              "properties": {
+                "organizations": {
+                  "items": {
+                    "$ref": "#/components/schemas/Organization"
+                  },
+                  "type": "array",
+                  "title": "Organizations"
+                },
+                "num_results": {
+                  "type": "integer",
+                  "title": "Num Results"
+                },
+                "search_location": {
+                  "$ref": "#/components/schemas/Location-Output"
+                },
+                "search_radius_km": {
+                  "type": "number",
+                  "title": "Search Radius Km"
+                },
+                "query_time_ms": {
+                  "type": "number",
+                  "title": "Query Time Ms"
+                }
+              },
+              "type": "object",
+              "required": [
+                "organizations",
+                "num_results",
+                "search_location",
+                "search_radius_km",
+                "query_time_ms"
+              ],
+              "title": "OrganizationSearchResponse",
+              "description": "Organization search response"
+            },
+            "RecommendationResult": {
+              "properties": {
+                "target_material": {
+                  "type": "string",
+                  "title": "Target Material"
+                },
+                "score": {
+                  "type": "number",
+                  "title": "Score"
+                },
+                "difficulty": {
+                  "type": "integer",
+                  "title": "Difficulty"
+                },
+                "time_required_minutes": {
+                  "type": "integer",
+                  "title": "Time Required Minutes"
+                },
+                "tools_required": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Tools Required"
+                },
+                "skills_required": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Skills Required"
+                }
+              },
+              "type": "object",
+              "required": [
+                "target_material",
+                "score",
+                "difficulty",
+                "time_required_minutes",
+                "tools_required",
+                "skills_required"
+              ],
+              "title": "RecommendationResult",
+              "description": "Upcycling recommendation from GNN"
+            },
+            "ValidationError": {
+              "properties": {
+                "loc": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "array",
+                  "title": "Location"
+                },
+                "msg": {
+                  "type": "string",
+                  "title": "Message"
+                },
+                "type": {
+                  "type": "string",
+                  "title": "Error Type"
+                },
+                "input": {
+                  "title": "Input"
+                },
+                "ctx": {
+                  "type": "object",
+                  "title": "Context"
+                }
+              },
+              "type": "object",
+              "required": [
+                "loc",
+                "msg",
+                "type"
+              ],
+              "title": "ValidationError"
+            },
+            "VisionClassificationResult": {
+              "properties": {
+                "item_type": {
+                  "type": "string",
+                  "title": "Item Type"
+                },
+                "item_confidence": {
+                  "type": "number",
+                  "title": "Item Confidence"
+                },
+                "material_type": {
+                  "type": "string",
+                  "title": "Material Type"
+                },
+                "material_confidence": {
+                  "type": "number",
+                  "title": "Material Confidence"
+                },
+                "bin_type": {
+                  "type": "string",
+                  "title": "Bin Type"
+                },
+                "bin_confidence": {
+                  "type": "number",
+                  "title": "Bin Confidence"
+                },
+                "top_k_items": {
+                  "items": {
+                    "items": {},
+                    "type": "array"
+                  },
+                  "type": "array",
+                  "title": "Top K Items"
+                },
+                "top_k_materials": {
+                  "items": {
+                    "items": {},
+                    "type": "array"
+                  },
+                  "type": "array",
+                  "title": "Top K Materials"
+                }
+              },
+              "type": "object",
+              "required": [
+                "item_type",
+                "item_confidence",
+                "material_type",
+                "material_confidence",
+                "bin_type",
+                "bin_confidence",
+                "top_k_items",
+                "top_k_materials"
+              ],
+              "title": "VisionClassificationResult",
+              "description": "Complete classification result with multi-head outputs"
+            },
+            "VisionRequest": {
+              "properties": {
+                "image_b64": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Image B64",
+                  "description": "Base64 encoded image"
+                },
+                "image_url": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Image Url",
+                  "description": "Image URL"
+                },
+                "enable_detection": {
+                  "type": "boolean",
+                  "title": "Enable Detection",
+                  "description": "Enable object detection",
+                  "default": true
+                },
+                "enable_classification": {
+                  "type": "boolean",
+                  "title": "Enable Classification",
+                  "description": "Enable classification",
+                  "default": true
+                },
+                "enable_recommendations": {
+                  "type": "boolean",
+                  "title": "Enable Recommendations",
+                  "description": "Enable GNN recommendations",
+                  "default": false
+                },
+                "top_k": {
+                  "type": "integer",
+                  "maximum": 20.0,
+                  "minimum": 1.0,
+                  "title": "Top K",
+                  "description": "Top-K classification results",
+                  "default": 5
+                }
+              },
+              "type": "object",
+              "title": "VisionRequest",
+              "description": "Vision analysis request"
+            },
+            "VisionResponse": {
+              "properties": {
+                "detections": {
+                  "items": {
+                    "$ref": "#/components/schemas/DetectionResult"
+                  },
+                  "type": "array",
+                  "title": "Detections"
+                },
+                "num_detections": {
+                  "type": "integer",
+                  "title": "Num Detections"
+                },
+                "classification": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/VisionClassificationResult"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "recommendations": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "$ref": "#/components/schemas/RecommendationResult"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Recommendations"
+                },
+                "image_size": {
+                  "items": {},
+                  "type": "array",
+                  "title": "Image Size"
+                },
+                "image_format": {
+                  "type": "string",
+                  "title": "Image Format"
+                },
+                "image_quality_score": {
+                  "type": "number",
+                  "title": "Image Quality Score"
+                },
+                "confidence_score": {
+                  "type": "number",
+                  "title": "Confidence Score"
+                },
+                "total_time_ms": {
+                  "type": "number",
+                  "title": "Total Time Ms"
+                },
+                "detection_time_ms": {
+                  "type": "number",
+                  "title": "Detection Time Ms"
+                },
+                "classification_time_ms": {
+                  "type": "number",
+                  "title": "Classification Time Ms"
+                },
+                "recommendation_time_ms": {
+                  "type": "number",
+                  "title": "Recommendation Time Ms"
+                },
+                "warnings": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Warnings"
+                },
+                "errors": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Errors"
+                }
+              },
+              "type": "object",
+              "required": [
+                "detections",
+                "num_detections",
+                "classification",
+                "recommendations",
+                "image_size",
+                "image_format",
+                "image_quality_score",
+                "confidence_score",
+                "total_time_ms",
+                "detection_time_ms",
+                "classification_time_ms",
+                "recommendation_time_ms",
+                "warnings",
+                "errors"
+              ],
+              "title": "VisionResponse",
+              "description": "Complete vision analysis response"
+            },
+            "services__api_gateway__routers__organizations__Location": {
+              "properties": {
+                "latitude": {
+                  "type": "number",
+                  "maximum": 90.0,
+                  "minimum": -90.0,
+                  "title": "Latitude",
+                  "description": "Latitude"
+                },
+                "longitude": {
+                  "type": "number",
+                  "maximum": 180.0,
+                  "minimum": -180.0,
+                  "title": "Longitude",
+                  "description": "Longitude"
+                }
+              },
+              "type": "object",
+              "required": [
+                "latitude",
+                "longitude"
+              ],
+              "title": "Location",
+              "description": "Geographic location"
+            },
+            "services__api_gateway__schemas__Location": {
+              "properties": {
+                "lat": {
+                  "type": "number",
+                  "maximum": 90.0,
+                  "minimum": -90.0,
+                  "title": "Lat",
+                  "description": "Latitude"
+                },
+                "lon": {
+                  "type": "number",
+                  "maximum": 180.0,
+                  "minimum": -180.0,
+                  "title": "Lon",
+                  "description": "Longitude"
+                }
+              },
+              "type": "object",
+              "required": [
+                "lat",
+                "lon"
+              ],
+              "title": "Location",
+              "description": "Geographic location"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "OPTIONS /api/v1/chat/",
+      "ok": true,
+      "status_code": 200,
+      "latency_ms": 0.9684999999999278,
+      "error": null,
+      "details": {
+        "allow_origin": "capacitor://localhost"
+      }
+    },
+    {
+      "name": "POST /api/v1/chat/ text_chat",
+      "ok": false,
+      "status_code": 401,
+      "latency_ms": 0.9381669999999342,
+      "error": null,
+      "details": {
+        "missing_fields": [
+          "citations",
+          "confidence_level",
+          "confidence_score",
+          "fallback_used",
+          "metadata",
+          "partial_answer",
+          "processing_time_ms",
+          "response",
+          "sources",
+          "suggestions",
+          "warnings"
+        ],
+        "confidence_score": null,
+        "confidence_level": null,
+        "fallback_used": null,
+        "partial_answer": null,
+        "response_preview": ""
+      }
+    },
+    {
+      "name": "POST /api/v1/chat/ multimodal_chat",
+      "ok": false,
+      "status_code": 401,
+      "latency_ms": 0.6577920000000459,
+      "error": null,
+      "details": {
+        "missing_fields": [
+          "citations",
+          "confidence_level",
+          "confidence_score",
+          "fallback_used",
+          "metadata",
+          "partial_answer",
+          "processing_time_ms",
+          "response",
+          "sources",
+          "suggestions",
+          "warnings"
+        ],
+        "confidence_score": null,
+        "confidence_level": null,
+        "fallback_used": null,
+        "partial_answer": null,
+        "response_preview": ""
+      }
+    }
+  ]
+}

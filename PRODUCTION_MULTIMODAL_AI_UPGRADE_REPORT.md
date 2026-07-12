@@ -861,3 +861,118 @@ Residual warnings:
 7. Exercise LLM service with a live backend and verify prompt-grounded citation behavior.
 8. Migrate FastAPI `on_event` hooks to lifespan handlers.
 9. Promote the data-pipeline and multimodal stress harnesses into CI and run them against live containers once Docker/Linux execution is available.
+
+## RGB-D/LiDAR Dataset Research And R2 Readiness Pass - 2026-07-12
+
+Scope:
+
+- Researched professional calibrated RGB-D/LiDAR/stereo datasets from primary sources.
+- Selected datasets based on mobile/iOS relevance, camera calibration availability, 3D labels, scale, access terms, and usefulness for ReleAF's 3D/mobile waste-recognition roadmap.
+- Added R2-aware dataset mirroring infrastructure.
+- Added a strict RGB-D/3D manifest loader and validator for training readiness.
+- Did not upload data because the provided R2 bucket/account/endpoint details do not include write credentials.
+
+Dataset decision:
+
+- Primary immediate dataset: ARKitScenes 3DOD.
+  - Reason: best match for iOS/mobile deployment because it includes Apple LiDAR-style mobile RGB-D, intrinsics, camera poses, depth, and oriented 3D bounding boxes.
+  - Reported 3DOD size: 623.4 GB for 5,047 scans.
+- Primary object-centric complement: Objectron relevant classes.
+  - Reason: mobile AR object-centric videos with 3D boxes, camera poses, sparse point clouds, and everyday objects overlapping ReleAF labels.
+  - Relevant classes selected: `bottle`, `cup`, `book`, `cereal_box`, `shoe`, `laptop`, `chair`, `camera`.
+  - Full selected-class plan generated with annotations, AR metadata, and videos.
+- Baseline compact RGB-D benchmark: SUN RGB-D.
+- Gated reference datasets: ScanNet and ScanNet++.
+  - Reason: strong 3D scene understanding references, but not mirrorable without accepted terms/token/application approval.
+
+Files added:
+
+- `configs/vision_3d_datasets.yaml`
+- `configs/vision_3d_training.yaml`
+- `docs/3D_DATASET_RESEARCH_AND_R2_PLAN.md`
+- `scripts/r2_3d_dataset_mirror.py`
+- `scripts/validate_rgbd_manifest.py`
+- `training/vision/rgbd_dataset.py`
+- `tests/unit/test_rgbd_dataset_and_r2_plan.py`
+
+Files modified:
+
+- `pyproject.toml`
+- `requirements.txt`
+- `requirements-arm.txt`
+- `PRODUCTION_MULTIMODAL_AI_UPGRADE_REPORT.md`
+
+Implementation details:
+
+- Added a dataset manifest that records dataset priorities, modalities, source URLs, license summaries, required assets, R2 prefixes, and training use.
+- Added an R2 mirror tool with commands:
+  - `preflight`
+  - `objectron-plan`
+  - `upload-url-list`
+  - `upload-local`
+- The R2 mirror tool fails closed unless `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are provided externally.
+- The R2 mirror tool uses streaming upload for URL objects instead of buffering whole files in memory.
+- Added `boto3` as an explicit dependency for S3-compatible Cloudflare R2 transfer.
+- Added a manifest-based RGB-D/3D dataset loader that validates:
+  - RGB path.
+  - Depth path.
+  - Positive finite depth.
+  - Camera intrinsics and depth dimensions.
+  - SE(3) camera pose validity.
+  - Required 3D boxes.
+  - Local paths and `s3://` paths via explicit R2 cache.
+- Added `scripts/validate_rgbd_manifest.py` as the pre-training data gate for R2-backed calibrated RGB-D manifests.
+
+Commands run and results:
+
+```text
+python -m compileall -q scripts/r2_3d_dataset_mirror.py scripts/validate_rgbd_manifest.py training/vision/rgbd_dataset.py
+PASS
+
+pytest -q --no-cov tests/unit/test_rgbd_dataset_and_r2_plan.py
+PASS: 8 passed
+
+python scripts/r2_3d_dataset_mirror.py preflight
+PASS as credential audit: credentials_present=false
+Blocked upload reason: missing AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+
+python scripts/r2_3d_dataset_mirror.py objectron-plan --classes cup bottle --splits test --max-items-per-class-split 1
+PASS: generated 6-object dry-run R2 plan
+
+python scripts/r2_3d_dataset_mirror.py upload-url-list --plan outputs/r2_3d_ingestion/objectron_plan_20260712T053826Z.jsonl
+PASS: dry-run, execute=false
+
+python scripts/r2_3d_dataset_mirror.py upload-url-list --plan outputs/r2_3d_ingestion/objectron_plan_20260712T053826Z.jsonl --execute
+EXPECTED BLOCKED: exit code 2, missing R2 credentials, no traceback
+
+python scripts/r2_3d_dataset_mirror.py objectron-plan --classes bottle cup book cereal_box shoe laptop chair camera --splits train test --include-videos
+PASS: generated full selected-class Objectron plan with 42,349 planned objects
+Plan path: outputs/r2_3d_ingestion/objectron_plan_20260712T053949Z.jsonl
+
+pytest -q --no-cov tests/unit/test_rgbd_dataset_and_r2_plan.py tests/unit/test_depth_geometry.py tests/unit/test_vision_3d_endpoint_contract.py tests/unit/test_data_pipeline_stress_validator.py
+PASS: 28 passed, 4 warnings
+
+python scripts/validate_rgbd_manifest.py --config configs/vision_3d_training.yaml --max-samples-per-split 1
+EXPECTED BLOCKED: manifest_file_present failed because data/manifests/vision_3d_train.jsonl does not exist yet
+
+Secret scan for AWS/R2/private-key patterns outside data/outputs/htmlcov:
+PASS: no matches
+```
+
+Remaining blockers:
+
+- R2 upload cannot be performed from this environment without R2 write credentials:
+  - `AWS_ACCESS_KEY_ID`
+  - `AWS_SECRET_ACCESS_KEY`
+  - optional `AWS_SESSION_TOKEN`
+- ARKitScenes should be downloaded through Apple's official downloader and terms must be confirmed before mirroring.
+- ScanNet and ScanNet++ require accepted terms/application/token access before download or R2 mirroring.
+- No R2-backed training manifest exists yet; after upload, generate `data/manifests/vision_3d_train.jsonl` and run `scripts/validate_rgbd_manifest.py`.
+- Learned 3D waste classification remains not production-ready until these datasets are mapped to ReleAF item/material/bin labels and a trained/evaluated 3D or multimodal model exists.
+
+Updated readiness:
+
+- R2 ingestion infrastructure: ready pending credentials and license confirmation.
+- RGB-D training data contract: implemented and tested.
+- R2 bucket contents: not changed in this pass because credentials were not available.
+- Deployment verdict remains `STAGING READY`, not `PRODUCTION READY`.

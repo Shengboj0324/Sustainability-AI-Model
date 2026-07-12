@@ -1,0 +1,117 @@
+{
+  "ok": true,
+  "summary": {
+    "passed": 7,
+    "errors": 0,
+    "warnings": 1,
+    "duration_ms": 3677.44
+  },
+  "checks": [
+    {
+      "name": "vision_training_checkpoint_present",
+      "passed": true,
+      "severity": "error",
+      "detail": "vision checkpoint must exist and be non-empty",
+      "metrics": {
+        "path": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/models/vision/classifier/best_model.pth",
+        "size_gb": 3.479
+      }
+    },
+    {
+      "name": "vision_inference_checkpoint_mobile_adjacent_size",
+      "passed": true,
+      "severity": "warning",
+      "detail": "inference-only vision checkpoint must exist and fit bounded deployment threshold",
+      "metrics": {
+        "path": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/models/vision/classifier/inference_model.pth",
+        "size_gb": 1.212,
+        "threshold_gb": 1.5,
+        "source_training_size_gb": 3.479
+      }
+    },
+    {
+      "name": "vision_legacy_architecture_forward",
+      "passed": true,
+      "severity": "error",
+      "detail": "legacy deployed multi-head architecture must run finite forward pass",
+      "metrics": {
+        "item_shape": [
+          2,
+          30
+        ],
+        "material_shape": [
+          2,
+          15
+        ],
+        "bin_shape": [
+          2,
+          4
+        ]
+      }
+    },
+    {
+      "name": "vision_physics_architecture_forward",
+      "passed": true,
+      "severity": "error",
+      "detail": "physics-informed architecture must run finite forward pass with legal taxonomy decisions",
+      "metrics": {
+        "item_shape": [
+          2,
+          30
+        ],
+        "material_shape": [
+          2,
+          16
+        ],
+        "bin_shape": [
+          2,
+          6
+        ],
+        "decision_violation_rate": 0.0
+      }
+    },
+    {
+      "name": "gnn_canonical_forward",
+      "passed": true,
+      "severity": "error",
+      "detail": "GNN must produce finite embeddings for the canonical processed graph",
+      "metrics": {
+        "nodes": 72,
+        "edges": 252,
+        "input_dim": 128,
+        "output_shape": [
+          72,
+          64
+        ],
+        "mean_abs": 0.10982906073331833
+      }
+    },
+    {
+      "name": "three_d_depth_geometry_contract",
+      "passed": true,
+      "severity": "error",
+      "detail": "Depth/RGB-D geometry contract must decode, validate, and project calibrated depth",
+      "metrics": {
+        "point_count": 20,
+        "valid_pixel_ratio": 1.0,
+        "model_available": false
+      }
+    },
+    {
+      "name": "three_d_camera_stabilized_flow_invariant",
+      "passed": true,
+      "severity": "error",
+      "detail": "Camera-stabilized 3D flow must remove ego-motion for static world points",
+      "metrics": {
+        "max_abs_flow": 0.0
+      }
+    },
+    {
+      "name": "three_d_learned_model_capability",
+      "passed": false,
+      "severity": "warning",
+      "detail": "No trained RGB-D/stereo/depth/point-cloud waste classifier or benchmark dataset is configured; current 3D runtime is geometry analysis only",
+      "metrics": {}
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "base_url": "http://localhost:8080",
+  "requests": 120,
+  "concurrency": 16,
+  "ok": true,
+  "successes": 120,
+  "failures": 0,
+  "latency_ms": {
+    "min": 17.362667,
+    "p50": 73.33335449999996,
+    "p95": 104.96757770000002,
+    "max": 114.92191600000001
+  },
+  "by_route": {
+    "multimodal": {
+      "ok": 30,
+      "failed": 0
+    },
+    "safety": {
+      "ok": 30,
+      "failed": 0
+    },
+    "org_search_intent": {
+      "ok": 30,
+      "failed": 0
+    },
+    "text_recycling": {
+      "ok": 30,
+      "failed": 0
+    }
+  },
+  "sample_failures": []
+}

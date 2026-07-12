@@ -1,0 +1,20 @@
+{
+  "checks": [
+    {
+      "detail": "RGB-D manifest file must exist",
+      "metrics": {
+        "manifest_path": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/data/manifests/vision_3d_train.jsonl"
+      },
+      "name": "manifest_file_present",
+      "passed": false,
+      "severity": "error"
+    }
+  ],
+  "ok": false,
+  "summary": {
+    "duration_ms": 0.04,
+    "errors": 1,
+    "passed": 0,
+    "warnings": 0
+  }
+}

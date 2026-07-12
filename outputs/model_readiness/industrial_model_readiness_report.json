@@ -1,0 +1,326 @@
+{
+  "summary": {
+    "passed": 24,
+    "warnings": 1,
+    "errors": 0,
+    "industrial_ready": false,
+    "staging_ready": true
+  },
+  "results": [
+    {
+      "name": "active_vision_data_dir",
+      "passed": true,
+      "severity": "error",
+      "message": "Active vision data directory must exist",
+      "details": {
+        "data_dir": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/data/processed/vision_cls_clean"
+      }
+    },
+    {
+      "name": "active_vision_uses_clean_split",
+      "passed": true,
+      "severity": "error",
+      "message": "Active vision training must use the clean leakage-free split",
+      "details": {
+        "data_dir": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/data/processed/vision_cls_clean"
+      }
+    },
+    {
+      "name": "vision_item_class_count",
+      "passed": true,
+      "severity": "error",
+      "message": "Vision item class count must match configured output dimension",
+      "details": {
+        "configured": 30,
+        "listed": 30
+      }
+    },
+    {
+      "name": "vision_material_class_count",
+      "passed": true,
+      "severity": "error",
+      "message": "Vision material class list must match configured output dimension",
+      "details": {
+        "configured": 15,
+        "listed": 15
+      }
+    },
+    {
+      "name": "vision_bin_contract_declared",
+      "passed": true,
+      "severity": "error",
+      "message": "Vision bin output dimension must be declared",
+      "details": {
+        "configured": 4
+      }
+    },
+    {
+      "name": "vision_classifier_training_checkpoint",
+      "passed": true,
+      "severity": "error",
+      "message": "Checkpoint file must exist and be non-empty",
+      "details": {
+        "path": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/models/vision/classifier/best_model.pth",
+        "size_bytes": 3735221702,
+        "size_gb": 3.479
+      }
+    },
+    {
+      "name": "vision_classifier_inference_checkpoint",
+      "passed": true,
+      "severity": "error",
+      "message": "Checkpoint file must exist and be non-empty",
+      "details": {
+        "path": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/models/vision/classifier/inference_model.pth",
+        "size_bytes": 1301109516,
+        "size_gb": 1.212
+      }
+    },
+    {
+      "name": "vision_classifier_inference_checkpoint_deployable_size",
+      "passed": true,
+      "severity": "warning",
+      "message": "Checkpoint is very large for container/mobile-adjacent deployment; export/quantization is required",
+      "details": {
+        "path": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/models/vision/classifier/inference_model.pth",
+        "size_gb": 1.212,
+        "threshold_gb": 1.5
+      }
+    },
+    {
+      "name": "vision_split_minimum_volume",
+      "passed": true,
+      "severity": "error",
+      "message": "Vision splits must have enough images for meaningful training/evaluation",
+      "details": {
+        "counts": {
+          "train": 18147,
+          "val": 2259,
+          "test": 2296
+        },
+        "min_total_images": 10000
+      }
+    },
+    {
+      "name": "vision_exact_split_leakage",
+      "passed": true,
+      "severity": "error",
+      "message": "No exact image hashes may appear in more than one split",
+      "details": {
+        "leak_count": 0,
+        "sample": []
+      }
+    },
+    {
+      "name": "vision_sample_decode_integrity",
+      "passed": true,
+      "severity": "error",
+      "message": "Sampled images must decode with EXIF handling",
+      "details": {
+        "sample_per_split": 100,
+        "failure_count": 0,
+        "failures": []
+      }
+    },
+    {
+      "name": "taxonomy_item_alignment",
+      "passed": true,
+      "severity": "error",
+      "message": "Configured item classes must match canonical taxonomy order",
+      "details": {
+        "configured_count": 30,
+        "taxonomy_count": 30
+      }
+    },
+    {
+      "name": "taxonomy_material_dimension_gap",
+      "passed": true,
+      "severity": "warning",
+      "message": "Legacy material head gaps must be mitigated by taxonomy-derived serving decisions",
+      "details": {
+        "extra_materials": [
+          "EPS",
+          "coated_paper",
+          "organic",
+          "textile"
+        ],
+        "configured_material_count": 15,
+        "taxonomy_material_count": 16,
+        "serving_derives_canonical_disposal": true
+      }
+    },
+    {
+      "name": "taxonomy_bin_dimension_gap",
+      "passed": true,
+      "severity": "warning",
+      "message": "Legacy bin head gaps must be mitigated by taxonomy-derived serving decisions",
+      "details": {
+        "configured_bins": 4,
+        "taxonomy_bins": [
+          "recycle",
+          "compost",
+          "landfill",
+          "hazardous",
+          "special",
+          "donate"
+        ],
+        "serving_derives_canonical_disposal": true
+      }
+    },
+    {
+      "name": "three_d_depth_geometry_contract",
+      "passed": true,
+      "severity": "error",
+      "message": "Depth/RGB-D geometry ingestion, validation, and API contract must exist",
+      "details": {
+        "depth_module": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/models/vision/depth_geometry.py",
+        "service_endpoint": true,
+        "gateway_endpoint": true,
+        "tests": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/tests/unit/test_depth_geometry.py"
+      }
+    },
+    {
+      "name": "three_d_learned_model_capability",
+      "passed": false,
+      "severity": "warning",
+      "message": "No trained 3D waste-classification model, labeled RGB-D dataset, or benchmark is present; current 3D support is geometry analysis only",
+      "details": {
+        "detected_keywords": [
+          {
+            "file": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/models/vision/taxonomy.py",
+            "keyword": "mesh"
+          },
+          {
+            "file": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/models/vision/depth_geometry.py",
+            "keyword": "depth"
+          },
+          {
+            "file": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/services/vision_service/server_v2.py",
+            "keyword": "depth"
+          },
+          {
+            "file": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/training/vision/train_physics_informed.py",
+            "keyword": "depth"
+          },
+          {
+            "file": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/configs/vision_det.yaml",
+            "keyword": "depth"
+          }
+        ],
+        "required_external_assets": [
+          "calibrated RGB-D/LiDAR samples",
+          "camera intrinsics/extrinsics",
+          "item/material/bin labels",
+          "train/val/test split",
+          "3D benchmark metrics"
+        ]
+      }
+    },
+    {
+      "name": "gnn_checkpoint",
+      "passed": true,
+      "severity": "error",
+      "message": "Checkpoint file must exist and be non-empty",
+      "details": {
+        "path": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/models/gnn/ckpts/best_model.pth",
+        "size_bytes": 3986082,
+        "size_gb": 0.004
+      }
+    },
+    {
+      "name": "gnn_checkpoint_deployable_size",
+      "passed": true,
+      "severity": "warning",
+      "message": "Checkpoint is very large for container/mobile-adjacent deployment; export/quantization is required",
+      "details": {
+        "path": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/models/gnn/ckpts/best_model.pth",
+        "size_gb": 0.004,
+        "threshold_gb": 0.25
+      }
+    },
+    {
+      "name": "gnn_canonical_checkpoint",
+      "passed": true,
+      "severity": "error",
+      "message": "Checkpoint file must exist and be non-empty",
+      "details": {
+        "path": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/models/gnn/ckpts_canonical_smoke/best_model.pth",
+        "size_bytes": 3986146,
+        "size_gb": 0.004
+      }
+    },
+    {
+      "name": "gnn_canonical_checkpoint_deployable_size",
+      "passed": true,
+      "severity": "warning",
+      "message": "Checkpoint is very large for container/mobile-adjacent deployment; export/quantization is required",
+      "details": {
+        "path": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/models/gnn/ckpts_canonical_smoke/best_model.pth",
+        "size_gb": 0.004,
+        "threshold_gb": 0.25
+      }
+    },
+    {
+      "name": "gnn_canonical_training_metrics",
+      "passed": true,
+      "severity": "error",
+      "message": "Canonical GNN checkpoint must be trained and benchmarked on the upgraded graph",
+      "details": {
+        "best_val_acc": 0.8600000143051147,
+        "best_epoch": 21,
+        "test_acc": 0.7884615659713745,
+        "nodes": 72,
+        "edges": 252,
+        "train_edges": 201,
+        "val_edges": 25,
+        "test_edges": 26,
+        "num_epochs": 25
+      }
+    },
+    {
+      "name": "gnn_gatv2_checkpoint",
+      "passed": true,
+      "severity": "error",
+      "message": "Checkpoint file must exist and be non-empty",
+      "details": {
+        "path": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/checkpoints/best_gnn_gatv2.pth",
+        "size_bytes": 963154,
+        "size_gb": 0.001
+      }
+    },
+    {
+      "name": "gnn_gatv2_checkpoint_deployable_size",
+      "passed": true,
+      "severity": "warning",
+      "message": "Checkpoint is very large for container/mobile-adjacent deployment; export/quantization is required",
+      "details": {
+        "path": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/checkpoints/best_gnn_gatv2.pth",
+        "size_gb": 0.001,
+        "threshold_gb": 0.25
+      }
+    },
+    {
+      "name": "gnn_processed_contract_files",
+      "passed": true,
+      "severity": "error",
+      "message": "Processed GNN graph and node feature parquet files must exist",
+      "details": {
+        "graph": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/data/processed/gnn/graph.parquet",
+        "node_features": "/Users/jiangshengbo/Desktop/Sustainability-AI-Model/data/processed/gnn/node_features.parquet"
+      }
+    },
+    {
+      "name": "gnn_canonical_relationship_contract",
+      "passed": true,
+      "severity": "error",
+      "message": "GNN graph must expose canonical sustainability relationship types for training and inference",
+      "details": {
+        "nodes": 72,
+        "edges": 252,
+        "feature_dim": 128,
+        "missing_node_types": [],
+        "missing_relationships": []
+      }
+    }
+  ]
+}

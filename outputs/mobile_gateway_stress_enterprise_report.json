@@ -1,0 +1,134 @@
+{
+  "base_url": "http://localhost:8080",
+  "requests": 120,
+  "concurrency": 16,
+  "ok": false,
+  "successes": 20,
+  "failures": 100,
+  "latency_ms": {
+    "min": 12.238917000000015,
+    "p50": 33.97687449999998,
+    "p95": 118.36376664999997,
+    "max": 124.725166
+  },
+  "by_route": {
+    "multimodal": {
+      "ok": 5,
+      "failed": 25
+    },
+    "safety": {
+      "ok": 6,
+      "failed": 24
+    },
+    "org_search_intent": {
+      "ok": 5,
+      "failed": 25
+    },
+    "text_recycling": {
+      "ok": 4,
+      "failed": 26
+    }
+  },
+  "sample_failures": [
+    {
+      "index": 19,
+      "route": "text_recycling",
+      "status_code": 429,
+      "ok": false,
+      "latency_ms": 68.889292,
+      "confidence_score": null,
+      "confidence_level": null,
+      "error": "missing=['confidence_level', 'confidence_score', 'metadata', 'processing_time_ms', 'response']"
+    },
+    {
+      "index": 20,
+      "route": "multimodal",
+      "status_code": 429,
+      "ok": false,
+      "latency_ms": 27.990249999999996,
+      "confidence_score": null,
+      "confidence_level": null,
+      "error": "missing=['confidence_level', 'confidence_score', 'metadata', 'processing_time_ms', 'response']"
+    },
+    {
+      "index": 22,
+      "route": "org_search_intent",
+      "status_code": 429,
+      "ok": false,
+      "latency_ms": 41.91941700000002,
+      "confidence_score": null,
+      "confidence_level": null,
+      "error": "missing=['confidence_level', 'confidence_score', 'metadata', 'processing_time_ms', 'response']"
+    },
+    {
+      "index": 23,
+      "route": "text_recycling",
+      "status_code": 429,
+      "ok": false,
+      "latency_ms": 53.21916599999999,
+      "confidence_score": null,
+      "confidence_level": null,
+      "error": "missing=['confidence_level', 'confidence_score', 'metadata', 'processing_time_ms', 'response']"
+    },
+    {
+      "index": 24,
+      "route": "multimodal",
+      "status_code": 429,
+      "ok": false,
+      "latency_ms": 66.72387499999999,
+      "confidence_score": null,
+      "confidence_level": null,
+      "error": "missing=['confidence_level', 'confidence_score', 'metadata', 'processing_time_ms', 'response']"
+    },
+    {
+      "index": 25,
+      "route": "safety",
+      "status_code": 429,
+      "ok": false,
+      "latency_ms": 34.66220800000003,
+      "confidence_score": null,
+      "confidence_level": null,
+      "error": "missing=['confidence_level', 'confidence_score', 'metadata', 'processing_time_ms', 'response']"
+    },
+    {
+      "index": 26,
+      "route": "org_search_intent",
+      "status_code": 429,
+      "ok": false,
+      "latency_ms": 26.66637500000002,
+      "confidence_score": null,
+      "confidence_level": null,
+      "error": "missing=['confidence_level', 'confidence_score', 'metadata', 'processing_time_ms', 'response']"
+    },
+    {
+      "index": 27,
+      "route": "text_recycling",
+      "status_code": 429,
+      "ok": false,
+      "latency_ms": 36.30233300000002,
+      "confidence_score": null,
+      "confidence_level": null,
+      "error": "missing=['confidence_level', 'confidence_score', 'metadata', 'processing_time_ms', 'response']"
+    },
+    {
+      "index": 28,
+      "route": "multimodal",
+      "status_code": 429,
+      "ok": false,
+      "latency_ms": 31.772125000000038,
+      "confidence_score": null,
+      "confidence_level": null,
+      "error": "missing=['confidence_level', 'confidence_score', 'metadata', 'processing_time_ms', 'response']"
+    },
+    {
+      "index": 29,
+      "route": "safety",
+      "status_code": 429,
+      "ok": false,
+      "latency_ms": 42.05716700000001,
+      "confidence_score": null,
+      "confidence_level": null,
+      "error": "missing=['confidence_level', 'confidence_score', 'metadata', 'processing_time_ms', 'response']"
+    }
+  ]
+}
